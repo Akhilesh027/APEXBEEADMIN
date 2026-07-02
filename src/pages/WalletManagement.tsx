@@ -10,11 +10,9 @@ import {
   Clock, 
   CreditCard, 
   Search, 
-  TrendingUp, 
   Users, 
   Briefcase,
-  SlidersHorizontal,
-  ChevronDown
+  SlidersHorizontal
 } from 'lucide-react';
 
 interface ReconciliationStats {
@@ -33,7 +31,6 @@ export const WalletManagement: React.FC = () => {
   
   // Real-time API stats
   const [reconStats, setReconStats] = useState<ReconciliationStats | null>(null);
-  const [loadingStats, setLoadingStats] = useState(true);
 
   // Filter & Search states
   const [ledgerSearch, setLedgerSearch] = useState('');
@@ -50,7 +47,6 @@ export const WalletManagement: React.FC = () => {
 
   const fetchReconStats = async () => {
     try {
-      setLoadingStats(true);
       const token = localStorage.getItem('adminToken');
       if (!token) return;
       const res = await fetch('https://server.apexbee.in/api/admin/reconciliation', {
@@ -62,8 +58,6 @@ export const WalletManagement: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching reconciliation stats:', error);
-    } finally {
-      setLoadingStats(false);
     }
   };
 

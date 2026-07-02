@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useAdminState } from '../context/AdminStateContext';
 import { Megaphone, Layout, Award, BarChart3, Search, Play, Pause, Trash, Plus, ShieldCheck, X } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
 export const AdvertisementManagement: React.FC = () => {
-  const { activityLogs } = useAdminState();
   const [activeSubTab, setActiveSubTab] = useState<'all' | 'banners' | 'sponsored' | 'homepage' | 'franchise'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [campaigns, setCampaigns] = useState<any[]>([]);

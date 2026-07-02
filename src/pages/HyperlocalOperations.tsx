@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAdminState } from '../context/AdminStateContext';
-import { Compass, Zap, MapPin, AlertTriangle, ArrowRight, ShieldCheck, Activity } from 'lucide-react';
+import { Compass, Zap, MapPin, AlertTriangle, ArrowRight, Activity } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from 'recharts';
 
 export const HyperlocalOperations: React.FC = () => {
@@ -65,7 +65,7 @@ export const HyperlocalOperations: React.FC = () => {
       const parts = o.customerAddress.split(',');
       let city = 'Other';
       if (parts.length >= 2) {
-        city = parts[parts.length - 2].trim();
+        city = (parts[parts.length - 2] || '').trim() || 'Other';
       }
       
       const placedEvent = o.timeline.find(t => t.status === 'Placed' || t.status === 'Pending Payment' || t.status === 'Payment Verified' || t.status === 'Processing');
@@ -78,8 +78,11 @@ export const HyperlocalOperations: React.FC = () => {
       if (!cityStats[city]) {
         cityStats[city] = { totalTime: 0, count: 0 };
       }
-      cityStats[city].totalTime += diffMins;
-      cityStats[city].count += 1;
+      const cStat = cityStats[city];
+      if (cStat) {
+        cStat.totalTime += diffMins;
+        cStat.count += 1;
+      }
     });
 
     const data = Object.entries(cityStats).map(([city, val]) => ({

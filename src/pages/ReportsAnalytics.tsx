@@ -5,7 +5,6 @@ import {
   Download,
   RefreshCw,
   CheckCircle2,
-  FileText,
   Database,
   Globe,
   Activity
@@ -40,7 +39,6 @@ export const ReportsAnalytics: React.FC = () => {
 
   // Real-time API stats
   const [reconStats, setReconStats] = useState<ReconciliationStats | null>(null);
-  const [loading, setLoading] = useState(true);
 
   // Multi-download state
   const [selectedDataset, setSelectedDataset] = useState<'orders' | 'payouts' | 'margins'>('orders');
@@ -54,7 +52,6 @@ export const ReportsAnalytics: React.FC = () => {
 
   const fetchStats = async () => {
     try {
-      setLoading(true);
       const token = localStorage.getItem('adminToken');
       if (!token) return;
 
@@ -68,8 +65,6 @@ export const ReportsAnalytics: React.FC = () => {
       }
     } catch (err) {
       console.error('Error fetching analytics stats:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -114,15 +109,17 @@ export const ReportsAnalytics: React.FC = () => {
       if (!o.date) return;
       const dateParts = o.date.split('-');
       if (dateParts.length >= 2) {
-        const monthVal = parseInt(dateParts[1], 10);
+        const monthVal = parseInt(dateParts[1] || '', 10);
         if (monthVal >= 1 && monthVal <= 12) {
           const name = monthNames[monthVal - 1];
-          if (!monthlyGroups[name]) {
-            monthlyGroups[name] = { orders: 0, refunds: 0, monthIndex: monthVal };
-          }
-          monthlyGroups[name].orders += 1;
-          if (o.orderStatus === 'Returned' || o.orderStatus === 'Refunded' || o.orderStatus === 'Return Requested') {
-            monthlyGroups[name].refunds += 1;
+          if (name) {
+            if (!monthlyGroups[name]) {
+              monthlyGroups[name] = { orders: 0, refunds: 0, monthIndex: monthVal };
+            }
+            monthlyGroups[name].orders += 1;
+            if (o.orderStatus === 'Returned' || o.orderStatus === 'Refunded' || o.orderStatus === 'Return Requested') {
+              monthlyGroups[name].refunds += 1;
+            }
           }
         }
       }
@@ -147,12 +144,12 @@ export const ReportsAnalytics: React.FC = () => {
       const parts = o.customerAddress.split(',');
       let state = 'Other';
       if (parts.length >= 3) {
-        const statePart = parts[parts.length - 1].trim();
+        const statePart = (parts[parts.length - 1] || '').trim();
         const match = statePart.match(/^([a-zA-Z\s]+)(?:-\s*\d+)?$/);
         if (match) {
-          state = match[1].trim();
+          state = (match[1] || '').trim();
         } else {
-          const cleanPart = statePart.split('-')[0].trim();
+          const cleanPart = (statePart.split('-')[0] || '').trim();
           if (cleanPart) state = cleanPart;
         }
       }
@@ -160,9 +157,12 @@ export const ReportsAnalytics: React.FC = () => {
       if (!stateSummary[state]) {
         stateSummary[state] = { volume: 0, commission: 0, ordersCount: 0 };
       }
-      stateSummary[state].volume += o.totalAmount;
-      stateSummary[state].commission += o.totalAmount * 0.05; // 5% average platform share
-      stateSummary[state].ordersCount += 1;
+      const summary = stateSummary[state];
+      if (summary) {
+        summary.volume += o.totalAmount;
+        summary.commission += o.totalAmount * 0.05; // 5% average platform share
+        summary.ordersCount += 1;
+      }
     });
 
     return Object.entries(stateSummary).map(([region, data]) => ({

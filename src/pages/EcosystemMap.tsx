@@ -4,7 +4,6 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 
 export const EcosystemMap: React.FC = () => {
   const [selectedNode, setSelectedNode] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
   // Real-time datasets from database
   const [franchisesList, setFranchisesList] = useState<any[]>([]);
@@ -19,7 +18,6 @@ export const EcosystemMap: React.FC = () => {
 
   const fetchEcosystemData = async () => {
     try {
-      setLoading(true);
       const token = localStorage.getItem('adminToken');
       const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
 
@@ -49,8 +47,6 @@ export const EcosystemMap: React.FC = () => {
       }
     } catch (err) {
       console.error('Error fetching ecosystem data:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -78,21 +74,7 @@ export const EcosystemMap: React.FC = () => {
     return wallet ? (wallet.availableBalance + wallet.withdrawnBalance) : 0;
   };
 
-  const getDistrictFranchiseName = (districtName: string) => {
-    const fObj = franchisesList.find(f => 
-      f.state?.toLowerCase() === selectedState.toLowerCase() && 
-      f.district?.toLowerCase() === districtName.toLowerCase()
-    );
-    return fObj ? (fObj.ownerName || fObj.businessName || fObj.name) : 'Pending Allocation';
-  };
 
-  const getMandalFranchiseName = (mandalName: string) => {
-    const fObj = franchisesList.find(f => 
-      f.state?.toLowerCase() === selectedState.toLowerCase() && 
-      f.mandal?.toLowerCase() === mandalName.toLowerCase()
-    );
-    return fObj ? (fObj.ownerName || fObj.businessName || fObj.name) : 'Pending Allocation';
-  };
 
   const stateFrans = franchisesList.filter(f => f.state?.toLowerCase() === selectedState.toLowerCase());
   const stateFranchiseObj = stateFrans.find(f => f.franchiseLevel === 'state' || f.level === 'state');
@@ -242,7 +224,7 @@ export const EcosystemMap: React.FC = () => {
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const name = monthNames[d.getMonth()];
+      const name = monthNames[d.getMonth()] || '';
       monthlyCounts[name] = { customers: 0, monthIndex: d.getMonth() };
     }
 
@@ -254,7 +236,7 @@ export const EcosystemMap: React.FC = () => {
     stateCustomers.forEach(u => {
       if (!u.createdAt) return;
       const d = new Date(u.createdAt);
-      const name = monthNames[d.getMonth()];
+      const name = monthNames[d.getMonth()] || '';
       if (monthlyCounts[name] !== undefined) {
         monthlyCounts[name].customers += 1;
       }

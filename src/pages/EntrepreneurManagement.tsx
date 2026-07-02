@@ -36,7 +36,6 @@ export const EntrepreneurManagement: React.FC = () => {
         const mapped = (data.entrepreneurs || []).map((e: any) => {
           const userWallet = wallets.find((w: any) => String(w.userId?._id || w.userId || w.id) === String(e.userId));
           const availableBalance = userWallet ? userWallet.availableBalance : 0;
-          const withdrawnBalance = userWallet ? userWallet.withdrawnBalance : 0;
           const downlineCount = referrals.filter(r => String(r.referredById) === String(e.userId)).length;
           return {
             id: e._id,

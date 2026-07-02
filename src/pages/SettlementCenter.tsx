@@ -45,7 +45,7 @@ export const SettlementCenter: React.FC = () => {
   // Compute live liability metrics from MongoDB
   const totalPendingVal = withdrawals.filter(w => w.status === 'Pending').reduce((sum, s) => sum + s.amount, 0);
   
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = new Date().toISOString().split('T')[0] || '';
   const todaysVal = withdrawals
     .filter(w => w.status === 'Approved' && w.date?.startsWith(todayStr))
     .reduce((sum, w) => sum + w.amount, 0);

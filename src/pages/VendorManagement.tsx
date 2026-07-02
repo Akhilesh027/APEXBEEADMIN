@@ -216,9 +216,8 @@ export const VendorManagement: React.FC = () => {
 
   const performanceData = getPerformanceData();
 
-  // Filter vendor activities from real-time log
   const vendorActivityLogs = activityLogs.filter(log => 
-    log.type === 'order' || 
+    (log.type as string) === 'order' || 
     log.details.toLowerCase().includes('vendor') || 
     log.action.toLowerCase().includes('vendor')
   ).slice(0, 5);

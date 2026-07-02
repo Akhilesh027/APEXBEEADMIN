@@ -10,12 +10,12 @@ if (typeof window !== 'undefined') {
   };
 
   const originalOpen = window.XMLHttpRequest.prototype.open;
-  window.XMLHttpRequest.prototype.open = function (method, url, ...args) {
+  (window.XMLHttpRequest.prototype as any).open = function (method: string, url: string | URL, ...args: any[]) {
     if (typeof url === 'string' && url.includes('localhost:5500')) {
       const hostname = window.location.hostname || 'localhost';
       url = url.replace('localhost:5500', `${hostname}:5500`);
     }
-    return originalOpen.call(this, method, url, ...args as any);
+    return (originalOpen as any).apply(this, [method, url, ...args]);
   };
 }
 

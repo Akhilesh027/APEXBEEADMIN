@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAdminState } from '../context/AdminStateContext';
-import { Warehouse, ShieldCheck, Compass, BarChart3, Search, CheckCircle, Activity, Info } from 'lucide-react';
+import { Warehouse, ShieldCheck, Compass, BarChart3, Search, CheckCircle } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
 export const WholesalerManagement: React.FC = () => {
-  const { orders, wallets, activityLogs } = useAdminState();
+  const { orders, wallets } = useAdminState();
   const [activeSubTab, setActiveSubTab] = useState<'applications' | 'approved' | 'procurement' | 'directory' | 'performance' | 'wallets'>('applications');
   const [searchQuery, setSearchQuery] = useState('');
   const [wholesalersList, setWholesalersList] = useState<any[]>([]);
@@ -163,14 +163,14 @@ export const WholesalerManagement: React.FC = () => {
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const name = monthNames[d.getMonth()];
+      const name = monthNames[d.getMonth()] || '';
       monthlyCounts[name] = { volume: 0, monthIndex: d.getMonth() };
     }
 
     orders.forEach(o => {
       if (!o.date) return;
       const d = new Date(o.date);
-      const name = monthNames[d.getMonth()];
+      const name = monthNames[d.getMonth()] || '';
       if (monthlyCounts[name] !== undefined) {
         monthlyCounts[name].volume += o.totalAmount;
       }

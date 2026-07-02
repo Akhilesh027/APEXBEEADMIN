@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAdminState } from '../context/AdminStateContext';
 import { Order } from '../types';
-import { Search, Award, Store, Calendar, Clock, Sparkles, X } from 'lucide-react';
+import { Search, Award } from 'lucide-react';
 
 export const OrderManagement: React.FC = () => {
   const { orders, updateOrderStatus, releaseCommissions } = useAdminState();

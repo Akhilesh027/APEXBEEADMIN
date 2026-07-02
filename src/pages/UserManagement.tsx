@@ -168,14 +168,14 @@ export const UserManagement: React.FC = () => {
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const name = monthNames[d.getMonth()];
+      const name = monthNames[d.getMonth()] || '';
       monthlyCounts[name] = { count: 0, monthIndex: d.getMonth() };
     }
 
     usersList.forEach(u => {
       if (!u.registered) return;
       const d = new Date(u.registered);
-      const name = monthNames[d.getMonth()];
+      const name = monthNames[d.getMonth()] || '';
       if (monthlyCounts[name] !== undefined) {
         monthlyCounts[name].count += 1;
       }
@@ -202,6 +202,7 @@ export const UserManagement: React.FC = () => {
     if (referrals.length === 0) return null;
     // Find first referral node that has downlines or referredById empty
     const root = referrals.find(r => !r.referredById) || referrals[0];
+    if (!root) return null;
     const level1 = referrals.filter(r => String(r.referredById) === String(root.userId));
     return {
       root,

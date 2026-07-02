@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAdminState } from '../context/AdminStateContext';
-import { Landmark, TrendingUp, Sparkles, Coins, Info, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Landmark, TrendingUp, Sparkles, Coins, Info } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
 interface ReconciliationStats {
@@ -17,37 +17,23 @@ interface ReconciliationStats {
 export const FinancialCenter: React.FC = () => {
   const { orders, withdrawals } = useAdminState();
   const [stats, setStats] = useState<ReconciliationStats | null>(null);
-  const [dashboardStats, setDashboardStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchFinanceStats = async () => {
       try {
-        setLoading(true);
         const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
         if (!token) return;
         
-        const [reconRes, dashRes] = await Promise.all([
-          fetch('https://server.apexbee.in/api/admin/reconciliation', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          }),
-          fetch('https://server.apexbee.in/api/admin/dashboard-stats', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          })
-        ]);
+        const reconRes = await fetch('https://server.apexbee.in/api/admin/reconciliation', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
 
         if (reconRes.ok) {
           const data = await reconRes.json();
           setStats(data.stats);
         }
-        if (dashRes.ok) {
-          const data = await dashRes.json();
-          setDashboardStats(data.stats);
-        }
       } catch (err) {
         console.error('Error fetching reconciliation stats:', err);
-      } finally {
-        setLoading(false);
       }
     };
     fetchFinanceStats();
@@ -62,9 +48,9 @@ export const FinancialCenter: React.FC = () => {
       if (!o.date) return;
       const dateParts = o.date.split('-');
       if (dateParts.length >= 2) {
-        const monthVal = parseInt(dateParts[1], 10);
+        const monthVal = parseInt(dateParts[1] || '', 10);
         if (monthVal >= 1 && monthVal <= 12) {
-          const name = monthNames[monthVal - 1];
+          const name = monthNames[monthVal - 1] || '';
           if (!monthlyGroups[name]) {
             monthlyGroups[name] = { gmv: 0, revenue: 0, monthIndex: monthVal };
           }

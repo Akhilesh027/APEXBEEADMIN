@@ -7,7 +7,6 @@ import {
   Wallet,
   Package,
   CreditCard,
-  Landmark,
   AlertCircle,
   RefreshCcw,
   MapPin,
@@ -29,7 +28,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 interface DashboardStats {
   totalUsers: number;

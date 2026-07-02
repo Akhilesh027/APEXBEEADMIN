@@ -148,15 +148,20 @@ export interface Order {
 export interface FranchiseNode {
   id: string;
   name: string;
+  businessName?: string;
   ownerName: string;
   level: 'State' | 'District' | 'Mandal';
   parentId?: string; // Links State -> District -> Mandal
-  usersCount: number;
-  vendorsCount: number;
-  ordersCount: number;
-  commissionsEarned: number;
-  networkGrowth: number; // percentage
-  status: 'Active' | 'Suspended';
+  usersCount?: number;
+  vendorsCount?: number;
+  ordersCount?: number;
+  commissionsEarned?: number;
+  networkGrowth?: number; // percentage
+  status: 'Active' | 'Suspended' | 'Inactive';
+  state?: string;
+  district?: string;
+  mandal?: string;
+  code?: string;
 }
 
 export interface ReferralNode {
