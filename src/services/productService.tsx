@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://server.apexbee.in/api';
 
-const getToken = () => localStorage.getItem('token');
+const getToken = () => localStorage.getItem('adminToken') || localStorage.getItem('token');
 
 const authHeaders = () => ({
   Authorization: `Bearer ${getToken()}`,
