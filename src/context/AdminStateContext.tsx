@@ -423,9 +423,14 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
           const wData = await wRes.json();
           walletsList = wData.wallets || [];
         }
+        const walletMap = new Map();
+        walletsList.forEach((w: any) => {
+          const key = String(w.userId?._id || w.userId);
+          walletMap.set(key, w);
+        });
 
         const mapped = usersList.map((u: any) => {
-          const userWallet = walletsList.find((w: any) => String(w.userId?._id || w.userId) === String(u._id));
+          const userWallet = walletMap.get(String(u._id));
           const commissionEarned = userWallet ? (userWallet.availableBalance + userWallet.withdrawnBalance) : (u.wallet?.totalEarned || 0);
 
           return {
@@ -490,7 +495,7 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
       fetchReferrals();
       fetchDeliveryPartners();
     }
-  }, [isAuthenticated, orders]);
+  }, [isAuthenticated]);
 
   // 1. Seller Approval
   const updateSellerStatus = async (id: string, status: Seller['status'], comments?: string) => {

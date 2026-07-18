@@ -40,9 +40,24 @@ export const UserManagement: React.FC = () => {
       });
       const data = await res.json();
       if (data.success) {
+        const walletMap = new Map();
+        (wallets || []).forEach((w: any) => {
+          const key = String(w.id || w.userId?._id || w.userId);
+          walletMap.set(key, w);
+        });
+
+        const referralsCountMap = new Map();
+        (referrals || []).forEach((r: any) => {
+          if (r.referredById) {
+            const key = String(r.referredById);
+            referralsCountMap.set(key, (referralsCountMap.get(key) || 0) + 1);
+          }
+        });
+
         const mapped = (data.users || []).map((u: any) => {
-          const userWallet = wallets.find((w: any) => String(w.userId?._id || w.userId || w.id) === String(u._id));
+          const userWallet = walletMap.get(String(u._id));
           const walletBalance = userWallet ? userWallet.availableBalance : 0;
+          const referralsCount = referralsCountMap.get(String(u._id)) || 0;
           return {
             id: u._id,
             name: u.name,
@@ -52,7 +67,7 @@ export const UserManagement: React.FC = () => {
             walletBalance: walletBalance,
             status: u.isVerified ? 'Verified' : 'Pending',
             activity: u.status === 'active' ? 'Active on platform' : 'Inactive',
-            referralsCount: referrals.filter(r => String(r.referredById) === String(u._id)).length,
+            referralsCount: referralsCount,
             roles: u.roles,
             isVerified: u.isVerified,
             rawStatus: u.status || 'active'
