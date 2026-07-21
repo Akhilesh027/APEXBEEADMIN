@@ -274,8 +274,8 @@ export const FranchiseManagement: React.FC = () => {
               {!selectedFranchiseId
                 ? "Select franchise first"
                 : matchingTerritories.length === 0
-                ? "No matching territory found"
-                : "Select matching territory"}
+                  ? "No matching territory found"
+                  : "Select matching territory"}
             </option>
 
             {matchingTerritories.map((t) => (
@@ -445,8 +445,8 @@ export const FranchiseManagement: React.FC = () => {
                   <td className="p-3">
                     {typeof t.franchiseId === "object" && t.franchiseId
                       ? t.franchiseId.businessName ||
-                        t.franchiseId.ownerName ||
-                        t.franchiseId.email
+                      t.franchiseId.ownerName ||
+                      t.franchiseId.email
                       : "-"}
                   </td>
                 </tr>

@@ -367,9 +367,8 @@ export const ApprovalCenter: React.FC = () => {
       const token = localStorage.getItem("adminToken");
       const currentApp = applications.find(app => app._id === id);
 
-      let endpoint = `https://server.apexbee.in/api/admin/applications/${id}/${
-        action === "Approved" ? "approve" : "reject"
-      }`;
+      let endpoint = `https://server.apexbee.in/api/admin/applications/${id}/${action === "Approved" ? "approve" : "reject"
+        }`;
 
       if (
         action === "Approved" &&
@@ -448,11 +447,10 @@ export const ApprovalCenter: React.FC = () => {
           <button
             key={tab}
             onClick={() => setActiveSubTab(tab as any)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
-              activeSubTab === tab
-                ? "bg-primary text-primary-foreground border-primary shadow-md"
-                : "bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground"
-            }`}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${activeSubTab === tab
+              ? "bg-primary text-primary-foreground border-primary shadow-md"
+              : "bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground"
+              }`}
           >
             {getSubTabLabel(tab as any)}
           </button>
@@ -490,11 +488,10 @@ export const ApprovalCenter: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-foreground text-sm">{item.name}</span>
                         <span
-                          className={`px-2 py-0.5 rounded text-[8px] font-bold ${
-                            item.priority === "High"
-                              ? "bg-rose-500/10 text-rose-500 animate-pulse"
-                              : "bg-muted text-muted-foreground"
-                          }`}
+                          className={`px-2 py-0.5 rounded text-[8px] font-bold ${item.priority === "High"
+                            ? "bg-rose-500/10 text-rose-500 animate-pulse"
+                            : "bg-muted text-muted-foreground"
+                            }`}
                         >
                           {item.priority} Priority
                         </span>
@@ -518,13 +515,13 @@ export const ApprovalCenter: React.FC = () => {
                             Uploaded Documents:{" "}
                             {Array.isArray(item.documents)
                               ? item.documents
-                                  .filter((d: any) => d.url)
-                                  .map((d: any) => d.name)
-                                  .join(", ")
+                                .filter((d: any) => d.url)
+                                .map((d: any) => d.name)
+                                .join(", ")
                               : Object.keys(item.documents || {})
-                                  .filter(k => !!item.documents[k])
-                                  .map(k => k.toUpperCase())
-                                  .join(", ")}
+                                .filter(k => !!item.documents[k])
+                                .map(k => k.toUpperCase())
+                                .join(", ")}
                           </p>
                         )}
 
@@ -612,11 +609,10 @@ export const ApprovalCenter: React.FC = () => {
                   </span>
                 </div>
                 <span
-                  className={`px-2 py-0.5 rounded text-[8px] font-bold shrink-0 ${
-                    item.status === "Approved"
-                      ? "bg-emerald-500/10 text-emerald-500"
-                      : "bg-rose-500/10 text-rose-500"
-                  }`}
+                  className={`px-2 py-0.5 rounded text-[8px] font-bold shrink-0 ${item.status === "Approved"
+                    ? "bg-emerald-500/10 text-emerald-500"
+                    : "bg-rose-500/10 text-rose-500"
+                    }`}
                 >
                   {item.status}
                 </span>
@@ -845,15 +841,14 @@ export const ApprovalCenter: React.FC = () => {
                           )}
 
                           <span
-                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                              doc.status === "Approved"
-                                ? "bg-emerald-500/10 text-emerald-500"
-                                : doc.status === "Pending"
+                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${doc.status === "Approved"
+                              ? "bg-emerald-500/10 text-emerald-500"
+                              : doc.status === "Pending"
                                 ? "bg-amber-500/10 text-amber-500"
                                 : doc.status === "Rejected"
-                                ? "bg-rose-500/10 text-rose-500"
-                                : "bg-secondary text-muted-foreground"
-                            }`}
+                                  ? "bg-rose-500/10 text-rose-500"
+                                  : "bg-secondary text-muted-foreground"
+                              }`}
                           >
                             {doc.status}
                           </span>

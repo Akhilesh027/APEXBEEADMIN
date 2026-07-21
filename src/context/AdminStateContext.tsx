@@ -45,7 +45,7 @@ interface AdminStateContextProps {
   withdrawals: WithdrawalRequest[];
   deliveryAgents: DeliveryAgent[];
   coupons: Coupon[];
-  
+
   // Actions
   updateSellerStatus: (id: string, status: Seller['status'], comments?: string) => void;
   approveProduct: (id: string, settings: CommissionSettings, shipping: number, packing: number) => void;
@@ -54,7 +54,7 @@ interface AdminStateContextProps {
   updateCategory: (category: Category) => void;
   verifyPayment: (orderId: string, status: Order['paymentStatus'], comments?: string) => void;
   assignDelivery: (orderId: string, agentId: string, type: Order['deliveryType']) => void;
-  updateOrderStatus: (orderId: string, status: Order['orderStatus']) => Promise<boolean>;
+  updateOrderStatus: (orderId: string, status: Order['orderStatus'], courierPartner?: string, trackingId?: string) => Promise<boolean>;
   processWithdrawal: (id: string, status: WithdrawalRequest['status']) => void;
   releaseCommissions: (orderId: string) => void;
   addCoupon: (coupon: Coupon) => void;
@@ -124,8 +124,8 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
           }
 
           const paymentStatus = order.paymentDetails?.status === 'pending_verification' ? 'Pending Verification' :
-                                order.paymentStatus === 'Paid' || order.paymentStatus === 'Approved' || order.paymentDetails?.status === 'completed' ? 'Approved' :
-                                order.paymentStatus === 'Rejected' ? 'Rejected' : 'Pending Verification';
+            order.paymentStatus === 'Paid' || order.paymentStatus === 'Approved' || order.paymentDetails?.status === 'completed' ? 'Approved' :
+              order.paymentStatus === 'Rejected' ? 'Rejected' : 'Pending Verification';
 
           return {
             id: order.orderNumber || order._id,
@@ -148,6 +148,8 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
             date: order.createdAt ? new Date(order.createdAt).toISOString().replace('T', ' ').substring(0, 16) : new Date().toISOString().replace('T', ' ').substring(0, 16),
             deliveryAgentId: order.deliveryAgentId || '',
             deliveryType: order.deliveryType || 'Platform',
+            courierPartner: order.courierPartner || '',
+            trackingId: order.trackingId || '',
             returnAllowed: true,
             returnWindowDays: 7,
             refundType: 'Both',
@@ -250,7 +252,7 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
       const vendors = vRes.ok ? (await vRes.json()).vendors || [] : [];
       const wholesalers = wRes.ok ? (await wRes.json()).wholesalers || [] : [];
       const manufacturers = mRes.ok ? (await mRes.json()).manufacturers || [] : [];
-      
+
       const mapped = [
         ...vendors.map((x: any) => ({
           id: x.userId?._id || x._id,
@@ -323,7 +325,7 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
         const mapped = list.map((w: any) => {
           const roles = w.userId?.roles || [];
           const type = roles.includes('vendor') ? 'Vendor' :
-                       roles.includes('franchise') || roles.some((r: string) => r.includes('franchise')) ? 'Franchise' : 'Referral';
+            roles.includes('franchise') || roles.some((r: string) => r.includes('franchise')) ? 'Franchise' : 'Referral';
           return {
             id: w.userId?._id || w.userId,
             ownerName: w.userId?.name || 'User Wallet',
@@ -404,7 +406,7 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
     try {
       const token = localStorage.getItem('adminToken');
       if (!token) return;
-      
+
       const [uRes, wRes] = await Promise.all([
         fetch('https://server.apexbee.in/api/admin/users', {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -417,7 +419,7 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
       if (uRes.ok) {
         const uData = await uRes.json();
         const usersList = uData.users || [];
-        
+
         let walletsList: any[] = [];
         if (wRes.ok) {
           const wData = await wRes.json();
@@ -501,14 +503,14 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
   const updateSellerStatus = async (id: string, status: Seller['status'], comments?: string) => {
     const token = localStorage.getItem('adminToken');
     if (!token) return;
-    
+
     const seller = sellers.find(s => s.id === id);
     if (!seller) return;
-    
+
     const typePath = seller.type === 'Vendor' ? 'vendors' :
-                     seller.type === 'Wholesaler' ? 'wholesalers' :
-                     seller.type === 'Manufacturer' ? 'manufacturers' : 'entrepreneurs';
-                     
+      seller.type === 'Wholesaler' ? 'wholesalers' :
+        seller.type === 'Manufacturer' ? 'manufacturers' : 'entrepreneurs';
+
     try {
       const backendStatus = status === 'Approved' ? 'active' : 'inactive';
       const res = await fetch(`https://server.apexbee.in/api/admin/${typePath}/${id}/status`, {
@@ -698,7 +700,12 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
   };
 
   // 7. Order Status Transitions
-  const updateOrderStatus = async (orderId: string, status: Order['orderStatus']): Promise<boolean> => {
+  const updateOrderStatus = async (
+    orderId: string,
+    status: Order['orderStatus'],
+    courierPartner?: string,
+    trackingId?: string
+  ): Promise<boolean> => {
     const matched = orders.find(o => o.id === orderId);
     if (!matched) return false;
     const dbId = (matched as any)._id || orderId;
@@ -721,6 +728,8 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
       mappedStatus = 'Packed';
     } else if (status === 'Shipped') {
       mappedStatus = 'Shipped';
+      if (courierPartner) additionalFields.courierPartner = courierPartner;
+      if (trackingId) additionalFields.trackingId = trackingId;
     } else if (status === 'Delivered') {
       mappedStatus = 'Delivered';
     } else if (status === 'Returned') {
@@ -743,7 +752,9 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
       {
         status: mappedStatus,
         date: new Date().toISOString(),
-        note: `Order status updated to ${status}.`
+        note: status === 'Shipped' && courierPartner && trackingId
+          ? `Order dispatched via ${courierPartner} (Tracking: ${trackingId}).`
+          : `Order status updated to ${status}.`
       }
     ];
 

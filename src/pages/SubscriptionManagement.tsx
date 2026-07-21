@@ -3,7 +3,7 @@ import { FileText, RefreshCw, CheckCircle, AlertTriangle, Info, Calendar, List, 
 
 export const SubscriptionManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'statements' | 'tasks' | 'subscriptions'>('statements');
-  
+
   // Billing statements
   const [statements, setStatements] = useState<any[]>([]);
   const [loadingStatements, setLoadingStatements] = useState(false);
@@ -17,7 +17,7 @@ export const SubscriptionManagement: React.FC = () => {
   // Subscriptions directory
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [loadingSubscriptions, setLoadingSubscriptions] = useState(false);
-  
+
   // Delivery logs modal
   const [selectedSub, setSelectedSub] = useState<any>(null);
   const [selectedSubTasks, setSelectedSubTasks] = useState<any[]>([]);
@@ -200,25 +200,22 @@ export const SubscriptionManagement: React.FC = () => {
       <div className="flex border-b border-border gap-4">
         <button
           onClick={() => setActiveTab('statements')}
-          className={`pb-3 text-xs font-bold uppercase tracking-wider cursor-pointer border-b-2 transition ${
-            activeTab === 'statements' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
+          className={`pb-3 text-xs font-bold uppercase tracking-wider cursor-pointer border-b-2 transition ${activeTab === 'statements' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
         >
           Statements Settlement Queue
         </button>
         <button
           onClick={() => setActiveTab('tasks')}
-          className={`pb-3 text-xs font-bold uppercase tracking-wider cursor-pointer border-b-2 transition ${
-            activeTab === 'tasks' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
+          className={`pb-3 text-xs font-bold uppercase tracking-wider cursor-pointer border-b-2 transition ${activeTab === 'tasks' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
         >
           Pending Task Payouts ({pendingTasks.length})
         </button>
         <button
           onClick={() => setActiveTab('subscriptions')}
-          className={`pb-3 text-xs font-bold uppercase tracking-wider cursor-pointer border-b-2 transition ${
-            activeTab === 'subscriptions' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
+          className={`pb-3 text-xs font-bold uppercase tracking-wider cursor-pointer border-b-2 transition ${activeTab === 'subscriptions' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
         >
           Subscriptions Directory ({subscriptions.length})
         </button>
@@ -485,11 +482,10 @@ export const SubscriptionManagement: React.FC = () => {
                       <div key={task._id} className="grid grid-cols-5 p-2.5 items-center hover:bg-secondary/5">
                         <span className="font-mono text-[10px]">{task.date}</span>
                         <span>
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                            task.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-600' :
+                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${task.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-600' :
                             task.status === 'failed' ? 'bg-red-500/10 text-red-600' :
-                            'bg-yellow-500/10 text-yellow-600'
-                          }`}>
+                              'bg-yellow-500/10 text-yellow-600'
+                            }`}>
                             {task.status}
                           </span>
                         </span>

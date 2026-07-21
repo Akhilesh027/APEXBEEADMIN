@@ -12,6 +12,134 @@ export const AdvertisementManagement: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  const [adMode, setAdMode] = useState<'campaigns' | 'platform_banners'>('campaigns');
+  const [banners, setBanners] = useState<any[]>([]);
+  const [bannersLoading, setBannersLoading] = useState<boolean>(true);
+  const [showBannerModal, setShowBannerModal] = useState(false);
+  const [selectedBanner, setSelectedBanner] = useState<any | null>(null);
+  const [bannerForm, setBannerForm] = useState({
+    title: '',
+    description: '',
+    imageUrl: '',
+    type: 'promo',
+    discount: '',
+    link: '',
+    countdownHours: 0,
+    isActive: true
+  });
+
+  const fetchBanners = async () => {
+    try {
+      setBannersLoading(true);
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch('https://server.apexbee.in/api/banners/admin', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      const data = await res.json();
+      if (data.success) {
+        setBanners(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching admin banners:', err);
+    } finally {
+      setBannersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (adMode === 'platform_banners') {
+      fetchBanners();
+    }
+  }, [adMode]);
+
+  const handleBannerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setActionLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const token = localStorage.getItem('adminToken');
+      const url = selectedBanner
+        ? `https://server.apexbee.in/api/banners/admin/${selectedBanner._id}`
+        : 'https://server.apexbee.in/api/banners/admin';
+      const method = selectedBanner ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(bannerForm)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg(selectedBanner ? 'Banner updated successfully!' : 'Banner created successfully!');
+        setShowBannerModal(false);
+        fetchBanners();
+      } else {
+        setErrorMsg(data.message || 'Failed to save banner');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Network error saving banner');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleBannerDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this banner?')) return;
+    setActionLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`https://server.apexbee.in/api/banners/admin/${id}`, {
+        method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg('Banner deleted successfully!');
+        fetchBanners();
+      } else {
+        setErrorMsg(data.message || 'Failed to delete banner');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Network error deleting banner');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const toggleBannerStatus = async (id: string, currentActive: boolean) => {
+    setActionLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`https://server.apexbee.in/api/banners/admin/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ isActive: !currentActive })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg(`Banner status updated to ${!currentActive ? 'Active' : 'Inactive'}`);
+        fetchBanners();
+      } else {
+        setErrorMsg(data.message || 'Failed to update banner status');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Network error toggling banner status');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Create Campaign Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newCampaign, setNewCampaign] = useState({
@@ -182,7 +310,7 @@ export const AdvertisementManagement: React.FC = () => {
     }
   };
 
-  const currentCampaigns = getFilteredCampaigns().filter(c => 
+  const currentCampaigns = getFilteredCampaigns().filter(c =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (c.ownerId?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -215,6 +343,24 @@ export const AdvertisementManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Mode selection tabs */}
+      <div className="flex border-b border-border/80 pb-1 gap-1 select-none">
+        <button
+          onClick={() => setAdMode('campaigns')}
+          className={`px-4 py-2 text-xs font-bold border-b-2 bg-transparent border-0 cursor-pointer transition ${adMode === 'campaigns' ? 'border-primary text-primary font-extrabold' : 'border-transparent text-muted-foreground'
+            }`}
+        >
+          📢 Sponsor Ad Campaigns
+        </button>
+        <button
+          onClick={() => setAdMode('platform_banners')}
+          className={`px-4 py-2 text-xs font-bold border-b-2 bg-transparent border-0 cursor-pointer transition ${adMode === 'platform_banners' ? 'border-primary text-primary font-extrabold' : 'border-transparent text-muted-foreground'
+            }`}
+        >
+          🖼 Platform Time-of-day Banners
+        </button>
+      </div>
+
       {successMsg && (
         <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-xl flex items-center gap-2 text-xs font-semibold">
           <ShieldCheck size={16} />
@@ -227,199 +373,336 @@ export const AdvertisementManagement: React.FC = () => {
           {errorMsg}
         </div>
       )}
-      
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 select-none">
-        <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
-          <div>
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Ad Campaigns</span>
-            <span className="text-xl font-bold font-mono text-foreground mt-1 block">
-              {loading ? '...' : `${activeCampaigns} Active`}
-            </span>
-            <span className="text-[9px] text-emerald-500 mt-1 block font-semibold">Live Mongo Campaigns</span>
-          </div>
-          <Megaphone className="text-primary shrink-0" size={24} />
-        </div>
-        <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
-          <div>
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Est. Impressions</span>
-            <span className="text-xl font-bold font-mono text-foreground mt-1 block">
-              {loading ? '...' : `${(totalImpressions / 1000).toFixed(1)}K Views`}
-            </span>
-            <span className="text-[9px] text-violet-500 mt-1 block font-semibold">Weighted scale 3.2x budget</span>
-          </div>
-          <Layout className="text-violet-500 shrink-0" size={24} />
-        </div>
-        <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
-          <div>
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Top Ad Spot</span>
-            <span className="text-xl font-bold font-mono text-foreground mt-1 block">Homepage Banner</span>
-            <span className="text-[9px] text-emerald-500 mt-1 block font-semibold">Premium sponsor carousel</span>
-          </div>
-          <Award className="text-emerald-500 shrink-0" size={24} />
-        </div>
-        <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
-          <div>
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Total Ad Budget</span>
-            <span className="text-xl font-bold font-mono text-foreground mt-1 block">
-              {loading ? '...' : `₹${totalCampaignRevenue.toLocaleString('en-IN')}`}
-            </span>
-            <span className="text-[9px] text-emerald-500 mt-1 block font-semibold">Accrued partner balances</span>
-          </div>
-          <BarChart3 className="text-amber-500 shrink-0" size={24} />
-        </div>
-      </div>
 
-      {/* Subtab Menu */}
-      <div className="flex gap-2 flex-wrap bg-card border border-border/60 p-2 rounded-2xl select-none shadow-sm">
-        {(['all', 'banners', 'sponsored', 'homepage', 'franchise'] as const).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveSubTab(tab)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
-              activeSubTab === tab
-                ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground'
-            }`}
-          >
-            {tab === 'all' ? 'All Campaigns' : tab === 'banners' ? 'Banner Ads' : tab === 'sponsored' ? 'Sponsored Products' : tab === 'homepage' ? 'Homepage Ads' : 'Franchise Promos'}
-          </button>
-        ))}
-      </div>
-
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        {/* Left Column: Data tables */}
-        <div className="lg:col-span-8 bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-border/60">
-            <span className="text-xs font-bold text-foreground uppercase tracking-wider">
-              Ad Placement & Campaigns ({activeSubTab.toUpperCase()})
-            </span>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <div className="relative flex-1 sm:flex-initial">
-                <Search className="absolute left-3 top-2.5 text-muted-foreground" size={14} />
-                <input
-                  type="text"
-                  placeholder="Search campaigns..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-4 py-1.5 bg-secondary/50 border border-border/80 focus:border-primary rounded-xl text-xs outline-none w-full sm:w-48 font-medium"
-                />
+      {adMode === 'campaigns' ? (
+        <>
+          {/* Metrics Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 select-none">
+            <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+              <div>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Ad Campaigns</span>
+                <span className="text-xl font-bold font-mono text-foreground mt-1 block">
+                  {loading ? '...' : `${activeCampaigns} Active`}
+                </span>
+                <span className="text-[9px] text-emerald-500 mt-1 block font-semibold">Live Mongo Campaigns</span>
               </div>
-              <button 
-                onClick={() => setShowCreateModal(true)}
+              <Megaphone className="text-primary shrink-0" size={24} />
+            </div>
+            <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+              <div>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Est. Impressions</span>
+                <span className="text-xl font-bold font-mono text-foreground mt-1 block">
+                  {loading ? '...' : `${(totalImpressions / 1000).toFixed(1)}K Views`}
+                </span>
+                <span className="text-[9px] text-violet-500 mt-1 block font-semibold">Weighted scale 3.2x budget</span>
+              </div>
+              <Layout className="text-violet-500 shrink-0" size={24} />
+            </div>
+            <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+              <div>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Top Ad Spot</span>
+                <span className="text-xl font-bold font-mono text-foreground mt-1 block">Homepage Banner</span>
+                <span className="text-[9px] text-emerald-500 mt-1 block font-semibold">Premium sponsor carousel</span>
+              </div>
+              <Award className="text-emerald-500 shrink-0" size={24} />
+            </div>
+            <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+              <div>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Total Ad Budget</span>
+                <span className="text-xl font-bold font-mono text-foreground mt-1 block">
+                  {loading ? '...' : `₹${totalCampaignRevenue.toLocaleString('en-IN')}`}
+                </span>
+                <span className="text-[9px] text-emerald-500 mt-1 block font-semibold">Accrued partner balances</span>
+              </div>
+              <BarChart3 className="text-amber-500 shrink-0" size={24} />
+            </div>
+          </div>
+
+          {/* Subtab Menu */}
+          <div className="flex gap-2 flex-wrap bg-card border border-border/60 p-2 rounded-2xl select-none shadow-sm">
+            {(['all', 'banners', 'sponsored', 'homepage', 'franchise'] as const).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveSubTab(tab)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${activeSubTab === tab
+                  ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                  : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground'
+                  }`}
+              >
+                {tab === 'all' ? 'All Campaigns' : tab === 'banners' ? 'Banner Ads' : tab === 'sponsored' ? 'Sponsored Products' : tab === 'homepage' ? 'Homepage Ads' : 'Franchise Promos'}
+              </button>
+            ))}
+          </div>
+
+          {/* Main Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            {/* Left Column: Data tables */}
+            <div className="lg:col-span-8 bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-border/60">
+                <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                  Ad Placement & Campaigns ({activeSubTab.toUpperCase()})
+                </span>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="relative flex-1 sm:flex-initial">
+                    <Search className="absolute left-3 top-2.5 text-muted-foreground" size={14} />
+                    <input
+                      type="text"
+                      placeholder="Search campaigns..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8 pr-4 py-1.5 bg-secondary/50 border border-border/80 focus:border-primary rounded-xl text-xs outline-none w-full sm:w-48 font-medium"
+                    />
+                  </div>
+                  <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="px-3.5 py-1.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl transition-all shadow-md shadow-primary/10 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus size={14} /> Create Ad Campaign
+                  </button>
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="text-center py-12 text-xs text-muted-foreground select-none">
+                  Loading campaign list from database...
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-secondary/40 select-none border-b border-border/60">
+                      <tr>
+                        <th className="p-3 font-semibold text-muted-foreground">Campaign Title</th>
+                        <th className="p-3 font-semibold text-muted-foreground">Sponsor Provider</th>
+                        <th className="p-3 font-semibold text-muted-foreground">Budget</th>
+                        <th className="p-3 font-semibold text-muted-foreground text-center">Views (Est)</th>
+                        <th className="p-3 font-semibold text-muted-foreground text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {currentCampaigns.map(c => {
+                        const impressions = Math.round((c.budget || 0) * 3.2);
+                        const ctr = (3.1 + ((c.budget || 0) % 5) * 0.4).toFixed(1) + '%';
+                        return (
+                          <tr key={c._id} className="hover:bg-secondary/10 transition-colors">
+                            <td className="p-3">
+                              <span className="font-semibold text-foreground block">{c.name}</span>
+                              <span className="text-[10px] text-muted-foreground block">Placement: {c.type}</span>
+                            </td>
+                            <td className="p-3 text-muted-foreground">
+                              <span className="font-medium text-foreground block">{c.ownerId?.name || 'ApexBee Partner'}</span>
+                              <span className="text-[9px] block text-muted-foreground">{c.ownerId?.email || 'N/A'}</span>
+                            </td>
+                            <td className="p-3 font-mono text-muted-foreground">₹{(c.budget || 0).toLocaleString()}</td>
+                            <td className="p-3 text-center">
+                              <span className="font-mono text-foreground font-bold block">{ctr} CTR</span>
+                              <span className="text-[9px] text-muted-foreground block font-mono">{impressions.toLocaleString()} views</span>
+                            </td>
+                            <td className="p-3 text-center border-l border-l-border/10">
+                              <div className="flex justify-center items-center gap-2">
+                                <button
+                                  onClick={() => toggleCampaignStatus(c._id, c.status)}
+                                  disabled={actionLoading}
+                                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${c.status === 'Active' ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
+                                    }`}
+                                  title={c.status === 'Active' ? 'Pause Campaign' : 'Start Campaign'}
+                                >
+                                  {c.status === 'Active' ? <Pause size={12} /> : <Play size={12} />}
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCampaign(c._id)}
+                                  disabled={actionLoading}
+                                  className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 rounded-lg transition-colors cursor-pointer"
+                                  title="Delete Campaign"
+                                >
+                                  <Trash size={12} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {currentCampaigns.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="p-12 text-center text-xs text-muted-foreground select-none">
+                            No campaigns found matching this placement sub-tab.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Right Column: Ad Revenue analytics chart */}
+            <div className="lg:col-span-4 bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
+              <div>
+                <span className="text-xs font-bold text-foreground uppercase tracking-wider block">Ad Placement Share</span>
+                <p className="text-[9px] text-muted-foreground mt-0.5">Budget allocations across ecosystem spots</p>
+              </div>
+
+              {totalCampaignRevenue === 0 ? (
+                <div className="h-44 flex flex-col items-center justify-center text-center text-xs text-muted-foreground bg-secondary/5 rounded-xl border border-border/40 select-none">
+                  <Megaphone size={20} className="text-muted-foreground/45 mb-1" />
+                  <p>No campaign budgets logged.</p>
+                </div>
+              ) : (
+                <div className="h-44 w-full select-none">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={adRevenueData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(100, 116, 139, 0.1)" />
+                      <XAxis dataKey="name" stroke="rgba(100, 116, 139, 0.5)" fontSize={10} tickLine={false} />
+                      <YAxis stroke="rgba(100, 116, 139, 0.5)" fontSize={10} tickLine={false} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
+                        itemStyle={{ fontSize: 11, color: 'var(--foreground)' }}
+                      />
+                      <Bar dataKey="revenue" name="Budget Pool (₹)" fill="#e11d48" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Platform Banners content */}
+          <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4 text-xs">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-border/60">
+              <div>
+                <span className="text-xs font-bold text-foreground uppercase tracking-wider block">
+                  Platform Time-of-day Banners
+                </span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Manage banners loaded dynamically on the customer app based on current time or event status.</p>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedBanner(null);
+                  setBannerForm({
+                    title: '',
+                    description: '',
+                    imageUrl: '',
+                    type: 'promo',
+                    discount: '',
+                    link: '',
+                    countdownHours: 0,
+                    isActive: true
+                  });
+                  setShowBannerModal(true);
+                }}
                 className="px-3.5 py-1.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl transition-all shadow-md shadow-primary/10 flex items-center gap-1 cursor-pointer"
               >
-                <Plus size={14} /> Create Ad Campaign
+                <Plus size={14} /> Add New Banner
               </button>
             </div>
-          </div>
 
-          {loading ? (
-            <div className="text-center py-12 text-xs text-muted-foreground select-none">
-              Loading campaign list from database...
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-secondary/40 select-none border-b border-border/60">
-                  <tr>
-                    <th className="p-3 font-semibold text-muted-foreground">Campaign Title</th>
-                    <th className="p-3 font-semibold text-muted-foreground">Sponsor Provider</th>
-                    <th className="p-3 font-semibold text-muted-foreground">Budget</th>
-                    <th className="p-3 font-semibold text-muted-foreground text-center">Views (Est)</th>
-                    <th className="p-3 font-semibold text-muted-foreground text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {currentCampaigns.map(c => {
-                    const impressions = Math.round((c.budget || 0) * 3.2);
-                    const ctr = (3.1 + ((c.budget || 0) % 5) * 0.4).toFixed(1) + '%';
-                    return (
-                      <tr key={c._id} className="hover:bg-secondary/10 transition-colors">
+            {bannersLoading ? (
+              <div className="text-center py-12 text-xs text-muted-foreground select-none">
+                Loading banners from database...
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-secondary/40 select-none border-b border-border/60">
+                    <tr>
+                      <th className="p-3 font-semibold text-muted-foreground">Banner Details</th>
+                      <th className="p-3 font-semibold text-muted-foreground">Schedule / Type</th>
+                      <th className="p-3 font-semibold text-muted-foreground">Discount Info</th>
+                      <th className="p-3 font-semibold text-muted-foreground text-center">Countdown (Hrs)</th>
+                      <th className="p-3 font-semibold text-muted-foreground text-center">Status</th>
+                      <th className="p-3 font-semibold text-muted-foreground text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {banners.map(b => (
+                      <tr key={b._id} className="hover:bg-secondary/10 transition-colors">
                         <td className="p-3">
-                          <span className="font-semibold text-foreground block">{c.name}</span>
-                          <span className="text-[10px] text-muted-foreground block">Placement: {c.type}</span>
+                          <div className="flex gap-3 items-center">
+                            {b.imageUrl ? (
+                              <img src={b.imageUrl} alt={b.title} className="w-14 h-10 rounded object-cover border" />
+                            ) : (
+                              <div className="w-14 h-10 bg-muted rounded border flex items-center justify-center text-muted-foreground">🖼</div>
+                            )}
+                            <div>
+                              <span className="font-semibold text-foreground block">{b.title}</span>
+                              <span className="text-[10px] text-muted-foreground block line-clamp-1">{b.description}</span>
+                            </div>
+                          </div>
                         </td>
-                        <td className="p-3 text-muted-foreground">
-                          <span className="font-medium text-foreground block">{c.ownerId?.name || 'ApexBee Partner'}</span>
-                          <span className="text-[9px] block text-muted-foreground">{c.ownerId?.email || 'N/A'}</span>
+                        <td className="p-3">
+                          <span className="font-bold text-indigo-500 uppercase text-[10px] bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-900/30">{b.type}</span>
                         </td>
-                        <td className="p-3 font-mono text-muted-foreground">₹{(c.budget || 0).toLocaleString()}</td>
+                        <td className="p-3 text-muted-foreground font-medium">
+                          {b.discount || 'None'}
+                        </td>
+                        <td className="p-3 text-center font-mono font-bold text-foreground">
+                          {b.countdownHours || 'None'}
+                        </td>
                         <td className="p-3 text-center">
-                          <span className="font-mono text-foreground font-bold block">{ctr} CTR</span>
-                          <span className="text-[9px] text-muted-foreground block font-mono">{impressions.toLocaleString()} views</span>
+                          <span className={`px-2 py-0.5 rounded font-bold text-[9px] ${b.isActive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-secondary text-muted-foreground'}`}>
+                            {b.isActive ? 'Active' : 'Inactive'}
+                          </span>
                         </td>
                         <td className="p-3 text-center border-l border-l-border/10">
                           <div className="flex justify-center items-center gap-2">
                             <button
-                              onClick={() => toggleCampaignStatus(c._id, c.status)}
+                              onClick={() => toggleBannerStatus(b._id, b.isActive)}
                               disabled={actionLoading}
-                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                                c.status === 'Active' ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
-                              }`}
-                              title={c.status === 'Active' ? 'Pause Campaign' : 'Start Campaign'}
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${b.isActive ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'}`}
+                              title={b.isActive ? 'Deactivate' : 'Activate'}
                             >
-                              {c.status === 'Active' ? <Pause size={12} /> : <Play size={12} />}
+                              {b.isActive ? <Pause size={12} /> : <Play size={12} />}
                             </button>
                             <button
-                              onClick={() => handleDeleteCampaign(c._id)}
+                              onClick={() => {
+                                setSelectedBanner(b);
+                                setBannerForm({
+                                  title: b.title,
+                                  description: b.description,
+                                  imageUrl: b.imageUrl || '',
+                                  type: b.type || 'promo',
+                                  discount: b.discount || '',
+                                  link: b.link || '',
+                                  countdownHours: b.countdownHours || 0,
+                                  isActive: b.isActive ?? true
+                                });
+                                setShowBannerModal(true);
+                              }}
+                              disabled={actionLoading}
+                              className="p-1.5 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Banner"
+                            >
+                              <Layout size={12} />
+                            </button>
+                            <button
+                              onClick={() => handleBannerDelete(b._id)}
                               disabled={actionLoading}
                               className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 rounded-lg transition-colors cursor-pointer"
-                              title="Delete Campaign"
+                              title="Delete Banner"
                             >
                               <Trash size={12} />
                             </button>
                           </div>
                         </td>
                       </tr>
-                    );
-                  })}
-                  {currentCampaigns.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="p-12 text-center text-xs text-muted-foreground select-none">
-                        No campaigns found matching this placement sub-tab.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Right Column: Ad Revenue analytics chart */}
-        <div className="lg:col-span-4 bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
-          <div>
-            <span className="text-xs font-bold text-foreground uppercase tracking-wider block">Ad Placement Share</span>
-            <p className="text-[9px] text-muted-foreground mt-0.5">Budget allocations across ecosystem spots</p>
+                    ))}
+                    {banners.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="p-12 text-center text-xs text-muted-foreground select-none">
+                          No banners found in the database.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-          
-          {totalCampaignRevenue === 0 ? (
-            <div className="h-44 flex flex-col items-center justify-center text-center text-xs text-muted-foreground bg-secondary/5 rounded-xl border border-border/40 select-none">
-              <Megaphone size={20} className="text-muted-foreground/45 mb-1" />
-              <p>No campaign budgets logged.</p>
-            </div>
-          ) : (
-            <div className="h-44 w-full select-none">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={adRevenueData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(100, 116, 139, 0.1)" />
-                  <XAxis dataKey="name" stroke="rgba(100, 116, 139, 0.5)" fontSize={10} tickLine={false} />
-                  <YAxis stroke="rgba(100, 116, 139, 0.5)" fontSize={10} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
-                    itemStyle={{ fontSize: 11, color: 'var(--foreground)' }}
-                  />
-                  <Bar dataKey="revenue" name="Budget Pool (₹)" fill="#e11d48" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-
-      </div>
+        </>
+      )}
 
       {/* Create Ad Campaign Modal */}
       {showCreateModal && (
@@ -539,6 +822,142 @@ export const AdvertisementManagement: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowCreateModal(false)}
+                className="w-full py-2.5 bg-secondary hover:bg-secondary/80 text-foreground font-semibold text-xs border border-border rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Create / Edit Banner Modal */}
+      {showBannerModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={handleBannerSubmit} className="bg-card border border-border max-w-md w-full rounded-2xl overflow-hidden shadow-2xl p-6 relative text-xs text-foreground space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <h3 className="text-sm font-bold text-primary uppercase tracking-wider flex items-center gap-1">
+                <Megaphone size={16} /> {selectedBanner ? 'Modify Banner' : 'Publish Banner'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowBannerModal(false)}
+                className="p-1 hover:bg-secondary rounded-lg border border-border/40 text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-left">
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Banner Title *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Festival Season Bonanza"
+                  value={bannerForm.title}
+                  onChange={(e) => setBannerForm(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full text-xs p-2.5 border border-border rounded-xl bg-secondary/10 outline-none text-foreground focus:border-primary font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Description / Subtitle *</label>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="e.g. Order fresh organic fruits and get flat ₹50 cashback instantly."
+                  value={bannerForm.description}
+                  onChange={(e) => setBannerForm(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full text-xs p-2.5 border border-border rounded-xl bg-secondary/10 outline-none text-foreground focus:border-primary font-medium resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Banner Schedule / Type</label>
+                  <select
+                    value={bannerForm.type}
+                    onChange={(e) => setBannerForm(prev => ({ ...prev, type: e.target.value }))}
+                    className="w-full text-xs p-2.5 border border-border rounded-xl bg-card outline-none text-foreground focus:border-primary font-semibold"
+                  >
+                    <option value="morning">Morning Specific ☀</option>
+                    <option value="afternoon">Afternoon Specific 🌤</option>
+                    <option value="evening">Evening Specific 🍕</option>
+                    <option value="night">Night Specific 🌙</option>
+                    <option value="festival">Festival season 🎉</option>
+                    <option value="promo">Promotional / Custom 📢</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Image URL</label>
+                  <input
+                    type="text"
+                    placeholder="https://example.com/image.jpg"
+                    value={bannerForm.imageUrl}
+                    onChange={(e) => setBannerForm(prev => ({ ...prev, imageUrl: e.target.value }))}
+                    className="w-full text-xs p-2.5 border border-border rounded-xl bg-secondary/10 outline-none text-foreground focus:border-primary font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Discount Tag (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Flat 50% OFF"
+                    value={bannerForm.discount}
+                    onChange={(e) => setBannerForm(prev => ({ ...prev, discount: e.target.value }))}
+                    className="w-full text-xs p-2.5 border border-border rounded-xl bg-secondary/10 outline-none text-foreground focus:border-primary font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Countdown (Hrs)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={bannerForm.countdownHours}
+                    onChange={(e) => setBannerForm(prev => ({ ...prev, countdownHours: parseInt(e.target.value) || 0 }))}
+                    className="w-full text-xs p-2.5 border border-border rounded-xl bg-secondary/10 outline-none text-foreground focus:border-primary font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Redirection Link / Route</label>
+                <input
+                  type="text"
+                  placeholder="e.g. /category/🛒 Daily Needs"
+                  value={bannerForm.link}
+                  onChange={(e) => setBannerForm(prev => ({ ...prev, link: e.target.value }))}
+                  className="w-full text-xs p-2.5 border border-border rounded-xl bg-secondary/10 outline-none text-foreground focus:border-primary font-medium"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1.5 select-none">
+                <input
+                  type="checkbox"
+                  id="isActiveBanner"
+                  checked={bannerForm.isActive}
+                  onChange={(e) => setBannerForm(prev => ({ ...prev, isActive: e.target.checked }))}
+                  className="w-3.5 h-3.5 rounded border-borderaccent/40"
+                />
+                <label htmlFor="isActiveBanner" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider cursor-pointer">Active in Store Carousel</label>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-border/60 flex gap-2">
+              <button
+                type="submit"
+                disabled={actionLoading}
+                className="w-full py-2.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer hover:bg-primary/95"
+              >
+                {actionLoading ? 'Saving...' : 'Save Banner'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowBannerModal(false)}
                 className="w-full py-2.5 bg-secondary hover:bg-secondary/80 text-foreground font-semibold text-xs border border-border rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
                 Cancel

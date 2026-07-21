@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAdminState } from '../context/AdminStateContext';
-import { 
-  Landmark, 
-  ArrowUpRight, 
-  Check, 
-  X, 
-  ShieldCheck, 
-  Wallet2, 
-  Clock, 
-  CreditCard, 
-  Search, 
-  Users, 
+import {
+  Landmark,
+  ArrowUpRight,
+  Check,
+  X,
+  ShieldCheck,
+  Wallet2,
+  Clock,
+  CreditCard,
+  Search,
+  Users,
   Briefcase,
   SlidersHorizontal
 } from 'lucide-react';
@@ -28,7 +28,7 @@ interface ReconciliationStats {
 
 export const WalletManagement: React.FC = () => {
   const { wallets, withdrawals, processWithdrawal } = useAdminState();
-  
+
   // Real-time API stats
   const [reconStats, setReconStats] = useState<ReconciliationStats | null>(null);
 
@@ -67,10 +67,10 @@ export const WalletManagement: React.FC = () => {
 
   // Filtered Ledgers
   const filteredWallets = wallets.filter(w => {
-    const matchesSearch = w.ownerName.toLowerCase().includes(ledgerSearch.toLowerCase()) || 
-                          w.id.toLowerCase().includes(ledgerSearch.toLowerCase());
+    const matchesSearch = w.ownerName.toLowerCase().includes(ledgerSearch.toLowerCase()) ||
+      w.id.toLowerCase().includes(ledgerSearch.toLowerCase());
     const matchesType = walletFilter === 'All' || w.type === walletFilter;
-    
+
     let matchesBalance = true;
     if (balanceFilter === 'With Balance') {
       matchesBalance = w.availableBalance > 0 || w.pendingBalance > 0;
@@ -83,9 +83,9 @@ export const WalletManagement: React.FC = () => {
 
   // Filtered Withdrawals/Payouts
   const filteredWithdrawals = withdrawals.filter(w => {
-    const matchesSearch = w.ownerName.toLowerCase().includes(payoutSearch.toLowerCase()) || 
-                          w.id.toLowerCase().includes(payoutSearch.toLowerCase()) ||
-                          w.details.toLowerCase().includes(payoutSearch.toLowerCase());
+    const matchesSearch = w.ownerName.toLowerCase().includes(payoutSearch.toLowerCase()) ||
+      w.id.toLowerCase().includes(payoutSearch.toLowerCase()) ||
+      w.details.toLowerCase().includes(payoutSearch.toLowerCase());
     const matchesType = payoutTypeFilter === 'All' || w.type === payoutTypeFilter;
     const matchesStatus = withdrawalFilter === 'All' || w.status === withdrawalFilter;
 
@@ -101,7 +101,7 @@ export const WalletManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      
+
       {/* Page Header */}
       <div className="bg-card border border-border/80 rounded-2xl p-4 shadow-sm flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -117,7 +117,7 @@ export const WalletManagement: React.FC = () => {
 
       {/* KPI Financial Boxes Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        
+
         {/* Company Wallet Box */}
         <div className="bg-card border border-border/80 rounded-2xl p-4 shadow-sm hover:scale-[1.01] transition-transform flex flex-col justify-between min-h-[105px]">
           <div className="flex justify-between items-center">
@@ -201,7 +201,7 @@ export const WalletManagement: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
+
         {/* Account Ledgers section - 7 columns */}
         <div className="lg:col-span-7 bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
           <div className="border-b border-border/80 pb-3 mb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -216,11 +216,10 @@ export const WalletManagement: React.FC = () => {
                 <button
                   key={type}
                   onClick={() => setWalletFilter(type)}
-                  className={`px-2.5 py-1 text-[9px] font-semibold border rounded-lg transition-all ${
-                    walletFilter === type
-                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                      : 'bg-card text-muted-foreground border-border hover:bg-secondary/40'
-                  }`}
+                  className={`px-2.5 py-1 text-[9px] font-semibold border rounded-lg transition-all ${walletFilter === type
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                    : 'bg-card text-muted-foreground border-border hover:bg-secondary/40'
+                    }`}
                 >
                   {type}
                 </button>
@@ -275,13 +274,12 @@ export const WalletManagement: React.FC = () => {
                       <span className="text-[8px] text-muted-foreground block mt-0.5 font-mono truncate max-w-[140px]">{w.id}</span>
                     </td>
                     <td className="p-2.5">
-                      <span className={`px-2 py-0.5 text-[8px] font-bold rounded-lg ${
-                        w.type === 'Vendor' 
-                          ? 'bg-amber-500/10 text-amber-500' 
-                          : w.type === 'Franchise' 
-                          ? 'bg-indigo-500/10 text-indigo-500' 
+                      <span className={`px-2 py-0.5 text-[8px] font-bold rounded-lg ${w.type === 'Vendor'
+                        ? 'bg-amber-500/10 text-amber-500'
+                        : w.type === 'Franchise'
+                          ? 'bg-indigo-500/10 text-indigo-500'
                           : 'bg-cyan-500/10 text-cyan-500'
-                      }`}>{w.type}</span>
+                        }`}>{w.type}</span>
                     </td>
                     <td className="p-2.5 text-right font-mono text-muted-foreground">₹{w.pendingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                     <td className="p-2.5 text-right font-mono font-bold text-emerald-500">₹{w.availableBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
@@ -363,13 +361,12 @@ export const WalletManagement: React.FC = () => {
 
                 <div className="flex justify-between items-center text-[9px] text-muted-foreground font-mono">
                   <div className="flex items-center gap-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full ${
-                      req.type === 'Vendor' 
-                        ? 'bg-amber-500' 
-                        : req.type === 'Franchise' 
-                        ? 'bg-indigo-500' 
+                    <span className={`w-1.5 h-1.5 rounded-full ${req.type === 'Vendor'
+                      ? 'bg-amber-500'
+                      : req.type === 'Franchise'
+                        ? 'bg-indigo-500'
                         : 'bg-cyan-500'
-                    }`}></span>
+                      }`}></span>
                     <span>Role: {req.type}</span>
                   </div>
                   <span className="flex items-center gap-1 font-semibold">
@@ -410,11 +407,10 @@ export const WalletManagement: React.FC = () => {
                     </button>
                   </div>
                 ) : (
-                  <div className={`px-2.5 py-1.5 text-center rounded-lg text-[10px] font-bold border ${
-                    req.status === 'Approved' 
-                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
-                      : 'bg-rose-500/10 border-rose-500/20 text-rose-500'
-                  }`}>
+                  <div className={`px-2.5 py-1.5 text-center rounded-lg text-[10px] font-bold border ${req.status === 'Approved'
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
+                    : 'bg-rose-500/10 border-rose-500/20 text-rose-500'
+                    }`}>
                     Request Status: {req.status.toUpperCase()}
                   </div>
                 )}

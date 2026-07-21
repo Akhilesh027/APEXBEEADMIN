@@ -303,11 +303,10 @@ export const Dashboard: React.FC<{ setActiveTab?: (tab: string) => void }> = ({
           <div className="flex items-center gap-2 border-l border-border pl-3">
             <button
               onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all select-none cursor-pointer ${
-                autoRefresh
-                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-400"
-                  : "bg-secondary text-secondary-foreground border-border"
-              }`}
+              className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all select-none cursor-pointer ${autoRefresh
+                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-400"
+                : "bg-secondary text-secondary-foreground border-border"
+                }`}
             >
               {autoRefresh ? <Play size={12} className="fill-current" /> : <Pause size={12} />}
               <span>{autoRefresh ? "Auto On" : "Auto Off"}</span>

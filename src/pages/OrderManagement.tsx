@@ -15,6 +15,9 @@ export const OrderManagement: React.FC = () => {
   const [selectedSubDetail, setSelectedSubDetail] = useState<any | null>(null);
   const [allStatements, setAllStatements] = useState<any[]>([]);
   const [settlingId, setSettlingId] = useState<string | null>(null);
+  const [courier, setCourier] = useState('Delhivery');
+  const [tracking, setTracking] = useState('');
+  const [isDispatching, setIsDispatching] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -83,7 +86,7 @@ export const OrderManagement: React.FC = () => {
   const filteredOrders = orders.filter(o => {
     const matchesFilter = filter === 'All' || o.orderStatus === filter;
     const matchesSearch = o.customerName.toLowerCase().includes(search.toLowerCase()) ||
-                          o.id.toLowerCase().includes(search.toLowerCase());
+      o.id.toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 
@@ -119,21 +122,19 @@ export const OrderManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      
+
       <div className="flex border-b border-border/80 pb-1 gap-1 select-none">
         <button
           onClick={() => setMainView('orders')}
-          className={`px-4 py-2 text-xs font-bold border-b-2 bg-transparent border-0 cursor-pointer transition ${
-            mainView === 'orders' ? 'border-primary text-primary font-extrabold' : 'border-transparent text-muted-foreground'
-          }`}
+          className={`px-4 py-2 text-xs font-bold border-b-2 bg-transparent border-0 cursor-pointer transition ${mainView === 'orders' ? 'border-primary text-primary font-extrabold' : 'border-transparent text-muted-foreground'
+            }`}
         >
           🏪 Hyperlocal Store Orders
         </button>
         <button
           onClick={() => setMainView('subscriptions')}
-          className={`px-4 py-2 text-xs font-bold border-b-2 bg-transparent border-0 cursor-pointer transition ${
-            mainView === 'subscriptions' ? 'border-primary text-primary font-extrabold' : 'border-transparent text-muted-foreground'
-          }`}
+          className={`px-4 py-2 text-xs font-bold border-b-2 bg-transparent border-0 cursor-pointer transition ${mainView === 'subscriptions' ? 'border-primary text-primary font-extrabold' : 'border-transparent text-muted-foreground'
+            }`}
         >
           🔁 Product Subscribers Hub
         </button>
@@ -143,246 +144,327 @@ export const OrderManagement: React.FC = () => {
         <>
           {/* Filters & search */}
           <div className="bg-card border border-border/80 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm select-none">
-        <div className="flex gap-2 flex-wrap max-w-full overflow-x-auto no-scrollbar">
-          {(['All', 'Pending Payment', 'Confirmed', 'Payment Verified', 'Processing', 'Packed', 'Shipped', 'Delivered'] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                filter === f
-                  ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                  : 'bg-card text-muted-foreground border-border hover:bg-secondary/40 hover:text-foreground'
-              }`}
-            >
-              {f === 'Pending Payment' ? 'Unpaid' : f === 'Payment Verified' ? 'Paid' : f}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative w-full md:w-64 shrink-0">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search order ID, buyer..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-border/80 focus:border-primary rounded-xl bg-secondary/20 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        {/* Orders Master List - 5 columns */}
-        <div className="lg:col-span-5 bg-card border border-border/80 rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-border/60 bg-secondary/10">
-            <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Orders Ledger</h3>
-          </div>
-          <div className="divide-y divide-border/60">
-            {filteredOrders.map(order => (
-              <div
-                key={order.id}
-                onClick={() => setSelectedOrder(order)}
-                className={`p-4 flex items-center justify-between cursor-pointer hover:bg-secondary/20 transition-all ${
-                  selectedOrder?.id === order.id ? 'bg-secondary/40 border-l-4 border-primary' : ''
-                }`}
-              >
-                <div>
-                  <span className="font-semibold text-xs text-foreground block">{order.customerName}</span>
-                  <span className="text-[10px] text-muted-foreground block mt-1">
-                    ID: {order.id} • {order.items.length} items
-                  </span>
-                  <span className="text-[9px] text-muted-foreground mt-0.5 block font-mono">{order.date}</span>
-                </div>
-                <div className="shrink-0 flex flex-col items-end gap-1.5">
-                  <span className="font-mono text-xs font-bold text-foreground">₹{order.totalAmount.toLocaleString('en-IN')}</span>
-                  {getOrderStatusBadge(order.orderStatus)}
-                </div>
-              </div>
-            ))}
-            {filteredOrders.length === 0 && (
-              <div className="p-8 text-center text-xs text-muted-foreground">
-                No orders found.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Order details pane - 7 columns */}
-        {selectedOrder ? (
-          <div className="lg:col-span-7 bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-5">
-            <div className="flex justify-between items-center border-b border-border pb-3">
-              <div>
-                <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Order Specifications</h3>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Order ID: {selectedOrder.id} • placed: {selectedOrder.date}</p>
-              </div>
-              <div className="flex items-center gap-2 select-none">
-                {getOrderStatusBadge(selectedOrder.orderStatus)}
-              </div>
+            <div className="flex gap-2 flex-wrap max-w-full overflow-x-auto no-scrollbar">
+              {(['All', 'Pending Payment', 'Confirmed', 'Payment Verified', 'Processing', 'Packed', 'Shipped', 'Delivered'] as const).map(f => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${filter === f
+                    ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                    : 'bg-card text-muted-foreground border-border hover:bg-secondary/40 hover:text-foreground'
+                    }`}
+                >
+                  {f === 'Pending Payment' ? 'Unpaid' : f === 'Payment Verified' ? 'Paid' : f}
+                </button>
+              ))}
             </div>
 
-            {/* Customer, Shipping and items details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div className="space-y-3 bg-secondary/15 p-3 rounded-xl border border-border/40">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Buyer Registry</span>
-                <div className="space-y-1 text-[10px]">
-                  <p><span className="text-muted-foreground">Buyer Name: </span><span className="font-medium text-foreground">{selectedOrder.customerName}</span></p>
-                  <p><span className="text-muted-foreground">Phone: </span><span className="font-mono text-foreground">{selectedOrder.customerMobile}</span></p>
-                  <p><span className="text-muted-foreground">Address: </span><span className="text-foreground">{selectedOrder.customerAddress}</span></p>
-                </div>
-              </div>
-
-              <div className="space-y-3 bg-secondary/15 p-3 rounded-xl border border-border/40">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Financial Summary</span>
-                <div className="space-y-1.5 text-[10px] font-mono">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="text-foreground">₹{selectedOrder.items.reduce((sum, i) => sum + i.price * i.quantity, 0)}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Courier Charges</span><span className="text-foreground">+₹{selectedOrder.orderStatus === 'Pending Payment' ? '0' : '40'}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Packing Charges</span><span className="text-foreground">+₹{selectedOrder.orderStatus === 'Pending Payment' ? '0' : '15'}</span></div>
-                  <div className="flex justify-between border-t border-dashed border-border pt-1.5 font-bold"><span className="text-foreground">Grand Total</span><span className="text-indigo-500">₹{selectedOrder.totalAmount.toLocaleString('en-IN')}</span></div>
-                </div>
-              </div>
+            <div className="relative w-full md:w-64 shrink-0">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search order ID, buyer..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-border/80 focus:border-primary rounded-xl bg-secondary/20 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              />
             </div>
+          </div>
 
-            {/* Timeline Progress Bar */}
-            <div className="space-y-3">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Fulfillment Milestones</span>
-              <div className="grid grid-cols-7 gap-1.5 text-center text-[8px] font-bold text-muted-foreground relative select-none">
-                {['Pending', 'Confirmed', 'Paid', 'Processing', 'Packed', 'Shipped', 'Delivered'].map((step, idx) => {
-                  const currentIdx = getStatusStepIndex(selectedOrder.orderStatus);
-                  const isCompleted = idx <= currentIdx;
-                  const isCurrent = idx === currentIdx;
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-                  return (
-                    <div key={idx} className="space-y-2 flex flex-col items-center">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${
-                        isCompleted
-                          ? 'bg-primary border-primary text-white shadow-md shadow-primary/10'
-                          : 'bg-card border-border text-muted-foreground'
-                      }`}>
-                        {idx + 1}
-                      </div>
-                      <span className={isCurrent ? 'text-primary' : isCompleted ? 'text-foreground' : 'text-muted-foreground'}>{step}</span>
+            {/* Orders Master List - 5 columns */}
+            <div className="lg:col-span-5 bg-card border border-border/80 rounded-2xl overflow-hidden shadow-sm">
+              <div className="px-5 py-4 border-b border-border/60 bg-secondary/10">
+                <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Orders Ledger</h3>
+              </div>
+              <div className="divide-y divide-border/60">
+                {filteredOrders.map(order => (
+                  <div
+                    key={order.id}
+                    onClick={() => setSelectedOrder(order)}
+                    className={`p-4 flex items-center justify-between cursor-pointer hover:bg-secondary/20 transition-all ${selectedOrder?.id === order.id ? 'bg-secondary/40 border-l-4 border-primary' : ''
+                      }`}
+                  >
+                    <div>
+                      <span className="font-semibold text-xs text-foreground block">{order.customerName}</span>
+                      <span className="text-[10px] text-muted-foreground block mt-1">
+                        ID: {order.id} • {order.items.length} items
+                      </span>
+                      <span className="text-[9px] text-muted-foreground mt-0.5 block font-mono">{order.date}</span>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Items Grid */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Order Items List</span>
-              <div className="border border-border rounded-xl overflow-hidden text-xs">
-                <table className="w-full text-left text-foreground">
-                  <thead className="bg-secondary/40 select-none">
-                    <tr>
-                      <th className="p-3 font-semibold text-muted-foreground">Listing</th>
-                      <th className="p-3 font-semibold text-muted-foreground">SKU / Variant</th>
-                      <th className="p-3 font-semibold text-muted-foreground text-center">Qty</th>
-                      <th className="p-3 font-semibold text-muted-foreground text-right">Unit Price</th>
-                      <th className="p-3 font-semibold text-muted-foreground text-right">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {selectedOrder.items.map(item => (
-                      <tr key={item.productId} className="hover:bg-secondary/10">
-                        <td className="p-3 font-medium truncate max-w-[150px]">{item.productName}</td>
-                        <td className="p-3 font-mono text-[10px] text-muted-foreground">{item.variantSku || 'Simple'}</td>
-                        <td className="p-3 text-center font-mono">{item.quantity}</td>
-                        <td className="p-3 text-right font-mono">₹{item.price}</td>
-                        <td className="p-3 text-right font-mono font-semibold">₹{item.price * item.quantity}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Timeline Logs */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Order Dispatch Logs</span>
-              <div className="bg-secondary/10 p-3 rounded-xl border border-border/40 divide-y divide-border/60 text-[10px] font-mono">
-                {selectedOrder.timeline.map((entry, idx) => (
-                  <div key={idx} className="py-2 first:pt-0 last:pb-0">
-                    <span className="text-muted-foreground">[{entry.date}] </span>
-                    <span className="font-semibold text-primary">{entry.status}: </span>
-                    <span className="text-foreground">{entry.note}</span>
+                    <div className="shrink-0 flex flex-col items-end gap-1.5">
+                      <span className="font-mono text-xs font-bold text-foreground">₹{order.totalAmount.toLocaleString('en-IN')}</span>
+                      {getOrderStatusBadge(order.orderStatus)}
+                    </div>
                   </div>
                 ))}
+                {filteredOrders.length === 0 && (
+                  <div className="p-8 text-center text-xs text-muted-foreground">
+                    No orders found.
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Commissions Release Simulator */}
-            {selectedOrder.orderStatus === 'Delivered' && (
-              <div className="p-4 bg-indigo-500/5 border border-indigo-500/20 rounded-xl space-y-3">
-                <div className="flex gap-2 text-xs">
-                  <Award className="text-indigo-500 shrink-0 mt-0.5" size={18} />
+            {/* Order details pane - 7 columns */}
+            {selectedOrder ? (
+              <div className="lg:col-span-7 bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-5">
+                <div className="flex justify-between items-center border-b border-border pb-3">
                   <div>
-                    <span className="font-bold block text-foreground">Commissions Holding Box</span>
-                    <span className="text-[10px] text-muted-foreground">Commissions for this delivered order are locked inside the pending balance pool during the 7-day customer return period.</span>
+                    <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Order Specifications</h3>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Order ID: {selectedOrder.id} • placed: {selectedOrder.date}</p>
+                  </div>
+                  <div className="flex items-center gap-2 select-none">
+                    {getOrderStatusBadge(selectedOrder.orderStatus)}
                   </div>
                 </div>
-                
-                {isCommissionReleased(selectedOrder) ? (
-                  <div className="px-3 py-1.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg text-[10px] font-mono text-center">
-                    Commissions released successfully. Wallet balances upgraded.
+
+                {/* Customer, Shipping and items details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                  <div className="space-y-3 bg-secondary/15 p-3 rounded-xl border border-border/40">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Buyer Registry</span>
+                    <div className="space-y-1 text-[10px]">
+                      <p><span className="text-muted-foreground">Buyer Name: </span><span className="font-medium text-foreground">{selectedOrder.customerName}</span></p>
+                      <p><span className="text-muted-foreground">Phone: </span><span className="font-mono text-foreground">{selectedOrder.customerMobile}</span></p>
+                      <p><span className="text-muted-foreground">Address: </span><span className="text-foreground">{selectedOrder.customerAddress}</span></p>
+                    </div>
                   </div>
-                ) : (
-                  <button
-                    onClick={() => {
-                      releaseCommissions(selectedOrder.id);
-                    }}
-                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1.5"
-                  >
-                    Simulate Return Period End (Release Cash)
-                  </button>
+
+                  <div className="space-y-3 bg-secondary/15 p-3 rounded-xl border border-border/40">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Financial Summary</span>
+                    <div className="space-y-1.5 text-[10px] font-mono">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="text-foreground">₹{selectedOrder.items.reduce((sum, i) => sum + i.price * i.quantity, 0)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Courier Charges</span><span className="text-foreground">+₹{selectedOrder.orderStatus === 'Pending Payment' ? '0' : '40'}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Packing Charges</span><span className="text-foreground">+₹{selectedOrder.orderStatus === 'Pending Payment' ? '0' : '15'}</span></div>
+                      <div className="flex justify-between border-t border-dashed border-border pt-1.5 font-bold"><span className="text-foreground">Grand Total</span><span className="text-indigo-500">₹{selectedOrder.totalAmount.toLocaleString('en-IN')}</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedOrder.courierPartner && (
+                  <div className="space-y-3 bg-secondary/15 p-3 rounded-xl border border-border/40 md:col-span-2 text-xs">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Logistics & Dispatch Registry</span>
+                    <div className="space-y-1.5 text-[10px] flex justify-between items-center">
+                      <div>
+                        <span className="text-muted-foreground font-semibold">Courier Partner: </span>
+                        <span className="font-bold text-foreground bg-primary/10 px-2 py-0.5 rounded text-[9px] ml-1">{selectedOrder.courierPartner}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground font-semibold">Tracking ID: </span>
+                        <span className="font-mono text-foreground font-black text-indigo-500 select-all ml-1">{selectedOrder.trackingId}</span>
+                      </div>
+                    </div>
+                  </div>
                 )}
+
+                {/* Timeline Progress Bar */}
+                <div className="space-y-3">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Fulfillment Milestones</span>
+                  <div className="grid grid-cols-7 gap-1.5 text-center text-[8px] font-bold text-muted-foreground relative select-none">
+                    {['Pending', 'Confirmed', 'Paid', 'Processing', 'Packed', 'Shipped', 'Delivered'].map((step, idx) => {
+                      const currentIdx = getStatusStepIndex(selectedOrder.orderStatus);
+                      const isCompleted = idx <= currentIdx;
+                      const isCurrent = idx === currentIdx;
+
+                      return (
+                        <div key={idx} className="space-y-2 flex flex-col items-center">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${isCompleted
+                            ? 'bg-primary border-primary text-white shadow-md shadow-primary/10'
+                            : 'bg-card border-border text-muted-foreground'
+                            }`}>
+                            {idx + 1}
+                          </div>
+                          <span className={isCurrent ? 'text-primary' : isCompleted ? 'text-foreground' : 'text-muted-foreground'}>{step}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Items Grid */}
+                <div className="space-y-2">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Order Items List</span>
+                  <div className="border border-border rounded-xl overflow-hidden text-xs">
+                    <table className="w-full text-left text-foreground">
+                      <thead className="bg-secondary/40 select-none">
+                        <tr>
+                          <th className="p-3 font-semibold text-muted-foreground">Listing</th>
+                          <th className="p-3 font-semibold text-muted-foreground">SKU / Variant</th>
+                          <th className="p-3 font-semibold text-muted-foreground text-center">Qty</th>
+                          <th className="p-3 font-semibold text-muted-foreground text-right">Unit Price</th>
+                          <th className="p-3 font-semibold text-muted-foreground text-right">Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {selectedOrder.items.map(item => (
+                          <tr key={item.productId} className="hover:bg-secondary/10">
+                            <td className="p-3 font-medium truncate max-w-[150px]">{item.productName}</td>
+                            <td className="p-3 font-mono text-[10px] text-muted-foreground">{item.variantSku || 'Simple'}</td>
+                            <td className="p-3 text-center font-mono">{item.quantity}</td>
+                            <td className="p-3 text-right font-mono">₹{item.price}</td>
+                            <td className="p-3 text-right font-mono font-semibold">₹{item.price * item.quantity}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Timeline Logs */}
+                <div className="space-y-2">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Order Dispatch Logs</span>
+                  <div className="bg-secondary/10 p-3 rounded-xl border border-border/40 divide-y divide-border/60 text-[10px] font-mono">
+                    {selectedOrder.timeline.map((entry, idx) => (
+                      <div key={idx} className="py-2 first:pt-0 last:pb-0">
+                        <span className="text-muted-foreground">[{entry.date}] </span>
+                        <span className="font-semibold text-primary">{entry.status}: </span>
+                        <span className="text-foreground">{entry.note}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Commissions Release Simulator */}
+                {selectedOrder.orderStatus === 'Delivered' && (
+                  <div className="p-4 bg-indigo-500/5 border border-indigo-500/20 rounded-xl space-y-3">
+                    <div className="flex gap-2 text-xs">
+                      <Award className="text-indigo-500 shrink-0 mt-0.5" size={18} />
+                      <div>
+                        <span className="font-bold block text-foreground">Commissions Holding Box</span>
+                        <span className="text-[10px] text-muted-foreground">Commissions for this delivered order are locked inside the pending balance pool during the 7-day customer return period.</span>
+                      </div>
+                    </div>
+
+                    {isCommissionReleased(selectedOrder) ? (
+                      <div className="px-3 py-1.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg text-[10px] font-mono text-center">
+                        Commissions released successfully. Wallet balances upgraded.
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          releaseCommissions(selectedOrder.id);
+                        }}
+                        className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1.5"
+                      >
+                        Simulate Return Period End (Release Cash)
+                      </button>
+                    )}
+                  </div>
+                )}
+                {/* Dispatch Order Form */}
+                {['Confirmed', 'Payment Verified', 'Processing', 'Packed'].includes(selectedOrder.orderStatus) && (
+                  <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-3">
+                    <span className="text-[10px] font-bold text-primary uppercase tracking-wider block">⚡ Logistics Dispatch Console</span>
+                    <p className="text-[10px] text-muted-foreground leading-snug">Prepare order for courier dispatch. Enter the tracking ID and carrier below to dispatch order and mark status as Shipped.</p>
+                    <div className="grid grid-cols-2 gap-3 text-left">
+                      <div>
+                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Carrier Partner</label>
+                        <select
+                          value={courier}
+                          onChange={(e) => setCourier(e.target.value)}
+                          className="w-full text-[10px] p-2 border border-border rounded-xl bg-card text-foreground outline-none font-semibold"
+                        >
+                          <option value="Delhivery">Delhivery</option>
+                          <option value="BlueDart">BlueDart</option>
+                          <option value="DTDC">DTDC</option>
+                          <option value="Ecom Express">Ecom Express</option>
+                          <option value="FedEx">FedEx</option>
+                          <option value="DHL">DHL</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Tracking Number / Waybill</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. TRK1289381"
+                          value={tracking}
+                          onChange={(e) => setTracking(e.target.value)}
+                          className="w-full text-[10px] p-1.5 border border-border rounded-xl bg-card text-foreground outline-none font-medium"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (!tracking.trim()) {
+                          alert('Please enter a valid tracking ID first.');
+                          return;
+                        }
+                        setIsDispatching(true);
+                        try {
+                          const success = await updateOrderStatus(selectedOrder.id, 'Shipped', courier, tracking);
+                          if (success) {
+                            alert('Order dispatched successfully via ' + courier);
+                            setSelectedOrder({
+                              ...selectedOrder,
+                              orderStatus: 'Shipped',
+                              courierPartner: courier,
+                              trackingId: tracking
+                            });
+                            setTracking('');
+                          } else {
+                            alert('Failed to dispatch order. Check console or network.');
+                          }
+                        } catch (err) {
+                          console.error(err);
+                          alert('Error during dispatching order.');
+                        } finally {
+                          setIsDispatching(false);
+                        }
+                      }}
+                      disabled={isDispatching}
+                      className="w-full py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs rounded-xl transition-all shadow-md shadow-primary/10 flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                    >
+                      {isDispatching ? 'Processing Dispatch...' : '📦 Confirm Dispatch & Ship Order'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Status Transition Dropper */}
+                <div className="pt-3 border-t border-border flex gap-3 items-center">
+                  <span className="text-xs font-semibold text-muted-foreground select-none">Manual Status Adjust:</span>
+                  <select
+                    value={selectedOrder.orderStatus}
+                    onChange={async (e) => {
+                      const newStatus = e.target.value as Order['orderStatus'];
+                      const previousStatus = selectedOrder.orderStatus;
+                      // FIX 6: Optimistically update UI, but roll back on API failure
+                      setSelectedOrder({ ...selectedOrder, orderStatus: newStatus });
+                      const success = await updateOrderStatus(selectedOrder.id, newStatus);
+                      if (!success) {
+                        // Roll back to previous status
+                        setSelectedOrder(prev => prev ? { ...prev, orderStatus: previousStatus } : prev);
+                      }
+                    }}
+                    className="text-xs p-2 border border-border/80 rounded-xl bg-card text-foreground outline-none font-semibold"
+                  >
+                    <option value="Pending Payment">Pending Payment</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Payment Verified">Payment Verified</option>
+                    <option value="Processing">Processing</option>
+                    <option value="Packed">Packed</option>
+                    <option value="Shipped">Shipped</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Return Requested">Return Requested</option>
+                    <option value="Returned">Returned</option>
+                    <option value="Refunded">Refunded</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </div>
+
+              </div>
+            ) : (
+              <div className="lg:col-span-7 flex flex-col items-center justify-center py-20 text-center text-xs text-muted-foreground">
+                Select an order from the list to view specifications and dispatch log summaries.
               </div>
             )}
 
-            {/* Status Transition Dropper */}
-            <div className="pt-3 border-t border-border flex gap-3 items-center">
-              <span className="text-xs font-semibold text-muted-foreground select-none">Manual Status Adjust:</span>
-              <select
-                value={selectedOrder.orderStatus}
-                onChange={async (e) => {
-                  const newStatus = e.target.value as Order['orderStatus'];
-                  const previousStatus = selectedOrder.orderStatus;
-                  // FIX 6: Optimistically update UI, but roll back on API failure
-                  setSelectedOrder({ ...selectedOrder, orderStatus: newStatus });
-                  const success = await updateOrderStatus(selectedOrder.id, newStatus);
-                  if (!success) {
-                    // Roll back to previous status
-                    setSelectedOrder(prev => prev ? { ...prev, orderStatus: previousStatus } : prev);
-                  }
-                }}
-                className="text-xs p-2 border border-border/80 rounded-xl bg-card text-foreground outline-none font-semibold"
-              >
-                <option value="Pending Payment">Pending Payment</option>
-                <option value="Confirmed">Confirmed</option>
-                <option value="Payment Verified">Payment Verified</option>
-                <option value="Processing">Processing</option>
-                <option value="Packed">Packed</option>
-                <option value="Shipped">Shipped</option>
-                <option value="Delivered">Delivered</option>
-                <option value="Return Requested">Return Requested</option>
-                <option value="Returned">Returned</option>
-                <option value="Refunded">Refunded</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-            </div>
-
           </div>
-        ) : (
-          <div className="lg:col-span-7 flex flex-col items-center justify-center py-20 text-center text-xs text-muted-foreground">
-            Select an order from the list to view specifications and dispatch log summaries.
-          </div>
-        )}
-
-      </div>
-      </>
+        </>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start text-xs text-foreground text-left select-none">
-          
+
           {/* Subscriptions Master List - 5 columns */}
           <div className="lg:col-span-5 bg-card border border-border/80 rounded-2xl overflow-hidden shadow-sm">
             <div className="px-5 py-4 border-b border-border/60 bg-secondary/10 flex justify-between items-center">
@@ -403,9 +485,8 @@ export const OrderManagement: React.FC = () => {
                   <div
                     key={sub._id}
                     onClick={() => setSelectedSubDetail(sub)}
-                    className={`p-4 flex items-center justify-between cursor-pointer hover:bg-secondary/20 transition-all ${
-                      selectedSubDetail?._id === sub._id ? 'bg-secondary/40 border-l-4 border-primary' : ''
-                    }`}
+                    className={`p-4 flex items-center justify-between cursor-pointer hover:bg-secondary/20 transition-all ${selectedSubDetail?._id === sub._id ? 'bg-secondary/40 border-l-4 border-primary' : ''
+                      }`}
                   >
                     <div className="space-y-1">
                       <span className="font-semibold text-xs text-foreground block">{sub.productName}</span>
@@ -416,9 +497,8 @@ export const OrderManagement: React.FC = () => {
                     </div>
                     <div className="shrink-0 flex flex-col items-end gap-1.5">
                       <span className="font-mono text-xs font-bold text-foreground">₹{sub.unitPrice * sub.quantity}</span>
-                      <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] capitalize ${
-                        sub.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
-                      }`}>
+                      <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] capitalize ${sub.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
+                        }`}>
                         {sub.status}
                       </span>
                     </div>
@@ -436,9 +516,8 @@ export const OrderManagement: React.FC = () => {
                   <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Subscription Specifications</h3>
                   <p className="text-[10px] text-muted-foreground mt-0.5">Start Date: {selectedSubDetail.startDate} • Freq: <span className="capitalize">{selectedSubDetail.frequency}</span></p>
                 </div>
-                <span className={`px-2.5 py-0.5 rounded-full font-bold text-[9px] capitalize ${
-                  selectedSubDetail.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
-                }`}>
+                <span className={`px-2.5 py-0.5 rounded-full font-bold text-[9px] capitalize ${selectedSubDetail.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
+                  }`}>
                   {selectedSubDetail.status}
                 </span>
               </div>
@@ -571,9 +650,9 @@ export const OrderManagement: React.FC = () => {
                     try {
                       const res = await fetch(`https://server.apexbee.in/api/local-shop/subscriptions/${selectedSubDetail._id}/status`, {
                         method: 'PATCH',
-                        headers: { 
+                        headers: {
                           'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${token}` 
+                          'Authorization': `Bearer ${token}`
                         },
                         body: JSON.stringify({ status: newStatus })
                       });

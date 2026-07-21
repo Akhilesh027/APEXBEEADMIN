@@ -38,7 +38,7 @@ export const ServiceProviderManagement: React.FC = () => {
           const category = (p.serviceCategory && p.serviceCategory.length > 0)
             ? p.serviceCategory.join(', ')
             : (p.serviceType || 'General Services');
-          
+
           const userWallet = wallets.find((w: any) => String(w.userId?._id || w.userId || w.id) === String(p.userId));
           const earnings = userWallet ? (userWallet.availableBalance + userWallet.withdrawnBalance) : 0;
           const bookings = orders.filter(o => o.items.some(it => it.productId && it.productId.startsWith(p._id) || (o as any).sellerId === p._id)).length;
@@ -155,7 +155,7 @@ export const ServiceProviderManagement: React.FC = () => {
     }
   };
 
-  const currentProviders = getFilteredProviders().filter(p => 
+  const currentProviders = getFilteredProviders().filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -185,7 +185,7 @@ export const ServiceProviderManagement: React.FC = () => {
   const totalProviders = providersList.length;
   const activeProvidersCount = providersList.filter(p => p.status === 'Active').length;
   const totalBookings = providersList.reduce((acc, p) => acc + p.bookings, 0);
-  const avgRating = providersList.length > 0 
+  const avgRating = providersList.length > 0
     ? (providersList.reduce((acc, p) => acc + parseFloat(p.rating), 0) / providersList.length).toFixed(1)
     : '0.0';
   const totalEarnings = providersList.reduce((acc, p) => acc + p.earnings, 0);
@@ -219,7 +219,7 @@ export const ServiceProviderManagement: React.FC = () => {
           {errorMsg}
         </div>
       )}
-      
+
       {/* Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 select-none">
         <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
@@ -262,11 +262,10 @@ export const ServiceProviderManagement: React.FC = () => {
           <button
             key={tab}
             onClick={() => setActiveSubTab(tab)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
-              activeSubTab === tab
-                ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground'
-            }`}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${activeSubTab === tab
+              ? 'bg-primary text-primary-foreground border-primary shadow-md'
+              : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground'
+              }`}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
@@ -275,7 +274,7 @@ export const ServiceProviderManagement: React.FC = () => {
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
+
         {/* Left Column: Data tables */}
         <div className="lg:col-span-8 bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-border/60">
@@ -322,9 +321,8 @@ export const ServiceProviderManagement: React.FC = () => {
                       <td className="p-3 text-muted-foreground">{bk.clientName}</td>
                       <td className="p-3 font-mono text-muted-foreground">{bk.date}</td>
                       <td className="p-3 text-center">
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold flex items-center justify-center gap-0.5 ${
-                          bk.status === 'Dispatched' ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold flex items-center justify-center gap-0.5 ${bk.status === 'Dispatched' ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'
+                          }`}>
                           {bk.status === 'Dispatched' ? <Clock size={10} /> : <CheckCircle size={10} />} {bk.status}
                         </span>
                       </td>
@@ -399,7 +397,7 @@ export const ServiceProviderManagement: React.FC = () => {
                       <td className="p-3 text-center border-l border-border/10">
                         <div className="flex items-center justify-center gap-1.5">
                           {p.rawStatus !== 'verified' && p.rawStatus !== 'active' ? (
-                            <button 
+                            <button
                               onClick={() => handleApprovePartner(p.userId)}
                               disabled={actionLoading}
                               className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-all shadow-md cursor-pointer"
@@ -411,7 +409,7 @@ export const ServiceProviderManagement: React.FC = () => {
                               <ShieldCheck size={12} className="text-emerald-500 animate-pulse" /> Verified
                             </span>
                           )}
-                          <button 
+                          <button
                             onClick={() => {
                               setSelectedProvider(p);
                               setRemarks('');
@@ -444,7 +442,7 @@ export const ServiceProviderManagement: React.FC = () => {
             <span className="text-xs font-bold text-foreground uppercase tracking-wider block">Service Earnings Spread</span>
             <p className="text-[9px] text-muted-foreground mt-0.5">Top grossing local service niches</p>
           </div>
-          
+
           {totalEarnings === 0 ? (
             <div className="h-44 flex flex-col items-center justify-center text-center text-xs text-muted-foreground bg-secondary/5 rounded-xl border border-border/40">
               <Wrench size={20} className="text-muted-foreground/45 mb-1" />

@@ -23,7 +23,7 @@ export const FinancialCenter: React.FC = () => {
       try {
         const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
         if (!token) return;
-        
+
         const reconRes = await fetch('https://server.apexbee.in/api/admin/reconciliation', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -76,7 +76,7 @@ export const FinancialCenter: React.FC = () => {
   // 2. Compile real cash flow log by merging orders (Inflows) & cleared payouts (Outflows)
   const getCashFlowLogs = () => {
     const logs: any[] = [];
-    
+
     // Inflows from order checkouts
     orders.forEach(o => {
       logs.push({
@@ -109,10 +109,10 @@ export const FinancialCenter: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      
+
       {/* Top operational metrics row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 select-none">
-        
+
         {/* Total Sales Box */}
         <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
           <div>
@@ -164,7 +164,7 @@ export const FinancialCenter: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Monthly Revenue Area Chart - 2 Columns */}
         <div className="lg:col-span-2 bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4 flex flex-col justify-between">
           <div>
@@ -183,12 +183,12 @@ export const FinancialCenter: React.FC = () => {
                 <AreaChart data={monthlyFinanceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorGmv" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="colorNetRev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(100, 116, 139, 0.1)" />

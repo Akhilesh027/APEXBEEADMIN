@@ -43,7 +43,7 @@ export const WholesalerManagement: React.FC = () => {
             name: w.businessName,
             contact: w.ownerName,
             location: `${w.mandal || ''}, ${w.district || ''}, ${w.state || ''}`.replace(/^,\s*/, '').trim() || 'N/A',
-            productsCount: w.productsCount || 0, 
+            productsCount: w.productsCount || 0,
             revenue: availableBalance + withdrawnBalance,
             availableBalance: availableBalance,
             status: getStatusLabel(w.status),
@@ -149,7 +149,7 @@ export const WholesalerManagement: React.FC = () => {
     }
   };
 
-  const currentWholesalers = getFilteredWholesalers().filter(w => 
+  const currentWholesalers = getFilteredWholesalers().filter(w =>
     w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     w.contact.toLowerCase().includes(searchQuery.toLowerCase()) ||
     w.id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -159,7 +159,7 @@ export const WholesalerManagement: React.FC = () => {
   const getProcurementData = () => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const monthlyCounts: Record<string, { volume: number; monthIndex: number }> = {};
-    
+
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -204,7 +204,7 @@ export const WholesalerManagement: React.FC = () => {
           {errorMsg}
         </div>
       )}
-      
+
       {/* Wholesaler Analytics Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 select-none">
         <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
@@ -255,11 +255,10 @@ export const WholesalerManagement: React.FC = () => {
           <button
             key={tab}
             onClick={() => setActiveSubTab(tab)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
-              activeSubTab === tab
-                ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground'
-            }`}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${activeSubTab === tab
+              ? 'bg-primary text-primary-foreground border-primary shadow-md'
+              : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground'
+              }`}
           >
             {tab === 'approved' ? 'Approved Wholesalers' : tab === 'procurement' ? 'Procurement Requests' : tab === 'directory' ? 'Supplier Directory' : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
@@ -268,7 +267,7 @@ export const WholesalerManagement: React.FC = () => {
 
       {/* Main Grid: Wholesaler list and chart */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
+
         {/* Left Column: Data Tables */}
         <div className="lg:col-span-8 bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-border/60">
@@ -345,7 +344,7 @@ export const WholesalerManagement: React.FC = () => {
                       <td className="p-3 font-mono font-semibold text-muted-foreground">₹{w.revenue.toLocaleString('en-IN')}</td>
                       <td className="p-3 font-mono font-bold text-foreground">₹{w.availableBalance.toLocaleString('en-IN')}</td>
                       <td className="p-3 text-center">
-                        <button 
+                        <button
                           onClick={() => handleWholesalerDrawdown(w.userId)}
                           disabled={actionLoading}
                           className="px-2.5 py-1 bg-primary/10 text-primary disabled:opacity-50 hover:bg-primary hover:text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer font-bold"
@@ -386,16 +385,15 @@ export const WholesalerManagement: React.FC = () => {
                       <td className="p-3 text-muted-foreground">{w.location}</td>
                       <td className="p-3 font-mono text-muted-foreground">{w.productsCount} items</td>
                       <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold ${
-                          w.status === 'Approved' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500 animate-pulse'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold ${w.status === 'Approved' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500 animate-pulse'
+                          }`}>
                           {w.status}
                         </span>
                       </td>
                       <td className="p-3 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           {w.rawStatus !== 'active' ? (
-                            <button 
+                            <button
                               onClick={() => handleUpdateWholesalerStatus(w.userId, 'active')}
                               disabled={actionLoading}
                               className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer"
@@ -407,7 +405,7 @@ export const WholesalerManagement: React.FC = () => {
                               <CheckCircle size={12} className="text-emerald-500" /> Active
                             </span>
                           )}
-                          <button 
+                          <button
                             onClick={() => {
                               setSelectedWholesaler(w);
                               setRemarks('');
@@ -440,7 +438,7 @@ export const WholesalerManagement: React.FC = () => {
             <span className="text-xs font-bold text-foreground uppercase tracking-wider block">Procurement Volume Flow</span>
             <p className="text-[9px] text-muted-foreground mt-0.5">Monthly purchase order values</p>
           </div>
-          
+
           {totalWholesalerRevenue === 0 ? (
             <div className="h-48 flex flex-col items-center justify-center text-center text-xs text-muted-foreground bg-secondary/5 rounded-xl border border-border/40">
               <Warehouse size={20} className="text-muted-foreground/45 mb-1" />

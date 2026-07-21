@@ -40,7 +40,7 @@ export const HyperlocalOperations: React.FC = () => {
   const getAvgDeliveryTime = () => {
     const deliveredOrders = orders.filter(o => o.orderStatus === 'Delivered' && o.timeline.length >= 2);
     if (deliveredOrders.length === 0) return 0;
-    
+
     let totalMinutes = 0;
     deliveredOrders.forEach(o => {
       const placedEvent = o.timeline.find(t => t.status === 'Placed' || t.status === 'Pending Payment' || t.status === 'Payment Verified' || t.status === 'Processing');
@@ -67,14 +67,14 @@ export const HyperlocalOperations: React.FC = () => {
       if (parts.length >= 2) {
         city = (parts[parts.length - 2] || '').trim() || 'Other';
       }
-      
+
       const placedEvent = o.timeline.find(t => t.status === 'Placed' || t.status === 'Pending Payment' || t.status === 'Payment Verified' || t.status === 'Processing');
       const deliveredEvent = o.timeline.find(t => t.status === 'Delivered');
       let diffMins = 28;
       if (placedEvent && deliveredEvent) {
         diffMins = Math.max(15, Math.round((new Date(deliveredEvent.date).getTime() - new Date(placedEvent.date).getTime()) / (1000 * 60)));
       }
-      
+
       if (!cityStats[city]) {
         cityStats[city] = { totalTime: 0, count: 0 };
       }
@@ -128,7 +128,7 @@ export const HyperlocalOperations: React.FC = () => {
   const getCoverageGaps = () => {
     const unassigned = territoriesList.filter(t => {
       if (t.level !== 'District' && (t.mandal || t.pincode)) return false;
-      const hasFranchise = franchises.some(f => 
+      const hasFranchise = franchises.some(f =>
         f.district?.toLowerCase() === t.district?.toLowerCase() &&
         f.level?.toLowerCase() === 'district'
       );
@@ -180,7 +180,7 @@ export const HyperlocalOperations: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      
+
       {/* Action Header */}
       <div className="flex justify-between items-center bg-card border border-border/80 rounded-2xl p-4 shadow-sm">
         <div className="flex items-center gap-3">
@@ -196,7 +196,7 @@ export const HyperlocalOperations: React.FC = () => {
 
       {/* Top operational metrics overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 select-none">
-        
+
         {/* Active States */}
         <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
           <div>
@@ -248,7 +248,7 @@ export const HyperlocalOperations: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
+
         {/* Delivery Time Analytics */}
         <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
           <div>
@@ -305,7 +305,7 @@ export const HyperlocalOperations: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        
+
         {/* Coverage Gaps alerts - 1 column */}
         <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4 min-h-[350px] flex flex-col justify-between">
           <div className="border-b border-border pb-3 flex items-center justify-between select-none">

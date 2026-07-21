@@ -149,7 +149,7 @@ export const ManufacturerManagement: React.FC = () => {
     }
   };
 
-  const currentManufacturers = getFilteredManufacturers().filter(m => 
+  const currentManufacturers = getFilteredManufacturers().filter(m =>
     m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     m.contact.toLowerCase().includes(searchQuery.toLowerCase()) ||
     m.id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -177,9 +177,9 @@ export const ManufacturerManagement: React.FC = () => {
   const performanceData = getPerformanceData();
 
   // Filter manufacturer activity logs from database
-  const plantActivityLogs = activityLogs.filter(log => 
-    log.details.toLowerCase().includes('manufactur') || 
-    log.action.toLowerCase().includes('manufactur') || 
+  const plantActivityLogs = activityLogs.filter(log =>
+    log.details.toLowerCase().includes('manufactur') ||
+    log.action.toLowerCase().includes('manufactur') ||
     log.details.toLowerCase().includes('factory')
   ).slice(0, 5);
 
@@ -199,7 +199,7 @@ export const ManufacturerManagement: React.FC = () => {
           {errorMsg}
         </div>
       )}
-      
+
       {/* Dashboard Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 select-none">
         <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
@@ -260,11 +260,10 @@ export const ManufacturerManagement: React.FC = () => {
           <button
             key={tab}
             onClick={() => setActiveSubTab(tab)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
-              activeSubTab === tab
-                ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground'
-            }`}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${activeSubTab === tab
+              ? 'bg-primary text-primary-foreground border-primary shadow-md'
+              : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground'
+              }`}
           >
             {tab === 'kyc' ? 'Factory KYC' : tab === 'pending' ? 'Pending Approval' : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
@@ -273,7 +272,7 @@ export const ManufacturerManagement: React.FC = () => {
 
       {/* Main Grid: Data Tables and Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
+
         {/* Left Column: Manufacturer rosters & lists */}
         <div className="lg:col-span-8 bg-card border border-border/80 rounded-2xl shadow-sm overflow-hidden p-5 space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-border/60">
@@ -319,9 +318,8 @@ export const ManufacturerManagement: React.FC = () => {
                       <td className="p-3 font-mono text-muted-foreground">{m.gstNumber || 'GST-PENDING'}</td>
                       <td className="p-3 font-mono text-muted-foreground">{m.panNumber || 'PAN-PENDING'}</td>
                       <td className="p-3 text-center">
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold ${
-                          m.rawStatus === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500 animate-pulse'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold ${m.rawStatus === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500 animate-pulse'
+                          }`}>
                           {m.rawStatus === 'active' ? 'Verified' : 'Pending Verification'}
                         </span>
                       </td>
@@ -358,7 +356,7 @@ export const ManufacturerManagement: React.FC = () => {
                         <span className="px-2 py-0.5 rounded text-[8px] font-bold bg-emerald-500/10 text-emerald-500">Settled</span>
                       </td>
                       <td className="p-3 text-center">
-                        <button 
+                        <button
                           onClick={() => handleManufacturerDrawdown(m.userId)}
                           disabled={actionLoading}
                           className="px-2.5 py-1 bg-primary/10 text-primary disabled:opacity-50 hover:bg-primary hover:text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer"
@@ -399,14 +397,13 @@ export const ManufacturerManagement: React.FC = () => {
                       <td className="p-3 font-mono text-muted-foreground">{m.id}</td>
                       <td className="p-3 text-muted-foreground">{m.contact}</td>
                       <td className="p-3 text-muted-foreground">
-                        <span className={`px-2.5 py-0.5 rounded text-[8px] font-bold ${
-                          m.rawStatus === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
-                        }`}>
+                        <span className={`px-2.5 py-0.5 rounded text-[8px] font-bold ${m.rawStatus === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
+                          }`}>
                           {m.status}
                         </span>
                       </td>
                       <td className="p-3 text-center">
-                        <button 
+                        <button
                           onClick={() => {
                             setSelectedManufacturer(m);
                             setRemarks('');
@@ -439,7 +436,7 @@ export const ManufacturerManagement: React.FC = () => {
               <span className="text-xs font-bold text-foreground uppercase tracking-wider block">Production Efficiency</span>
               <p className="text-[9px] text-muted-foreground mt-0.5">Completed orders count per plant</p>
             </div>
-            
+
             {performanceData.length === 0 ? (
               <div className="h-44 flex flex-col items-center justify-center text-center text-xs text-muted-foreground bg-secondary/5 border border-border/40 rounded-xl">
                 <Activity size={20} className="text-muted-foreground/45 mb-1" />

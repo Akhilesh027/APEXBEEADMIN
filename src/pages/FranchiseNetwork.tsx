@@ -216,11 +216,10 @@ export const FranchiseNetwork: React.FC = () => {
                 <div key={state.id} className="space-y-1">
                   <div
                     onClick={() => setSelectedNode(state)}
-                    className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer hover:bg-secondary/40 transition-all ${
-                      selectedNode?.id === state.id
-                        ? 'bg-secondary/50 font-bold border-l-4 border-indigo-500'
-                        : ''
-                    }`}
+                    className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer hover:bg-secondary/40 transition-all ${selectedNode?.id === state.id
+                      ? 'bg-secondary/50 font-bold border-l-4 border-indigo-500'
+                      : ''
+                      }`}
                   >
                     <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
                       <button
@@ -251,11 +250,10 @@ export const FranchiseNetwork: React.FC = () => {
                         <div key={dist.id} className="pl-6 space-y-1">
                           <div
                             onClick={() => setSelectedNode(dist)}
-                            className={`flex items-center justify-between p-2 rounded-xl cursor-pointer hover:bg-secondary/40 transition-all ${
-                              selectedNode?.id === dist.id
-                                ? 'bg-secondary/50 font-bold border-l-4 border-amber-500'
-                                : ''
-                            }`}
+                            className={`flex items-center justify-between p-2 rounded-xl cursor-pointer hover:bg-secondary/40 transition-all ${selectedNode?.id === dist.id
+                              ? 'bg-secondary/50 font-bold border-l-4 border-amber-500'
+                              : ''
+                              }`}
                           >
                             <div className="flex items-center gap-2 text-xs font-medium text-foreground">
                               <button
@@ -282,11 +280,10 @@ export const FranchiseNetwork: React.FC = () => {
                               <div
                                 key={mandal.id}
                                 onClick={() => setSelectedNode(mandal)}
-                                className={`pl-8 flex items-center justify-between p-1.5 rounded-xl cursor-pointer hover:bg-secondary/40 transition-all ${
-                                  selectedNode?.id === mandal.id
-                                    ? 'bg-secondary/50 font-bold border-l-4 border-emerald-500'
-                                    : ''
-                                }`}
+                                className={`pl-8 flex items-center justify-between p-1.5 rounded-xl cursor-pointer hover:bg-secondary/40 transition-all ${selectedNode?.id === mandal.id
+                                  ? 'bg-secondary/50 font-bold border-l-4 border-emerald-500'
+                                  : ''
+                                  }`}
                               >
                                 <div className="flex items-center gap-2 text-xs text-foreground">
                                   <Landmark size={12} className="text-emerald-500 shrink-0" />
@@ -325,13 +322,12 @@ export const FranchiseNetwork: React.FC = () => {
 
               <div className="flex items-center gap-2 select-none">
                 <span
-                  className={`px-2.5 py-1 text-[10px] font-bold rounded-lg ${
-                    selectedNode.status === 'active'
-                      ? 'bg-emerald-500/10 text-emerald-500'
-                      : selectedNode.status === 'inactive'
+                  className={`px-2.5 py-1 text-[10px] font-bold rounded-lg ${selectedNode.status === 'active'
+                    ? 'bg-emerald-500/10 text-emerald-500'
+                    : selectedNode.status === 'inactive'
                       ? 'bg-rose-500/10 text-rose-500'
                       : 'bg-amber-500/10 text-amber-500'
-                  }`}
+                    }`}
                 >
                   {formatStatus(selectedNode.status)}
                 </span>

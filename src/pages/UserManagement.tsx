@@ -169,9 +169,9 @@ export const UserManagement: React.FC = () => {
     }
   };
 
-  const currentUsers = getSubtabFilteredUsers().filter(u => 
-    u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    u.email.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const currentUsers = getSubtabFilteredUsers().filter(u =>
+    u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -179,7 +179,7 @@ export const UserManagement: React.FC = () => {
   const getRegistrationTrend = () => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const monthlyCounts: Record<string, { count: number; monthIndex: number }> = {};
-    
+
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -242,7 +242,7 @@ export const UserManagement: React.FC = () => {
           {errorMsg}
         </div>
       )}
-      
+
       {/* Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 select-none">
         <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
@@ -293,11 +293,10 @@ export const UserManagement: React.FC = () => {
           <button
             key={tab}
             onClick={() => setActiveSubTab(tab)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
-              activeSubTab === tab
-                ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground'
-            }`}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${activeSubTab === tab
+              ? 'bg-primary text-primary-foreground border-primary shadow-md'
+              : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground'
+              }`}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
@@ -306,7 +305,7 @@ export const UserManagement: React.FC = () => {
 
       {/* Main Grid: Visual Chart and Table */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
+
         {/* Left/Middle Column - Content table or custom view */}
         <div className="lg:col-span-8 bg-card border border-border/80 rounded-2xl shadow-sm overflow-hidden space-y-4 p-5">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-border/60">
@@ -315,7 +314,7 @@ export const UserManagement: React.FC = () => {
                 User Listing ({activeSubTab.toUpperCase()})
               </span>
             </div>
-            
+
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <div className="relative flex-1 sm:flex-initial">
                 <Search className="absolute left-3 top-2.5 text-muted-foreground" size={14} />
@@ -350,9 +349,9 @@ export const UserManagement: React.FC = () => {
                       <p className="text-[9px] opacity-90 truncate">ID: {referralTree.root.userId}</p>
                       <p className="text-[9px] opacity-90 font-mono mt-0.5">Comm: ₹{referralTree.root.commissionEarned}</p>
                     </div>
-                    
+
                     {referralTree.level1.length > 0 && <div className="w-0.5 h-6 bg-border" />}
-                    
+
                     {/* Children Row */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 w-full max-w-lg">
                       {referralTree.level1.slice(0, 3).map((child, cIdx) => (
@@ -423,16 +422,15 @@ export const UserManagement: React.FC = () => {
                       <td className="p-3 font-mono font-semibold text-primary">{user.id}</td>
                       <td className="p-3 font-medium text-foreground">{user.name}</td>
                       <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold ${
-                          user.status === 'Verified' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500 animate-pulse'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold ${user.status === 'Verified' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500 animate-pulse'
+                          }`}>
                           {user.status === 'Verified' ? 'KYC Verified' : 'Documents Pending'}
                         </span>
                       </td>
                       <td className="p-3 text-muted-foreground font-mono">{user.registered}</td>
                       <td className="p-3 text-center">
                         {user.status === 'Pending' ? (
-                          <button 
+                          <button
                             onClick={() => handleVerifyUserKyc(user.id)}
                             disabled={actionLoading}
                             className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer"
@@ -479,7 +477,7 @@ export const UserManagement: React.FC = () => {
                       <td className="p-3 text-muted-foreground">{user.type}</td>
                       <td className="p-3 font-mono text-muted-foreground">{user.registered}</td>
                       <td className="p-3 text-center">
-                        <button 
+                        <button
                           onClick={() => {
                             setSelectedUser(user);
                             setRemarks('');
@@ -504,7 +502,7 @@ export const UserManagement: React.FC = () => {
             </div>
           )}
         </div>
- 
+
         {/* Right Column: User Growth Analytics Chart & History */}
         <div className="lg:col-span-4 space-y-6">
           <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
@@ -512,7 +510,7 @@ export const UserManagement: React.FC = () => {
               <span className="text-xs font-bold text-foreground uppercase tracking-wider block">Registrations Trend</span>
               <p className="text-[9px] text-muted-foreground mt-0.5">Historical cumulative customer acquisitions</p>
             </div>
-            
+
             {registrationData.length === 0 ? (
               <div className="h-44 flex flex-col items-center justify-center text-center text-xs text-muted-foreground bg-secondary/5 rounded-xl border border-border/40">
                 <Users size={20} className="text-muted-foreground/50 mb-1" />
@@ -524,8 +522,8 @@ export const UserManagement: React.FC = () => {
                   <AreaChart data={registrationData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorUsersGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(100, 116, 139, 0.1)" />

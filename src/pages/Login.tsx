@@ -14,30 +14,30 @@ export const Login: React.FC = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    
+
     try {
       const res = await fetch('https://server.apexbee.in/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
-      
+
       const data = await res.json();
       if (!res.ok) {
         setError(data?.message || 'Invalid admin credentials. Please try again.');
         setLoading(false);
         return;
       }
-      
+
       const roles = data.user?.roles || [];
       const isAdmin = roles.some((r: string) => r.toLowerCase() === 'admin');
-      
+
       if (!isAdmin) {
         setError('Access denied. Only administrators can log in here.');
         setLoading(false);
         return;
       }
-      
+
       localStorage.setItem('adminToken', data.token);
       localStorage.setItem('adminUser', JSON.stringify(data.user));
       setIsAuthenticated(true);

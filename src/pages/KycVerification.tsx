@@ -45,10 +45,10 @@ export const KycVerification: React.FC = () => {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [entityType, setEntityType] = useState<'vendor' | 'service_provider'>('vendor');
-  
+
   // Document Zoom State
   const [zoomDoc, setZoomDoc] = useState<{ title: string; url: string } | null>(null);
-  
+
   // Custom Comment State
   const [commentText, setCommentText] = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
@@ -56,7 +56,7 @@ export const KycVerification: React.FC = () => {
 
   const mapSpToVendor = (spKyc: any): IVendor => {
     const profile = spKyc.profile || {};
-    
+
     // Create documents list from fields
     const documents: IVendorDocument[] = [
       { id: 'aadhaarFront', name: 'Aadhaar Card Front', status: spKyc.aadhaarFront ? (spKyc.verificationStatus === 'Approved' ? 'Approved' : spKyc.verificationStatus === 'Rejected' ? 'Rejected' : 'Pending') : 'Not Uploaded', url: spKyc.aadhaarFront, fileName: spKyc.aadhaarFront ? 'aadhaar_front.pdf' : undefined },
@@ -262,13 +262,13 @@ export const KycVerification: React.FC = () => {
   const getMappedStatus = (v: IVendor): 'Pending KYC' | 'Approved' | 'Suspended' | 'Additional Docs Requested' => {
     if (v.status === 'suspended') return 'Suspended';
     if (v.status === 'additional_docs_requested') return 'Additional Docs Requested';
-    
+
     const hasPending = v.documents?.some(d => d.status === 'Pending');
     const hasRejected = v.documents?.some(d => d.status === 'Rejected');
-    
+
     if (hasPending) return 'Pending KYC';
     if (hasRejected) return 'Additional Docs Requested';
-    
+
     return v.status === 'active' ? 'Approved' : 'Pending KYC';
   };
 
@@ -276,8 +276,8 @@ export const KycVerification: React.FC = () => {
     const mapped = getMappedStatus(v);
     const matchesFilter = filter === 'All' || mapped === filter;
     const matchesSearch = v.businessName.toLowerCase().includes(search.toLowerCase()) ||
-                          v.ownerName.toLowerCase().includes(search.toLowerCase()) ||
-                          v.email.toLowerCase().includes(search.toLowerCase());
+      v.ownerName.toLowerCase().includes(search.toLowerCase()) ||
+      v.email.toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 
@@ -334,11 +334,10 @@ export const KycVerification: React.FC = () => {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all select-none border ${
-                filter === f
-                  ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/10'
-                  : 'bg-card text-muted-foreground border-border hover:bg-secondary/40 hover:text-foreground'
-              }`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all select-none border ${filter === f
+                ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/10'
+                : 'bg-card text-muted-foreground border-border hover:bg-secondary/40 hover:text-foreground'
+                }`}
             >
               {f === 'Pending KYC' ? 'Pending Review' : f}
             </button>
@@ -358,7 +357,7 @@ export const KycVerification: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        
+
         {/* Sellers Master List */}
         <div className="lg:col-span-2 bg-card border border-border/80 rounded-2xl overflow-hidden shadow-sm">
           <div className="px-5 py-4 border-b border-border/60">
@@ -366,7 +365,7 @@ export const KycVerification: React.FC = () => {
               {entityType === 'vendor' ? 'Registered Vendors' : 'Registered Service Providers'}
             </h3>
           </div>
-          
+
           <div className="divide-y divide-border/60">
             {loading ? (
               <div className="p-8 text-center text-xs text-muted-foreground animate-pulse">
@@ -380,9 +379,8 @@ export const KycVerification: React.FC = () => {
                   setShowRejectInput(false);
                   setCommentText('');
                 }}
-                className={`p-4 flex items-center justify-between cursor-pointer hover:bg-secondary/20 transition-all ${
-                  selectedVendor?._id === vendor._id ? 'bg-secondary/40 border-l-4 border-primary' : ''
-                }`}
+                className={`p-4 flex items-center justify-between cursor-pointer hover:bg-secondary/20 transition-all ${selectedVendor?._id === vendor._id ? 'bg-secondary/40 border-l-4 border-primary' : ''
+                  }`}
               >
                 <div className="flex gap-3 overflow-hidden">
                   <img
@@ -395,10 +393,10 @@ export const KycVerification: React.FC = () => {
                     <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
                       {vendor.ownerName} • {entityType === 'vendor' ? 'Vendor' : 'Service Provider'}
                     </p>
-                    <p className="text-[9px] text-muted-foreground/75 mt-0.5 font-mono truncate">{vendor.email} | Joined: {vendor.createdAt ? vendor.createdAt.substring(0,10) : 'N/A'}</p>
+                    <p className="text-[9px] text-muted-foreground/75 mt-0.5 font-mono truncate">{vendor.email} | Joined: {vendor.createdAt ? vendor.createdAt.substring(0, 10) : 'N/A'}</p>
                   </div>
                 </div>
-                
+
                 <div className="flex flex-col items-end gap-2 shrink-0">
                   {getStatusBadge(getMappedStatus(vendor))}
                   <button className="text-[10px] text-primary font-semibold hover:underline flex items-center gap-0.5">
@@ -501,12 +499,11 @@ export const KycVerification: React.FC = () => {
                             <span className="text-[9px] text-muted-foreground truncate block">{doc.fileName || 'Not uploaded'}</span>
                           </div>
                         </div>
-                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
-                          doc.status === 'Approved' ? 'bg-emerald-500/10 text-emerald-500' :
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${doc.status === 'Approved' ? 'bg-emerald-500/10 text-emerald-500' :
                           doc.status === 'Pending' ? 'bg-amber-500/10 text-amber-500 animate-pulse' :
-                          doc.status === 'Rejected' ? 'bg-rose-500/10 text-rose-500' :
-                          'bg-secondary/40 text-muted-foreground'
-                        }`}>
+                            doc.status === 'Rejected' ? 'bg-rose-500/10 text-rose-500' :
+                              'bg-secondary/40 text-muted-foreground'
+                          }`}>
                           {doc.status}
                         </span>
                       </div>
@@ -520,7 +517,7 @@ export const KycVerification: React.FC = () => {
                           >
                             View Document
                           </button>
-                          
+
                           {doc.status === 'Pending' && (
                             <div className="flex gap-2">
                               <button
@@ -608,7 +605,7 @@ export const KycVerification: React.FC = () => {
                         <ShieldCheck size={16} /> Approve KYC Credentials
                       </button>
                     )}
-                    
+
                     <div className="flex gap-2">
                       {selectedVendor.status === 'active' && (
                         <button
@@ -618,7 +615,7 @@ export const KycVerification: React.FC = () => {
                           <XCircle size={14} /> Suspend Seller
                         </button>
                       )}
-                      
+
                       {selectedVendor.status === 'suspended' && (
                         <button
                           onClick={() => handleUpdateVendorStatus(selectedVendor.userId, 'active', 'Vendor profile reactivated by Admin.')}

@@ -58,7 +58,7 @@ export const EcosystemMap: React.FC = () => {
     const states = new Set<string>();
     states.add('Telangana');
     states.add('Maharashtra');
-    
+
     territoriesList.forEach(t => { if (t.state) states.add(t.state); });
     franchisesList.forEach(f => { if (f.state) states.add(f.state); });
     entrepreneursList.forEach(e => { if (e.state) states.add(e.state); });
@@ -67,8 +67,8 @@ export const EcosystemMap: React.FC = () => {
   };
 
   const getWalletBalance = (franchiseId: string, ownerUserId: string) => {
-    const wallet = walletsList.find((w: any) => 
-      String(w.id || w.userId?._id || w.userId) === String(ownerUserId) || 
+    const wallet = walletsList.find((w: any) =>
+      String(w.id || w.userId?._id || w.userId) === String(ownerUserId) ||
       String(w.id) === String(franchiseId)
     );
     return wallet ? (wallet.availableBalance + wallet.withdrawnBalance) : 0;
@@ -78,7 +78,7 @@ export const EcosystemMap: React.FC = () => {
 
   const stateFrans = franchisesList.filter(f => f.state?.toLowerCase() === selectedState.toLowerCase());
   const stateFranchiseObj = stateFrans.find(f => f.franchiseLevel === 'state' || f.level === 'state');
-  
+
   const hasSF = !!stateFranchiseObj;
   const sfOperator = stateFranchiseObj ? stateFranchiseObj.ownerName : 'Pending Allocation';
   const sfBalance = stateFranchiseObj ? getWalletBalance(stateFranchiseObj._id, stateFranchiseObj.userId) : 0;
@@ -111,10 +111,10 @@ export const EcosystemMap: React.FC = () => {
 
   const entsCount = entrepreneursList.filter(e => e.state?.toLowerCase() === selectedState.toLowerCase()).length;
   const vendsCount = vendorsList.filter(v => v.state?.toLowerCase() === selectedState.toLowerCase()).length;
-  
+
   // Real count of customer role users mapped in the database for the selected state
-  const custsCount = usersList.filter(u => 
-    u.territory?.state?.toLowerCase() === selectedState.toLowerCase() && 
+  const custsCount = usersList.filter(u =>
+    u.territory?.state?.toLowerCase() === selectedState.toLowerCase() &&
     (u.roles?.includes('customer') || u.roles?.length === 0)
   ).length;
 
@@ -220,7 +220,7 @@ export const EcosystemMap: React.FC = () => {
   const getDynamicGrowthData = () => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const monthlyCounts: Record<string, { customers: number; monthIndex: number }> = {};
-    
+
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -228,7 +228,7 @@ export const EcosystemMap: React.FC = () => {
       monthlyCounts[name] = { customers: 0, monthIndex: d.getMonth() };
     }
 
-    const stateCustomers = usersList.filter(u => 
+    const stateCustomers = usersList.filter(u =>
       u.territory?.state?.toLowerCase() === selectedState.toLowerCase() &&
       (u.roles?.includes('customer') || u.roles?.length === 0)
     );
@@ -262,7 +262,7 @@ export const EcosystemMap: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      
+
       {/* Top Expansion stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 select-none">
         <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
@@ -308,7 +308,7 @@ export const EcosystemMap: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
+
         {/* Left: Ecosystem Map Network tree graph - 7 Columns */}
         <div className="lg:col-span-7 bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -339,15 +339,15 @@ export const EcosystemMap: React.FC = () => {
               {/* Connection Lines */}
               <line x1="180" y1="30" x2="100" y2="100" stroke="var(--border)" strokeWidth="1.5" strokeOpacity={hasSF && hasDF1 ? 1 : 0.3} />
               <line x1="180" y1="30" x2="260" y2="100" stroke="var(--border)" strokeWidth="1.5" strokeOpacity={hasSF && hasDF2 ? 1 : 0.3} />
-              
+
               <line x1="100" y1="100" x2="50" y2="170" stroke="var(--border)" strokeWidth="1.5" strokeOpacity={hasDF1 && hasMF1 ? 1 : 0.3} />
               <line x1="100" y1="100" x2="150" y2="170" stroke="var(--border)" strokeWidth="1.5" strokeOpacity={hasDF1 && hasMF2 ? 1 : 0.3} />
-              
+
               <line x1="50" y1="170" x2="180" y2="240" stroke="var(--border)" strokeWidth="1.5" strokeDasharray="3,3" strokeOpacity={hasMF1 && entsCount > 0 ? 1 : 0.3} />
               <line x1="150" y1="170" x2="180" y2="240" stroke="var(--border)" strokeWidth="1.5" strokeDasharray="3,3" strokeOpacity={hasMF2 && entsCount > 0 ? 1 : 0.3} />
-              
+
               <line x1="260" y1="100" x2="180" y2="240" stroke="var(--border)" strokeWidth="1.5" strokeDasharray="3,3" strokeOpacity={hasDF2 && entsCount > 0 ? 1 : 0.3} />
-              
+
               <line x1="180" y1="240" x2="180" y2="290" stroke="var(--border)" strokeWidth="1.5" strokeOpacity={entsCount > 0 && vendsCount > 0 ? 1 : 0.3} />
               <line x1="180" y1="290" x2="180" y2="340" stroke="var(--border)" strokeWidth="1.5" strokeOpacity={vendsCount > 0 && custsCount > 0 ? 1 : 0.3} />
 
@@ -440,7 +440,7 @@ export const EcosystemMap: React.FC = () => {
               <text x="180" y="343" fill="white" textAnchor="middle" className="text-[6px] font-bold pointer-events-none uppercase">CST</text>
               <text x="202" y="344" fill={custsCount > 0 ? "var(--foreground)" : "var(--text-muted-foreground)"} textAnchor="start" className="text-[8px] font-semibold pointer-events-none">Buyers ({custsCount})</text>
             </svg>
-            
+
             <div className="absolute top-3 left-3 bg-card/85 border border-border/50 backdrop-blur rounded-lg p-2.5 space-y-1 text-[8px] font-semibold text-muted-foreground select-none">
               <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>State Node (SF)</span>
               <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>District Node (DF)</span>
@@ -489,7 +489,7 @@ export const EcosystemMap: React.FC = () => {
               </h3>
               <p className="text-[10px] text-muted-foreground mt-0.5">Growth curve of registered customer nodes</p>
             </div>
-            
+
             {custsCount === 0 ? (
               <div className="h-44 flex flex-col items-center justify-center text-center text-xs text-muted-foreground bg-secondary/5 border border-border/40 rounded-xl mt-4">
                 <TrendingUp size={18} className="text-muted-foreground/50 mb-1" />
@@ -501,8 +501,8 @@ export const EcosystemMap: React.FC = () => {
                   <AreaChart data={growthData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorCustomers" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ec4899" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#ec4899" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#ec4899" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#ec4899" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(100, 116, 139, 0.1)" />

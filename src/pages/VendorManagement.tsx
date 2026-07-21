@@ -189,7 +189,7 @@ export const VendorManagement: React.FC = () => {
     }
   };
 
-  const currentVendors = getFilteredVendors().filter(v => 
+  const currentVendors = getFilteredVendors().filter(v =>
     v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     v.contact.toLowerCase().includes(searchQuery.toLowerCase()) ||
     v.id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -216,9 +216,9 @@ export const VendorManagement: React.FC = () => {
 
   const performanceData = getPerformanceData();
 
-  const vendorActivityLogs = activityLogs.filter(log => 
-    (log.type as string) === 'order' || 
-    log.details.toLowerCase().includes('vendor') || 
+  const vendorActivityLogs = activityLogs.filter(log =>
+    (log.type as string) === 'order' ||
+    log.details.toLowerCase().includes('vendor') ||
     log.action.toLowerCase().includes('vendor')
   ).slice(0, 5);
 
@@ -238,7 +238,7 @@ export const VendorManagement: React.FC = () => {
           {errorMsg}
         </div>
       )}
-      
+
       {/* Dashboard Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 select-none">
         <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
@@ -299,11 +299,10 @@ export const VendorManagement: React.FC = () => {
           <button
             key={tab}
             onClick={() => setActiveSubTab(tab)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
-              activeSubTab === tab
-                ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground'
-            }`}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${activeSubTab === tab
+              ? 'bg-primary text-primary-foreground border-primary shadow-md'
+              : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground'
+              }`}
           >
             {tab === 'kyc' ? 'Vendor KYC' : tab === 'pending' ? 'Pending Approval' : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
@@ -312,7 +311,7 @@ export const VendorManagement: React.FC = () => {
 
       {/* Main Grid: Data Tables and Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
+
         {/* Left Column: Vendor rosters & lists */}
         <div className="lg:col-span-8 bg-card border border-border/80 rounded-2xl shadow-sm overflow-hidden p-5 space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-border/60">
@@ -358,9 +357,8 @@ export const VendorManagement: React.FC = () => {
                       <td className="p-3 font-mono text-muted-foreground">{v.gstNumber || 'GST-PENDING'}</td>
                       <td className="p-3 font-mono text-muted-foreground">{v.panNumber || 'PAN-PENDING'}</td>
                       <td className="p-3 text-center">
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold ${
-                          v.status === 'Active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500 animate-pulse'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold ${v.status === 'Active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500 animate-pulse'
+                          }`}>
                           {v.status === 'Active' ? 'Verified' : 'Pending Verification'}
                         </span>
                       </td>
@@ -397,7 +395,7 @@ export const VendorManagement: React.FC = () => {
                         <span className="px-2 py-0.5 rounded text-[8px] font-bold bg-emerald-500/10 text-emerald-500">Settled</span>
                       </td>
                       <td className="p-3 text-center">
-                        <button 
+                        <button
                           onClick={() => handleVendorDrawdown(v.userId)}
                           disabled={actionLoading}
                           className="px-2.5 py-1 bg-primary/10 text-primary disabled:opacity-50 hover:bg-primary hover:text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer"
@@ -470,7 +468,7 @@ export const VendorManagement: React.FC = () => {
                       <td className="p-3 text-muted-foreground">{v.contact}</td>
                       <td className="p-3 text-muted-foreground">{v.category}</td>
                       <td className="p-3 text-center">
-                        <button 
+                        <button
                           onClick={() => {
                             setSelectedVendor(v);
                             setRemarks('');
@@ -503,7 +501,7 @@ export const VendorManagement: React.FC = () => {
               <span className="text-xs font-bold text-foreground uppercase tracking-wider block">Fulfillment Index</span>
               <p className="text-[9px] text-muted-foreground mt-0.5">Order completed count per merchant</p>
             </div>
-            
+
             {performanceData.length === 0 ? (
               <div className="h-44 flex flex-col items-center justify-center text-center text-xs text-muted-foreground bg-secondary/5 border border-border/40 rounded-xl">
                 <Store size={20} className="text-muted-foreground/45 mb-1" />
@@ -617,16 +615,15 @@ export const VendorManagement: React.FC = () => {
                   <div>
                     <span className="text-muted-foreground block text-[9px]">Geographic GPS Coordinates</span>
                     <span className="font-semibold font-mono block mt-0.5">
-                      {selectedVendor.location?.coordinates 
-                        ? `[${selectedVendor.location.coordinates[0].toFixed(5)}, ${selectedVendor.location.coordinates[1].toFixed(5)}]` 
+                      {selectedVendor.location?.coordinates
+                        ? `[${selectedVendor.location.coordinates[0].toFixed(5)}, ${selectedVendor.location.coordinates[1].toFixed(5)}]`
                         : 'Not Set'}
                     </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground block text-[9px]">Marketplace Listing Status</span>
-                    <span className={`font-bold block mt-0.5 ${
-                      selectedVendor.marketplaceStatus === 'Approved' ? 'text-emerald-500' : 'text-amber-500'
-                    }`}>
+                    <span className={`font-bold block mt-0.5 ${selectedVendor.marketplaceStatus === 'Approved' ? 'text-emerald-500' : 'text-amber-500'
+                      }`}>
                       {selectedVendor.marketplaceStatus}
                     </span>
                   </div>
@@ -710,7 +707,7 @@ export const VendorManagement: React.FC = () => {
               {/* Listing Approval Controls */}
               <div className="space-y-2 bg-secondary/15 p-4 rounded-xl border border-border/45">
                 <h4 className="font-bold text-foreground">Marketplace Listing Actions</h4>
-                
+
                 <div className="grid grid-cols-2 gap-2 mt-1.5">
                   <button
                     onClick={() => handleUpdateVendorMarketplace(selectedVendor.userId, { marketplaceStatus: 'Approved' })}
@@ -726,7 +723,7 @@ export const VendorManagement: React.FC = () => {
                   >
                     Reject Store Listing
                   </button>
-                  
+
                   <button
                     onClick={() => handleUpdateVendorMarketplace(selectedVendor.userId, { verifiedBadge: !selectedVendor.verifiedBadge })}
                     disabled={actionLoading}
@@ -818,6 +815,6 @@ export const VendorManagement: React.FC = () => {
         </div>
       )}
 
-      </div>
+    </div>
   );
 };

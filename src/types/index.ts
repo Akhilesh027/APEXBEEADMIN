@@ -137,6 +137,8 @@ export interface Order {
   date: string;
   deliveryAgentId?: string;
   deliveryType?: 'Platform' | 'Vendor' | 'Independent';
+  courierPartner?: string;
+  trackingId?: string;
   returnAllowed: boolean;
   returnWindowDays: number;
   refundType: 'Refund Only' | 'Replacement Only' | 'Both';

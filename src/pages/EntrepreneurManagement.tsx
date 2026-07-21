@@ -41,7 +41,7 @@ export const EntrepreneurManagement: React.FC = () => {
             id: e._id,
             userId: e.userId,
             name: e.name,
-            certification: 'Agri-Business Certified', 
+            certification: 'Agri-Business Certified',
             training: 'Completed',
             sales: downlineCount * 12500, // estimated volume based on active registrations
             revenueShare: availableBalance,
@@ -149,7 +149,7 @@ export const EntrepreneurManagement: React.FC = () => {
     }
   };
 
-  const currentEntrepreneurs = getFilteredEntrepreneurs().filter(e => 
+  const currentEntrepreneurs = getFilteredEntrepreneurs().filter(e =>
     e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     e.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -189,7 +189,7 @@ export const EntrepreneurManagement: React.FC = () => {
           {errorMsg}
         </div>
       )}
-      
+
       {/* Metrics Header */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 select-none">
         <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
@@ -240,11 +240,10 @@ export const EntrepreneurManagement: React.FC = () => {
           <button
             key={tab}
             onClick={() => setActiveSubTab(tab)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
-              activeSubTab === tab
-                ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground'
-            }`}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${activeSubTab === tab
+              ? 'bg-primary text-primary-foreground border-primary shadow-md'
+              : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground'
+              }`}
           >
             {tab === 'success' ? 'Success Stories' : tab === 'training' ? 'Training Progress' : tab === 'network' ? 'Entrepreneur Network' : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
@@ -253,7 +252,7 @@ export const EntrepreneurManagement: React.FC = () => {
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
+
         {/* Left Column: Data tables and trackers */}
         <div className="lg:col-span-8 bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-border/60">
@@ -298,16 +297,15 @@ export const EntrepreneurManagement: React.FC = () => {
                       <td className="p-3 font-medium text-foreground">{e.name}</td>
                       <td className="p-3 text-muted-foreground">
                         <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded text-[8px] font-bold ${
-                            e.training === 'Completed' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded text-[8px] font-bold ${e.training === 'Completed' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
+                            }`}>
                             {e.training}
                           </span>
                         </div>
                       </td>
                       <td className="p-3 text-muted-foreground">{e.training === 'Completed' ? 'Milestone 5 Achieved' : 'In Progress'}</td>
                       <td className="p-3 text-center">
-                        <button 
+                        <button
                           onClick={() => alert(`Reviewing course completions details for ${e.name}`)}
                           className="px-2.5 py-1 bg-secondary hover:bg-secondary/80 border border-border text-foreground rounded-lg text-[10px] font-bold transition-all cursor-pointer"
                         >
@@ -340,7 +338,7 @@ export const EntrepreneurManagement: React.FC = () => {
                       <td className="p-3 font-mono text-muted-foreground">₹{e.sales.toLocaleString('en-IN')}</td>
                       <td className="p-3 font-mono font-bold text-foreground">₹{e.revenueShare.toLocaleString('en-IN')}</td>
                       <td className="p-3 text-center">
-                        <button 
+                        <button
                           onClick={() => handleEntrepreneurCommissionRelease(e.userId, e.revenueShare)}
                           disabled={actionLoading}
                           className="px-2.5 py-1 bg-primary/10 text-primary disabled:opacity-50 hover:bg-primary hover:text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer"
@@ -393,16 +391,15 @@ export const EntrepreneurManagement: React.FC = () => {
                       <td className="p-3 text-muted-foreground flex items-center gap-1 mt-1"><MapPin size={12} className="text-primary" /> {e.zone}</td>
                       <td className="p-3 text-muted-foreground">{e.certification}</td>
                       <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold ${
-                          e.status === 'Active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500 animate-pulse'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold ${e.status === 'Active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500 animate-pulse'
+                          }`}>
                           {e.status}
                         </span>
                       </td>
                       <td className="p-3 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           {e.rawStatus !== 'active' ? (
-                            <button 
+                            <button
                               onClick={() => handleUpdateEntrepreneurStatus(e.userId, 'active')}
                               disabled={actionLoading}
                               className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer"
@@ -414,7 +411,7 @@ export const EntrepreneurManagement: React.FC = () => {
                               <CheckCircle size={12} className="text-emerald-500" /> Active
                             </span>
                           )}
-                          <button 
+                          <button
                             onClick={() => {
                               setSelectedEntrepreneur(e);
                               setRemarks('');
@@ -440,7 +437,7 @@ export const EntrepreneurManagement: React.FC = () => {
             <span className="text-xs font-bold text-foreground uppercase tracking-wider block">Entrepreneur Sales Volume</span>
             <p className="text-[9px] text-muted-foreground mt-0.5">Top performing business leaders</p>
           </div>
-          
+
           {totalAgentSales === 0 ? (
             <div className="h-44 flex flex-col items-center justify-center text-center text-xs text-muted-foreground bg-secondary/5 border border-border/40 rounded-xl">
               <Users2 size={20} className="text-muted-foreground/45 mb-1" />
