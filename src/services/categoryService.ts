@@ -32,4 +32,9 @@ export const categoryService = {
     const res = await axios.delete(`${API_URL}/categories/${id}`);
     return res.data;
   },
+
+  applyPreset: async (id: any, presetKey: string) => {
+    const res = await axios.post(`${API_URL}/categories/${id}/apply-preset`, { presetKey });
+    return res.data;
+  },
 };

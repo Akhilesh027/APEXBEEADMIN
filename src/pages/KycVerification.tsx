@@ -564,6 +564,27 @@ export const KycVerification: React.FC = () => {
                 </div>
               </div>
 
+              {/* Primary Category Assignment Panel */}
+              <div className="pt-3 border-t border-border space-y-2 text-left">
+                <label className="text-[10px] font-extrabold text-primary uppercase tracking-wider block flex items-center gap-1">
+                  🏷️ Assign Primary Business Category (Admin Assigned)
+                </label>
+                <select
+                  defaultValue={(selectedVendor as any).primaryCategory || (selectedVendor as any).category || 'Food & Restaurant'}
+                  id="admin-category-select"
+                  className="w-full text-xs font-bold px-3 py-2 border border-primary/30 rounded-xl bg-primary/5 text-foreground outline-none cursor-pointer"
+                >
+                  <option value="Food & Restaurant">🍽️ Food & Restaurant (Digital Menu Layout)</option>
+                  <option value="Daily Needs & Grocery">🛒 Daily Needs & Grocery (Superstore Layout)</option>
+                  <option value="Fashion & Boutique">👗 Fashion & Apparel (Boutique Layout)</option>
+                  <option value="Home Services & Repair">🛠️ Home Services & Repairs (Slot Booking Layout)</option>
+                  <option value="Devotional & Puja">🏛️ Devotional & Archana (Sanctified Layout)</option>
+                  <option value="Electronics & Mobiles">📱 Electronics & Mobiles (Tech Retail Layout)</option>
+                  <option value="General Retail">🛍️ General Retail & Superstore</option>
+                </select>
+                <p className="text-[10px] text-muted-foreground">This assigned category automatically drives the Vendor's Storefront layout & Digital Menu features.</p>
+              </div>
+
               {/* Verification Actions */}
               <div className="pt-2 border-t border-border space-y-3">
                 {showRejectInput ? (
@@ -595,19 +616,35 @@ export const KycVerification: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {selectedVendor.status !== 'active' && (
-                      <button
-                        onClick={() => {
-                          handleUpdateVendorStatus(selectedVendor.userId, 'active', 'KYC verified and approved by admin.');
-                        }}
-                        className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/15 transition-all cursor-pointer"
-                      >
-                        <ShieldCheck size={16} /> Approve KYC Credentials
-                      </button>
+                    {selectedVendor.status !== 'active' && selectedVendor.status !== 'verified' && (
+                      <div className="flex flex-col gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const catEl = document.getElementById('admin-category-select') as HTMLSelectElement;
+                            const catVal = catEl ? catEl.value : 'Food & Restaurant';
+                            handleUpdateVendorStatus(selectedVendor.userId, 'pre_approved', `Pre-approved by admin with category ${catVal}. Please upload KYC docs.`);
+                          }}
+                          className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+                        >
+                          <ShieldCheck size={16} /> 1. Pre-Approve & Assign Category (Ask KYC)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const catEl = document.getElementById('admin-category-select') as HTMLSelectElement;
+                            const catVal = catEl ? catEl.value : 'Food & Restaurant';
+                            handleUpdateVendorStatus(selectedVendor.userId, 'active', `KYC verified and approved by admin under ${catVal}. Credentials released.`);
+                          }}
+                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/15 transition-all cursor-pointer"
+                        >
+                          <CheckCircle size={16} /> 2. Approve KYC & Release Portal Access
+                        </button>
+                      </div>
                     )}
 
                     <div className="flex gap-2">
-                      {selectedVendor.status === 'active' && (
+                      {(selectedVendor.status === 'active' || selectedVendor.status === 'verified') && (
                         <button
                           onClick={() => setShowRejectInput(true)}
                           className="w-full py-2 bg-rose-500/10 hover:bg-rose-500/25 border border-rose-500/20 text-rose-500 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"

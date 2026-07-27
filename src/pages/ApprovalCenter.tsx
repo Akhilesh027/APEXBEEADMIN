@@ -377,6 +377,9 @@ export const ApprovalCenter: React.FC = () => {
         endpoint = `https://server.apexbee.in/api/admin/applications/${id}/verify-kyc`;
       }
 
+      const categorySelectEl = document.getElementById("approval-center-category-select") as HTMLSelectElement;
+      const selectedCategory = categorySelectEl ? categorySelectEl.value : (currentApp?.primaryCategory || currentApp?.category || "Food & Restaurant");
+
       const res = await fetch(endpoint, {
         method: "PATCH",
         headers: {
@@ -384,10 +387,12 @@ export const ApprovalCenter: React.FC = () => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          primaryCategory: selectedCategory,
+          category: selectedCategory,
           adminRemarks:
-            activeSubTab === "kyc" || currentApp?.status === "under_review"
+            activeSubTab === "kyc" || currentApp?.status === "under_review" || currentApp?.status === "kyc_submitted"
               ? "KYC verified and approved by admin."
-              : `Audited and ${action.toLowerCase()} by admin.`,
+              : `Pre-approved by admin under category ${selectedCategory}.`,
         }),
       });
 
@@ -924,22 +929,43 @@ export const ApprovalCenter: React.FC = () => {
               )}
 
               {!selectedDetailItem.isDbVendor && (
-                <div className="flex gap-2 pt-2">
-                  <button
-                    onClick={() => handleAction(selectedDetailItem.id, "Rejected")}
-                    className="flex-1 px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold text-xs rounded-xl border border-rose-500/15"
-                  >
-                    Reject
-                  </button>
+                <div className="space-y-3 pt-2 border-t border-border/40 text-left">
+                  <div>
+                    <label className="text-[10px] font-extrabold text-primary uppercase tracking-wider block mb-1">
+                      🏷️ Assign Primary Business Category (Admin Assigned)
+                    </label>
+                    <select
+                      id="approval-center-category-select"
+                      defaultValue={selectedDetailItem.primaryCategory || selectedDetailItem.category || "Food & Restaurant"}
+                      className="w-full text-xs font-bold px-3 py-2 border border-primary/30 rounded-xl bg-primary/5 text-foreground outline-none cursor-pointer"
+                    >
+                      <option value="Food & Restaurant">🍽️ Food & Restaurant (Digital Menu Layout)</option>
+                      <option value="Daily Needs & Grocery">🛒 Daily Needs & Grocery (Superstore Layout)</option>
+                      <option value="Fashion & Boutique">👗 Fashion & Apparel (Boutique Layout)</option>
+                      <option value="Home Services & Repair">🛠️ Home Services & Repairs (Slot Booking Layout)</option>
+                      <option value="Devotional & Puja">🏛️ Devotional & Archana (Sanctified Layout)</option>
+                      <option value="Electronics & Mobiles">📱 Electronics & Mobiles (Tech Retail Layout)</option>
+                      <option value="General Retail">🛍️ General Retail & Superstore</option>
+                    </select>
+                  </div>
 
-                  <button
-                    onClick={() => handleAction(selectedDetailItem.id, "Approved")}
-                    className="flex-1 px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl"
-                  >
-                    {activeSubTab === "kyc" || selectedDetailItem.status === "under_review"
-                      ? "Verify KYC"
-                      : "Approve"}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleAction(selectedDetailItem.id, "Rejected")}
+                      className="flex-1 px-3.5 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold text-xs rounded-xl border border-rose-500/15 transition-all"
+                    >
+                      Reject
+                    </button>
+
+                    <button
+                      onClick={() => handleAction(selectedDetailItem.id, "Approved")}
+                      className="flex-1 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer"
+                    >
+                      {activeSubTab === "kyc" || selectedDetailItem.status === "under_review" || selectedDetailItem.status === "kyc_submitted"
+                        ? "2. Verify KYC & Release Credentials"
+                        : "1. Pre-Approve & Assign Category"}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

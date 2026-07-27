@@ -40,6 +40,7 @@ export interface CategoryAttribute {
   required: boolean;
   isVariant: boolean;
   options?: string[];
+  unit?: string;
 }
 
 export interface Category {
