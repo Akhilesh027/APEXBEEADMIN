@@ -200,7 +200,7 @@ export const VendorManagement: React.FC = () => {
       const data = await res.json();
       if (data.success) {
         setSuccessMsg(`Category governance updated for ${selectedVendor.name}!`);
-        setSelectedVendor(prev => prev ? { ...prev, category: primaryCategoryName, approvedSubcategories: editingSubcategories } : null);
+        setSelectedVendor((prev: any) => prev ? { ...prev, category: primaryCategoryName, approvedSubcategories: editingSubcategories } : null);
         fetchVendors();
       } else {
         setErrorMsg(data.message || 'Failed to save category governance');

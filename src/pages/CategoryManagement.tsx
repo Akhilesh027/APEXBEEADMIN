@@ -1559,7 +1559,7 @@ export const CategoryManagement: React.FC = () => {
                             Dropdown Options:
                           </span>
                           <div className="flex flex-wrap gap-1">
-                            {attr.options.map((opt) => (
+                            {attr.options.map((opt: string) => (
                               <span
                                 key={opt}
                                 className="px-2 py-0.5 bg-background text-foreground text-[10px] rounded-md border border-border/60"

@@ -9,10 +9,7 @@ import {
   Search,
   Filter,
   Eye,
-  FileText,
-  UserPlus,
   Calendar,
-  AlertCircle,
   Loader2,
   RefreshCw,
 } from 'lucide-react';
@@ -36,13 +33,13 @@ export const AcademyLeads: React.FC = () => {
   const [districtId, setDistrictId] = useState('');
   const [mandalId, setMandalId] = useState('');
   const [campaignSource, setCampaignSource] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate] = useState('');
+  const [endDate] = useState('');
 
   // Dropdown lists
   const [states, setStates] = useState<any[]>([]);
   const [districts, setDistricts] = useState<any[]>([]);
-  const [mandals, setMandals] = useState<any[]>([]);
+  const [, setMandals] = useState<any[]>([]);
   const [assignees, setAssignees] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({
     total: 0,

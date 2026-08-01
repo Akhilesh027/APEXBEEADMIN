@@ -46,12 +46,12 @@ export const ApprovalCenter: React.FC = () => {
   const [historyItems, setHistoryItems] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [dbVendors, setDbVendors] = useState<any[]>([]);
-  const [dbWholesalers, setDbWholesalers] = useState<any[]>([]);
-  const [dbManufacturers, setDbManufacturers] = useState<any[]>([]);
-  const [dbEntrepreneurs, setDbEntrepreneurs] = useState<any[]>([]);
-  const [dbFranchises, setDbFranchises] = useState<any[]>([]);
-  const [dbServiceProviders, setDbServiceProviders] = useState<any[]>([]);
-  const [dbDeliveryPartners, setDbDeliveryPartners] = useState<any[]>([]);
+  const [, setDbWholesalers] = useState<any[]>([]);
+  const [, setDbManufacturers] = useState<any[]>([]);
+  const [, setDbEntrepreneurs] = useState<any[]>([]);
+  const [, setDbFranchises] = useState<any[]>([]);
+  const [, setDbServiceProviders] = useState<any[]>([]);
+  const [, setDbDeliveryPartners] = useState<any[]>([]);
   const [dbProducts, setDbProducts] = useState<any[]>([]);
   const [dbWallets, setDbWallets] = useState<any[]>([]);
   const [dbCategories, setDbCategories] = useState<any[]>([]);
@@ -87,7 +87,7 @@ export const ApprovalCenter: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("adminToken");
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
       // Phase 1: Fast initial load for primary tabs
       const [appRes, categoryRes, vendorRes] = await Promise.all([
@@ -764,7 +764,7 @@ export const ApprovalCenter: React.FC = () => {
                   Loading approvals...
                 </div>
               ) : (
-                currentItems.map(item => (
+                currentItems.map((item: any) => (
                   <div
                     key={item.id}
                     className="bg-secondary/15 p-4 rounded-xl border border-border/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 transition-all"
