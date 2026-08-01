@@ -94,37 +94,38 @@ export const CategoryManagement: React.FC = () => {
   const [sandboxColors, setSandboxColors] = useState('Red, Blue, Black');
   const [sandboxSizes, setSandboxSizes] = useState('S, M, L');
   const [generatedVariants, setGeneratedVariants] = useState<any[]>([]);
-  const [selectedPreset, setSelectedPreset] = useState('grocery');
-  const [modalSelectedPreset, setModalSelectedPreset] = useState('grocery');
+  const [resolvedSchema, setResolvedSchema] = useState<any>(null);
+  const [modalResolvedSchema, setModalResolvedSchema] = useState<any>(null);
 
-  const handleApplyPreset = async () => {
-    if (!selectedCat) return;
-    try {
-      const catId = selectedCat._id || (selectedCat as any).id;
-      const res = await categoryService.applyPreset(catId, selectedPreset);
-      alert(res.message);
-      await fetchCategories();
-      const updatedCat = categories.find((c) => (c._id || (c as any).id) === catId);
-      if (updatedCat) setSelectedCat(updatedCat);
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to apply preset');
+  useEffect(() => {
+    const catId = selectedCat?._id || (selectedCat as any)?.id;
+    if (catId) {
+      categoryService.getResolvedSchema(catId).then((data) => {
+        if (data && data.success) {
+          setResolvedSchema(data.data);
+        } else {
+          setResolvedSchema(null);
+        }
+      });
+    } else {
+      setResolvedSchema(null);
     }
-  };
+  }, [selectedCat]);
 
-  const handleApplyPresetInModal = async () => {
-    if (!detailModalCat) return;
-    try {
-      const catId = detailModalCat._id || (detailModalCat as any).id;
-      const res = await categoryService.applyPreset(catId, modalSelectedPreset);
-      alert(res.message);
-      await fetchCategories();
-      if (res.category) {
-        setDetailModalCat(res.category);
-      }
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to apply preset');
+  useEffect(() => {
+    const catId = detailModalCat?._id || (detailModalCat as any)?.id;
+    if (catId) {
+      categoryService.getResolvedSchema(catId).then((data) => {
+        if (data && data.success) {
+          setModalResolvedSchema(data.data);
+        } else {
+          setModalResolvedSchema(null);
+        }
+      });
+    } else {
+      setModalResolvedSchema(null);
     }
-  };
+  }, [detailModalCat]);
 
   const fetchCategories = async () => {
     try {
@@ -761,9 +762,55 @@ export const CategoryManagement: React.FC = () => {
               </div>
 
               <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-5">
-                <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  Dynamic Category Attributes
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                    Category Specs & Dynamic Parameters
+                  </h3>
+                  {resolvedSchema && (
+                    <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 font-extrabold text-[10px] rounded-lg border border-emerald-500/20 uppercase">
+                      Resolved DB Schema v{resolvedSchema.schemaVersion} ({resolvedSchema.productMode})
+                    </span>
+                  )}
+                </div>
+
+                {resolvedSchema && (
+                  <div className="p-3.5 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/10 rounded-xl border border-emerald-500/30 space-y-2 text-left">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={16} className="text-emerald-500 shrink-0" />
+                        <div>
+                          <span className="text-xs font-bold text-foreground block">
+                            Direct Category Schema Active ({selectedCat.name})
+                          </span>
+                          <span className="text-[10px] text-muted-foreground block">
+                            Resolved directly from CategoryProductSchema in database
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 text-[10px] pt-1">
+                      <span className="px-2 py-0.5 bg-card border border-border rounded font-medium">
+                        📦 Variant Attributes: <b>{resolvedSchema.variantAttributes?.join(', ') || 'None'}</b>
+                      </span>
+                      {resolvedSchema.inventoryPolicy?.requiresBatch && (
+                        <span className="px-2 py-0.5 bg-card border border-border rounded text-amber-600 font-bold">
+                          🏷️ Batch Tracking Required
+                        </span>
+                      )}
+                      {resolvedSchema.inventoryPolicy?.requiresExpiry && (
+                        <span className="px-2 py-0.5 bg-card border border-border rounded text-rose-600 font-bold">
+                          📅 Expiry Date Required
+                        </span>
+                      )}
+                      {resolvedSchema.deliveryPolicy?.fragile && (
+                        <span className="px-2 py-0.5 bg-card border border-border rounded text-purple-600 font-bold">
+                          🍷 Fragile Handling Active
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="overflow-x-auto border border-border rounded-xl">
                   <table className="w-full border-collapse text-left text-xs text-foreground">
@@ -773,15 +820,24 @@ export const CategoryManagement: React.FC = () => {
                         <th className="p-3 font-semibold text-muted-foreground">Data Type</th>
                         <th className="p-3 font-semibold text-muted-foreground">Required</th>
                         <th className="p-3 font-semibold text-muted-foreground">Variant Rule</th>
+                        <th className="p-3 font-semibold text-muted-foreground">Unit</th>
                         <th className="p-3 font-semibold text-muted-foreground">Options</th>
                         <th className="p-3 font-semibold text-muted-foreground text-center">Actions</th>
                       </tr>
                     </thead>
 
                     <tbody className="divide-y divide-border">
-                      {selectedCat.attributes?.map((attr) => (
-                        <tr key={attr._id || attr.id} className="hover:bg-secondary/10">
-                          <td className="p-3 font-semibold">{attr.name}</td>
+                      {((resolvedSchema?.attributes && resolvedSchema.attributes.length > 0
+                        ? resolvedSchema.attributes
+                        : selectedCat.level === 1
+                        ? []
+                        : selectedCat.attributes
+                      ) || []).map((attr: any) => (
+                        <tr key={attr._id || attr.id || attr.key || attr.name} className="hover:bg-secondary/10">
+                          <td className="p-3 font-semibold">
+                            {attr.name}
+                            {attr.key && <span className="text-[10px] text-muted-foreground block font-mono font-normal">key: {attr.key}</span>}
+                          </td>
                           <td className="p-3 capitalize font-mono text-[10px] text-primary">
                             {attr.type}
                           </td>
@@ -805,6 +861,9 @@ export const CategoryManagement: React.FC = () => {
                               <span className="text-muted-foreground text-[10px]">-</span>
                             )}
                           </td>
+                          <td className="p-3 font-mono text-[10px] text-muted-foreground">
+                            {attr.unit || '-'}
+                          </td>
                           <td className="p-3 text-muted-foreground text-[10px] max-w-xs truncate">
                             {attr.options?.length ? attr.options.join(', ') : 'Free Input'}
                           </td>
@@ -819,54 +878,23 @@ export const CategoryManagement: React.FC = () => {
                         </tr>
                       ))}
 
-                      {(!selectedCat.attributes || selectedCat.attributes.length === 0) && (
+                      {selectedCat.level === 1 && (
                         <tr>
-                          <td colSpan={6} className="p-8 text-center text-xs text-muted-foreground">
-                            No custom attributes defined.
+                          <td colSpan={7} className="p-6 text-center text-xs text-muted-foreground bg-secondary/10">
+                            🏛️ Level 1 Vertical Header ({selectedCat.name}). Product specifications and variant parameters are defined on Level 2 Subcategories & Level 3 Child Categories.
+                          </td>
+                        </tr>
+                      )}
+
+                      {selectedCat.level !== 1 && (!resolvedSchema?.attributes?.length && (!selectedCat.attributes || selectedCat.attributes.length === 0)) && (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-xs text-muted-foreground">
+                            No custom specifications or variant parameters defined for this category.
                           </td>
                         </tr>
                       )}
                     </tbody>
                   </table>
-                </div>
-
-                {/* 1-Click Attribute Preset Toolbar */}
-                <div className="p-3.5 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 rounded-xl border border-indigo-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={16} className="text-indigo-500 shrink-0" />
-                    <div>
-                      <span className="text-xs font-bold text-foreground block">
-                        1-Click Industry Attribute Presets
-                      </span>
-                      <span className="text-[10px] text-muted-foreground block">
-                        Auto-populate dynamic specs & variant rules for {selectedCat.name}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <select
-                      value={selectedPreset}
-                      onChange={(e) => setSelectedPreset(e.target.value)}
-                      className="px-2.5 py-1.5 bg-background border border-indigo-500/30 rounded-lg text-xs font-semibold text-foreground outline-none shrink-0"
-                    >
-                      <option value="grocery">🛒 Grocery & Daily Needs</option>
-                      <option value="restaurant">🍽 Restaurant & Dining</option>
-                      <option value="devotional">🏛 Devotional & Spiritual</option>
-                      <option value="fashion">🛍 Fashion & Lifestyle</option>
-                      <option value="electronics">🛍 Mobiles & Electronics</option>
-                      <option value="service_repair">🛠 Service & Appliance Repair</option>
-                      <option value="academy">🎓 ApexBee Academy Course</option>
-                    </select>
-
-                    <button
-                      type="button"
-                      onClick={handleApplyPreset}
-                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-sm transition-all shrink-0"
-                    >
-                      Apply Preset
-                    </button>
-                  </div>
                 </div>
 
                 <form
@@ -1419,63 +1447,72 @@ export const CategoryManagement: React.FC = () => {
             )}
           </div>
 
-          {/* 1-Click Attribute Presets & Dynamic Specs inside Category Modal */}
-          <div className="space-y-4 border-t border-border pt-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 rounded-2xl border border-indigo-500/20">
-              <div className="flex items-center gap-2">
-                <Sparkles size={16} className="text-indigo-500 shrink-0" />
-                <div>
-                  <span className="text-xs font-bold text-foreground block">
-                    1-Click Industry Attribute Presets
-                  </span>
-                  <span className="text-[10px] text-muted-foreground block">
-                    Instantly load standard product specs & variant rules into {detailModalCat.name}
+          {/* Dynamic Specs & Resolved Schema inside Category Modal */}
+          <div className="space-y-4 border-t border-border pt-4 text-left">
+            {modalResolvedSchema && (
+              <div className="p-3.5 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/10 rounded-2xl border border-emerald-500/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={16} className="text-emerald-500 shrink-0" />
+                    <div>
+                      <span className="text-xs font-bold text-foreground block">
+                        Direct Category Schema Active ({detailModalCat.name})
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block">
+                        Resolved directly from CategoryProductSchema in database
+                      </span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-600 font-extrabold text-[10px] rounded-lg uppercase">
+                    Mode: {modalResolvedSchema.productMode} (v{modalResolvedSchema.schemaVersion})
                   </span>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <select
-                  value={modalSelectedPreset}
-                  onChange={(e) => setModalSelectedPreset(e.target.value)}
-                  className="px-2.5 py-1.5 bg-background border border-indigo-500/30 rounded-xl text-xs font-semibold text-foreground outline-none shrink-0"
-                >
-                  <option value="grocery">🛒 Grocery & Daily Needs</option>
-                  <option value="restaurant">🍽 Restaurant & Dining</option>
-                  <option value="devotional">🏛 Devotional & Spiritual</option>
-                  <option value="fashion">🛍 Fashion & Lifestyle</option>
-                  <option value="electronics">🛍 Mobiles & Electronics</option>
-                  <option value="service_repair">🛠 Service & Appliance Repair</option>
-                  <option value="academy">🎓 ApexBee Academy Course</option>
-                </select>
-
-                <button
-                  type="button"
-                  onClick={handleApplyPresetInModal}
-                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all shrink-0"
-                >
-                  Apply Preset
-                </button>
+                <div className="flex flex-wrap gap-2 text-[10px] pt-1">
+                  <span className="px-2 py-0.5 bg-card border border-border rounded font-medium">
+                    📦 Variant Attributes: <b>{modalResolvedSchema.variantAttributes?.join(', ') || 'None'}</b>
+                  </span>
+                  {modalResolvedSchema.inventoryPolicy?.requiresBatch && (
+                    <span className="px-2 py-0.5 bg-card border border-border rounded text-amber-600 font-bold">
+                      🏷️ Batch Tracking Required
+                    </span>
+                  )}
+                  {modalResolvedSchema.inventoryPolicy?.requiresExpiry && (
+                    <span className="px-2 py-0.5 bg-card border border-border rounded text-rose-600 font-bold">
+                      📅 Expiry Date Required
+                    </span>
+                  )}
+                  {modalResolvedSchema.deliveryPolicy?.fragile && (
+                    <span className="px-2 py-0.5 bg-card border border-border rounded text-purple-600 font-bold">
+                      🍷 Fragile Handling Active
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-extrabold text-foreground uppercase tracking-wider block">
-                  Category Specs & Variant Parameters ({detailModalCat.attributes?.length || 0})
+                  Category Specs & Variant Parameters ({((modalResolvedSchema?.attributes && modalResolvedSchema.attributes.length > 0 ? modalResolvedSchema.attributes : detailModalCat.attributes) || []).length})
                 </span>
                 <span className="text-[10px] text-muted-foreground">
                   Controls Product Creation Form & Variant SKU Matrices
                 </span>
               </div>
 
-              {(!detailModalCat.attributes || detailModalCat.attributes.length === 0) ? (
+              {(!modalResolvedSchema?.attributes?.length && (!detailModalCat.attributes || detailModalCat.attributes.length === 0)) ? (
                 <div className="p-4 text-center text-xs text-muted-foreground bg-muted/20 border border-dashed rounded-xl">
-                  No attributes defined yet. Select an industry preset above to populate attributes!
+                  No attributes defined yet for {detailModalCat.name}.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {detailModalCat.attributes.map((attr) => (
+                  {((modalResolvedSchema?.attributes && modalResolvedSchema.attributes.length > 0
+                    ? modalResolvedSchema.attributes
+                    : detailModalCat.level === 1
+                    ? []
+                    : detailModalCat.attributes
+                  ) || []).map((attr: any) => (
                     <div
                       key={attr._id || attr.name}
                       className="p-3 bg-muted/30 border border-border/80 hover:border-primary/40 rounded-2xl space-y-2 transition-all shadow-sm"

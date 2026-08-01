@@ -71,7 +71,7 @@ interface DashboardStats {
   };
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://server.apexbee.in";
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "https://server.apexbee.in").replace(/\/api\/?$/, "");
 
 const formatCurrency = (amount?: number) =>
   `₹${Number(amount || 0).toLocaleString("en-IN")}`;

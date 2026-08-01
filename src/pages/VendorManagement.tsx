@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAdminState } from '../context/AdminStateContext';
-import { Store, ShieldAlert, Award, Star, Activity, Search, ShieldCheck, TrendingUp } from 'lucide-react';
+import { Store, ShieldAlert, Award, Star, Activity, Search, ShieldCheck, TrendingUp, X } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
 export const VendorManagement: React.FC = () => {
@@ -17,10 +17,70 @@ export const VendorManagement: React.FC = () => {
   const [showRemarksInput, setShowRemarksInput] = useState(false);
   const [remarks, setRemarks] = useState('');
 
+  // Category & Subcategories Governance state
+  const [dbCategories, setDbCategories] = useState<any[]>([]);
+  const [selectedParentCatId, setSelectedParentCatId] = useState<string>('');
+  const [editingSubcategories, setEditingSubcategories] = useState<string[]>([]);
+  const [newSubCategoryName, setNewSubCategoryName] = useState<string>('');
+
+  // Vendor Products state
+  const [vendorProducts, setVendorProducts] = useState<any[]>([]);
+  const [productsLoading, setProductsLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (selectedVendor?.userId) {
+      setProductsLoading(true);
+      const token = localStorage.getItem('adminToken');
+      fetch(`https://server.apexbee.in/api/admin/vendors/${selectedVendor.userId}/products`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.products) setVendorProducts(data.products);
+          else setVendorProducts([]);
+        })
+        .catch(() => setVendorProducts([]))
+        .finally(() => setProductsLoading(false));
+    } else {
+      setVendorProducts([]);
+    }
+  }, [selectedVendor]);
+
+  useEffect(() => {
+    fetch('https://server.apexbee.in/api/categories')
+      .then(res => res.json())
+      .then(data => {
+        const catList = Array.isArray(data) ? data : (data?.categories || data?.data || []);
+        if (catList.length > 0) setDbCategories(catList);
+      })
+      .catch(() => { });
+  }, []);
+
   const getStatusLabel = (status?: string) => {
     if (status === 'active') return 'Active';
     if (status === 'pending_verification') return 'Pending Approval';
     return 'Rejected';
+  };
+
+  const parseSubcategories = (item: any): string[] => {
+    if (!item) return [];
+    const subs = item.approvedSubcategories || item.subCategories || item.subcategories;
+    if (Array.isArray(subs) && subs.length > 0) {
+      return subs.flatMap((s: any) => typeof s === 'string' && s.includes(',') ? s.split(',').map(x => x.trim()) : String(s).trim()).filter(Boolean);
+    }
+    const single = item.subCategory || item.subcategory;
+    if (typeof single === 'string' && single.trim()) {
+      const trimmed = single.trim();
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          const p = JSON.parse(trimmed);
+          if (Array.isArray(p)) return p.map((x: any) => String(x).trim()).filter(Boolean);
+        } catch (e) { }
+      }
+      if (trimmed.includes(',')) return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+      return [trimmed];
+    }
+    return [];
   };
 
   const fetchVendors = async () => {
@@ -36,6 +96,7 @@ export const VendorManagement: React.FC = () => {
         const mapped = (data.vendors || []).map((v: any) => {
           const userWallet = wallets.find((w: any) => String(w.userId?._id || w.userId || w.id) === String(v.userId));
           const availableBalance = userWallet ? (userWallet.availableBalance + userWallet.withdrawnBalance) : 0;
+          const parsedSubs = parseSubcategories(v);
           return {
             id: v._id,
             userId: v.userId,
@@ -45,7 +106,9 @@ export const VendorManagement: React.FC = () => {
             performance: '100% Fulfillment',
             revenue: availableBalance,
             status: getStatusLabel(v.status),
-            category: v.category || 'Retail Store',
+            category: v.category || v.primaryCategory || 'Retail Store',
+            subCategory: parsedSubs[0] || v.subCategory || '',
+            approvedSubcategories: parsedSubs,
             gstNumber: v.gstNumber,
             panNumber: v.panNumber,
             rawStatus: v.status || 'active',
@@ -77,6 +140,77 @@ export const VendorManagement: React.FC = () => {
   useEffect(() => {
     fetchVendors();
   }, [wallets]);
+
+  useEffect(() => {
+    if (selectedVendor && dbCategories.length > 0) {
+      const vendorCatStr = selectedVendor.category || '';
+      const matchedParent = dbCategories.find(c =>
+        (c.level === 1 || !c.parentId) &&
+        (c.name.toLowerCase() === vendorCatStr.toLowerCase() || vendorCatStr.toLowerCase().includes(c.name.toLowerCase()))
+      );
+      if (matchedParent) {
+        setSelectedParentCatId(matchedParent._id);
+      }
+      setEditingSubcategories(parseSubcategories(selectedVendor));
+    }
+  }, [selectedVendor, dbCategories]);
+
+  const parentCategories = dbCategories.filter((c: any) => c.level === 1 || !c.parentId);
+  const activeParentCat = parentCategories.find((c: any) => String(c._id) === String(selectedParentCatId)) || parentCategories[0];
+  const currentSubCategories = dbCategories.filter((c: any) => {
+    if (c.level !== 2) return false;
+    const parentIdStr = typeof c.parentId === 'object' ? c.parentId?._id : c.parentId;
+    return String(parentIdStr) === String(activeParentCat?._id);
+  });
+
+  const handleAddSubcategory = (name: string) => {
+    if (!name.trim()) return;
+    const trimmed = name.trim();
+    if (!editingSubcategories.includes(trimmed)) {
+      setEditingSubcategories(prev => [...prev, trimmed]);
+    }
+    setNewSubCategoryName('');
+  };
+
+  const handleRemoveSubcategory = (index: number) => {
+    setEditingSubcategories(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveCategoryGovernance = async () => {
+    if (!selectedVendor) return;
+    try {
+      setActionLoading(true);
+      setErrorMsg('');
+      setSuccessMsg('');
+      const token = localStorage.getItem('adminToken');
+      const primaryCategoryName = activeParentCat?.name || selectedVendor.category;
+
+      const res = await fetch(`https://server.apexbee.in/api/admin/vendors/${selectedVendor.userId}/category-governance`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          primaryCategory: primaryCategoryName,
+          subCategory: editingSubcategories[0] || '',
+          approvedSubcategories: editingSubcategories
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg(`Category governance updated for ${selectedVendor.name}!`);
+        setSelectedVendor(prev => prev ? { ...prev, category: primaryCategoryName, approvedSubcategories: editingSubcategories } : null);
+        fetchVendors();
+      } else {
+        setErrorMsg(data.message || 'Failed to save category governance');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error saving category governance');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const handleVendorDrawdown = async (vendorUserId: string) => {
     try {
@@ -550,25 +684,47 @@ export const VendorManagement: React.FC = () => {
 
       {/* Vendor Details Modal */}
       {selectedVendor && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border max-w-lg w-full rounded-2xl overflow-hidden shadow-2xl p-6 relative text-xs text-foreground space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
-                Storefront Hub Management
-              </h3>
-              <button
-                onClick={() => {
-                  setSelectedVendor(null);
-                  setShowRemarksInput(false);
-                  setRemarks('');
-                }}
-                className="px-2.5 py-1 bg-secondary hover:bg-secondary/80 text-foreground font-bold rounded-lg border border-border/40 cursor-pointer"
-              >
-                Close
-              </button>
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-card border border-border max-w-5xl w-full max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col text-xs text-foreground">
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-border bg-muted/30">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-primary/10 rounded-xl text-primary font-bold">
+                  <Store size={22} />
+                </div>
+                <div className="text-left">
+                  <h3 className="text-base font-black text-foreground uppercase tracking-wide">
+                    Vendor Storefront Audit & Governance Deck
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedVendor.name} • Representative: {selectedVendor.contact}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase ${selectedVendor.status === 'Active'
+                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                    : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                  }`}>
+                  {selectedVendor.status}
+                </span>
+                <button
+                  onClick={() => {
+                    setSelectedVendor(null);
+                    setShowRemarksInput(false);
+                    setRemarks('');
+                  }}
+                  className="p-2 bg-secondary hover:bg-secondary/80 text-foreground font-bold rounded-xl border border-border/40 transition-all cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-3 text-left max-h-[75vh] overflow-y-auto pr-1">
+            {/* Modal Body */}
+            <div className="p-6 space-y-5 overflow-y-auto flex-1 text-left">
               <div className="grid grid-cols-2 gap-3 bg-secondary/15 p-4 rounded-xl border border-border/40">
                 <div>
                   <span className="text-muted-foreground block text-[9px] font-bold">BUSINESS NAME</span>
@@ -636,6 +792,134 @@ export const VendorManagement: React.FC = () => {
                 </div>
               </div>
 
+              {/* Dynamic Category & Subcategories Management (Interactive Admin Governance) */}
+              <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
+                <div className="flex items-center justify-between border-b border-primary/15 pb-2">
+                  <h4 className="font-extrabold text-primary text-xs uppercase tracking-wide flex items-center gap-1.5">
+                    🏷️ Category & Permitted Subcategories Governance
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={handleSaveCategoryGovernance}
+                    disabled={actionLoading}
+                    className="px-3 py-1 bg-primary hover:bg-primary/90 text-white font-bold text-[10px] rounded-lg shadow-sm disabled:opacity-50 transition cursor-pointer"
+                  >
+                    {actionLoading ? 'Saving...' : 'Save Category Governance'}
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {/* Primary Category Selector Tabs */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase block">
+                      Primary Business Category (Click to change)
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {parentCategories.map((cat: any) => {
+                        const isCatSelected = (selectedParentCatId || activeParentCat?._id) === cat._id;
+                        return (
+                          <button
+                            key={cat._id}
+                            type="button"
+                            onClick={() => setSelectedParentCatId(cat._id)}
+                            className={`px-2.5 py-1 rounded-lg font-bold text-[10px] transition-all border cursor-pointer ${isCatSelected
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                : "bg-card text-muted-foreground border-border hover:border-primary/40"
+                              }`}
+                          >
+                            {cat.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Toggle Subcategories Interactive Chip Grid */}
+                  <div className="space-y-1.5 pt-2 border-t border-primary/15">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase block">
+                        Approved Subcategories for ({activeParentCat?.name || "Selected Category"}):
+                      </span>
+                      <span className="text-[9px] text-muted-foreground">Click chip to toggle ON / OFF</span>
+                    </div>
+
+                    {currentSubCategories.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {currentSubCategories.map((subCat: any) => {
+                          const isSubSelected = editingSubcategories.includes(subCat.name);
+                          return (
+                            <button
+                              key={subCat._id}
+                              type="button"
+                              onClick={() => {
+                                if (isSubSelected) {
+                                  setEditingSubcategories(prev => prev.filter(s => s !== subCat.name));
+                                } else {
+                                  setEditingSubcategories(prev => [...prev, subCat.name]);
+                                }
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border flex items-center gap-1 cursor-pointer ${isSubSelected
+                                  ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                                  : "bg-card text-foreground border-border/80 hover:bg-primary/5"
+                                }`}
+                            >
+                              <span>{isSubSelected ? "✓" : "+"}</span>
+                              <span>{subCat.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="p-2 bg-card border border-dashed border-primary/20 rounded-lg text-[10px] text-muted-foreground text-center">
+                        No subcategories in DB for this category. Add custom below.
+                      </div>
+                    )}
+
+                    {/* Inline Add Custom Subcategory Pill Input */}
+                    <div className="pt-1 flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={newSubCategoryName}
+                        onChange={(e) => setNewSubCategoryName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddSubcategory(newSubCategoryName);
+                          }
+                        }}
+                        placeholder="Add custom subcategory..."
+                        className="flex-1 px-2.5 py-1 bg-card border border-primary/30 rounded-lg text-[10px] outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddSubcategory(newSubCategoryName)}
+                        disabled={!newSubCategoryName.trim()}
+                        className="px-2.5 py-1 bg-primary text-white font-bold text-[10px] rounded-lg disabled:opacity-50 transition cursor-pointer"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Selected Subcategories Badges */}
+                <div className="pt-2 border-t border-primary/15 flex flex-wrap items-center gap-1">
+                  <span className="text-[10px] font-bold text-foreground mr-1">Permitted Subcategories ({editingSubcategories.length}):</span>
+                  {editingSubcategories.map((sub, idx) => (
+                    <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 bg-card border border-primary/30 text-primary font-bold text-[10px] rounded-md">
+                      <span>{sub}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSubcategory(idx)}
+                        className="text-rose-500 hover:text-rose-700"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
               {/* Tags & Services */}
               {(selectedVendor.storeTags?.length > 0 || selectedVendor.storeServices?.length > 0) && (
                 <div className="space-y-2.5 bg-secondary/10 p-4 rounded-xl border border-border/40">
@@ -688,6 +972,50 @@ export const VendorManagement: React.FC = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Listed Products Catalog Section */}
+              <div className="bg-secondary/15 p-4 rounded-xl border border-border/40 space-y-3">
+                <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                  <h4 className="font-extrabold text-foreground text-xs uppercase tracking-wide flex items-center gap-2">
+                    📦 Vendor Listed Products ({vendorProducts.length})
+                  </h4>
+                  <span className="text-[10px] text-muted-foreground font-semibold">
+                    Products in Vendor Catalog
+                  </span>
+                </div>
+
+                {productsLoading ? (
+                  <div className="p-6 text-center text-xs text-muted-foreground">
+                    Loading vendor product catalog...
+                  </div>
+                ) : vendorProducts.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-60 overflow-y-auto pr-1">
+                    {vendorProducts.map((p: any) => (
+                      <div key={p._id || p.id} className="p-3 bg-card border border-border/60 rounded-xl flex gap-3 items-center shadow-sm">
+                        <div className="w-12 h-12 bg-secondary rounded-lg overflow-hidden shrink-0 flex items-center justify-center font-bold text-muted-foreground text-lg">
+                          {p.thumbnail || p.images?.[0] ? (
+                            <img src={p.thumbnail || p.images[0]} alt={p.name} className="w-full h-full object-cover" />
+                          ) : (
+                            "📦"
+                          )}
+                        </div>
+                        <div className="overflow-hidden text-xs text-left">
+                          <span className="font-bold text-foreground block truncate">{p.name}</span>
+                          <span className="text-[10px] text-muted-foreground font-mono block truncate">SKU: {p.sku || 'Auto'}</span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="font-extrabold text-primary">₹{p.baseSellingPrice || p.sellingPrice || 0}</span>
+                            <span className="text-[10px] text-muted-foreground font-semibold">Stock: {p.stock || p.inventory || 0}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-card border border-dashed border-border/60 rounded-xl text-center text-xs text-muted-foreground">
+                    No products listed by this vendor yet.
+                  </div>
+                )}
               </div>
 
               {/* Gallery Images List */}

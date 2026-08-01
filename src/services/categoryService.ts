@@ -37,4 +37,13 @@ export const categoryService = {
     const res = await axios.post(`${API_URL}/categories/${id}/apply-preset`, { presetKey });
     return res.data;
   },
+
+  getResolvedSchema: async (id: any) => {
+    try {
+      const res = await axios.get(`${API_URL}/devotional/category-schemas/${id}/resolved`);
+      return res.data;
+    } catch {
+      return null;
+    }
+  },
 };

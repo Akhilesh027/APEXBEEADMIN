@@ -222,7 +222,7 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
       });
       if (res.ok) {
         const data = await res.json();
-        const clist = data.categories || data || [];
+        const clist = Array.isArray(data) ? data : (data?.categories || data?.data || []);
         const mapped = clist.map((c: any) => ({
           id: c._id || c.id,
           name: c.name,

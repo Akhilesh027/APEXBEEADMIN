@@ -18,6 +18,7 @@ import { CouponManagement } from './pages/CouponManagement';
 import { TerritoryManagement } from './pages/TerritoryManagement';
 import { EcosystemMap } from './pages/EcosystemMap';
 import { ApprovalCenter } from './pages/ApprovalCenter';
+import { AcademyLeads } from './pages/AcademyLeads';
 import { SupplyChainHub } from './pages/SupplyChainHub';
 import { CommissionControlCenter } from './pages/CommissionControlCenter';
 import { SettlementCenter } from './pages/SettlementCenter';
@@ -114,6 +115,8 @@ const App: React.FC = () => {
         return <ReportsAnalytics />;
       case 'subscriptions':
         return <SubscriptionManagement />;
+      case 'academy_leads':
+        return <AcademyLeads />;
       case 'coupons':
         return <CouponManagement />;
       case 'territory':

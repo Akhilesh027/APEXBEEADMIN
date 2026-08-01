@@ -90,6 +90,7 @@ export type ActiveTab =
   | 'staff_management'
   | 'audit_logs'
   | 'support_center'
+  | 'academy_leads'
   | 'security_settings';
 
 interface SidebarProps {
@@ -138,6 +139,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'wallets', label: 'Wallets & Payouts', icon: Wallet, badge: badgeCounts.withdrawals },
     { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
     { id: 'subscriptions', label: 'Local Shop Subscriptions', icon: Calendar },
+    { id: 'academy_leads', label: 'Academy Leads', icon: GraduationCap },
     // ApexBee Ecosystem Modules
     { id: 'territory', label: 'Territory Management', icon: MapPin },
     { id: 'ecosystem_map', label: 'Ecosystem Map', icon: Workflow },
