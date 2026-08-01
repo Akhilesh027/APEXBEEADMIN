@@ -46,12 +46,6 @@ export const ApprovalCenter: React.FC = () => {
   const [historyItems, setHistoryItems] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [dbVendors, setDbVendors] = useState<any[]>([]);
-  const [, setDbWholesalers] = useState<any[]>([]);
-  const [, setDbManufacturers] = useState<any[]>([]);
-  const [, setDbEntrepreneurs] = useState<any[]>([]);
-  const [, setDbFranchises] = useState<any[]>([]);
-  const [, setDbServiceProviders] = useState<any[]>([]);
-  const [, setDbDeliveryPartners] = useState<any[]>([]);
   const [dbProducts, setDbProducts] = useState<any[]>([]);
   const [dbWallets, setDbWallets] = useState<any[]>([]);
   const [dbCategories, setDbCategories] = useState<any[]>([]);
@@ -464,7 +458,7 @@ export const ApprovalCenter: React.FC = () => {
 
   const activeCategoryCapabilities = getCapabilitiesForCategory(activeParentCat);
 
-  const handleUpdateDocStatus = async (
+  const _handleUpdateDocStatus = async (
     vendorId: string,
     docId: string,
     status: "Approved" | "Rejected"
@@ -516,7 +510,7 @@ export const ApprovalCenter: React.FC = () => {
     }
   };
 
-  const handleRequestDoc = async (vendorId: string, docName: string) => {
+  const _handleRequestDoc = async (vendorId: string, docName: string) => {
     try {
       const token = localStorage.getItem("adminToken");
 
@@ -534,27 +528,12 @@ export const ApprovalCenter: React.FC = () => {
 
       if (res.ok) {
         const data = await res.json();
-
         if (data.success && data.vendor) {
-          setSelectedDetailItem((prev: any) => {
-            if (prev && prev.id === vendorId) {
-              return {
-                ...prev,
-                documents: data.vendor.documents,
-              };
-            }
-
-            return prev;
-          });
-
-          fetchEcosystemData();
-
           addActivityLog(
             "Document Requested",
             `Additional document "${docName}" requested from Vendor ${data.vendor.businessName}`,
             "kyc"
           );
-
           alert("Document requested successfully.");
         }
       } else {
@@ -565,6 +544,9 @@ export const ApprovalCenter: React.FC = () => {
       console.error("Error requesting document:", err);
     }
   };
+
+  void _handleUpdateDocStatus;
+  void _handleRequestDoc;
 
   const handleAction = async (id: string, action: "Approved" | "Rejected") => {
     const isRealApp = applications.some(app => app._id === id);
