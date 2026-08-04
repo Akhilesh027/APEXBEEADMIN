@@ -138,7 +138,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'delivery', label: 'Delivery Dispatch', icon: Truck },
     { id: 'wallets', label: 'Wallets & Payouts', icon: Wallet, badge: badgeCounts.withdrawals },
     { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
-    { id: 'subscriptions', label: 'Local Shop Subscriptions', icon: Calendar },
+    { id: 'subscriptions', label: 'Universal Subscriptions', icon: Calendar },
     { id: 'academy_leads', label: 'Academy Leads', icon: GraduationCap },
     // ApexBee Ecosystem Modules
     { id: 'territory', label: 'Territory Management', icon: MapPin },

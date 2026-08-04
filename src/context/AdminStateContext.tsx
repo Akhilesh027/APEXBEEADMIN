@@ -123,9 +123,28 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
             orderStatus = 'Cancelled';
           }
 
-          const paymentStatus = order.paymentDetails?.status === 'pending_verification' ? 'Pending Verification' :
-            order.paymentStatus === 'Paid' || order.paymentStatus === 'Approved' || order.paymentDetails?.status === 'completed' ? 'Approved' :
-              order.paymentStatus === 'Rejected' ? 'Rejected' : 'Pending Verification';
+          const rawMethod = (
+            order.paymentMethod ||
+            order.paymentDetails?.method ||
+            order.paymentDetails?.type ||
+            order.paymentDetails?.provider ||
+            ''
+          ).toUpperCase();
+
+          const isCodOrder = rawMethod === 'COD' || rawMethod.includes('CASH') || order.paymentVerificationStatus === 'Not Required';
+
+          let paymentStatus = 'Not Required';
+          if (isCodOrder) {
+            paymentStatus = 'COD (Pending Delivery)';
+          } else if (order.paymentVerificationStatus === 'Pending Verification' || order.paymentDetails?.status === 'pending_verification') {
+            paymentStatus = 'Pending Verification';
+          } else if (order.paymentStatus === 'Paid' || order.paymentStatus === 'Approved' || order.paymentDetails?.status === 'completed' || order.paymentVerificationStatus === 'Verified') {
+            paymentStatus = 'Approved';
+          } else if (order.paymentStatus === 'Rejected' || order.paymentVerificationStatus === 'Rejected') {
+            paymentStatus = 'Rejected';
+          } else {
+            paymentStatus = 'Not Required';
+          }
 
           return {
             id: order.orderNumber || order._id,
@@ -141,6 +160,7 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
               variantSku: it.sku || ''
             })),
             totalAmount: order.orderSummary?.total || order.totalAmount || 0,
+            paymentMethod: rawMethod || (isCodOrder ? 'COD' : 'UPI'),
             upiRefNo: order.paymentDetails?.upiDetails?.transactionId || order.paymentDetails?.transactionId || '',
             paymentScreenshot: order.paymentDetails?.upiDetails?.paymentProof || '',
             paymentStatus,
@@ -465,14 +485,17 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
         const mapped = list.map((dp: any, index: number) => {
           const completedCount = orders.filter(o => o.deliveryAgentId === dp._id && o.orderStatus === 'Delivered').length;
           const channels = ['Platform', 'Vendor', 'Independent'];
-          const type = channels[index % 3] as 'Platform' | 'Vendor' | 'Independent';
+          const type = (dp.partnerType === 'Employee' ? 'Platform' : channels[index % 3]) as 'Platform' | 'Vendor' | 'Independent';
+
+          const isAvailable = dp.status === 'active' || dp.isOnline === true;
+          const isOnJob = dp.status === 'On Delivery' || dp.status === 'on_delivery';
 
           return {
             id: dp._id,
             name: dp.name,
             type: type,
             mobile: dp.mobile,
-            status: dp.status === 'active' ? 'Available' as const : 'Offline' as const,
+            status: isAvailable ? ('Available' as const) : isOnJob ? ('On Delivery' as const) : ('Offline' as const),
             completedDeliveries: completedCount || (index + 2) * 3,
             rating: 4.5 + (index % 5) * 0.1
           };

@@ -26,7 +26,6 @@ const defaultShares: CommissionShareInput[] = [
   { type: 'state', label: 'State Franchise', percent: 10 },
   { type: 'district', label: 'District Franchise', percent: 10 },
   { type: 'mandal', label: 'Mandal Franchise', percent: 10 },
-  { type: 'entrepreneur', label: 'Entrepreneur', percent: 10 },
   { type: 'level1', label: 'Level 1 Referral', percent: 10 },
   { type: 'level2', label: 'Level 2 Referral', percent: 5 },
   { type: 'level3', label: 'Level 3 Referral', percent: 5 },
@@ -41,6 +40,8 @@ const StatusBadge = ({ status }: any) => {
     'Awaiting Seller Approval': 'bg-indigo-500/10 text-indigo-600',
     'Negotiation Requested': 'bg-orange-500/10 text-orange-600',
     'Pending Review': 'bg-amber-500/10 text-amber-600',
+    'Vendor Edited': 'bg-purple-500/10 text-purple-600',
+    'Updated - Pending Approval': 'bg-purple-500/10 text-purple-600',
   };
 
   return (
@@ -173,17 +174,20 @@ export const AdminProductApproval = () => {
       commissionShares: existingShares,
     });
   };
+  const roundMoney = (val: number) => Math.round((val + Number.EPSILON) * 100) / 100;
 
-  const platformFeeAmount =
-    (Number(pricing.sellingPrice || 0) *
-      Number(pricing.platformFeePercent || 0)) /
-    100;
+  const platformFeeAmount = roundMoney(
+    (Number(pricing.sellingPrice || 0) * Number(pricing.platformFeePercent || 0)) /
+      100
+  );
 
   const calculatedShares = pricing.commissionShares.map((share) => {
     const pct = Number(share.percent || 0);
-    const amount = (platformFeeAmount === 0 && share.amount !== undefined)
-      ? Number(share.amount || 0)
-      : (platformFeeAmount * pct) / 100;
+    const amount = roundMoney(
+      (platformFeeAmount === 0 && share.amount !== undefined)
+        ? Number(share.amount || 0)
+        : (platformFeeAmount * pct) / 100
+    );
 
     return {
       ...share,
@@ -193,19 +197,22 @@ export const AdminProductApproval = () => {
     };
   });
 
-  const totalCommissionAmount = calculatedShares.reduce(
-    (sum, item) => sum + Number(item.amount || 0),
-    0
+  const totalCommissionAmount = roundMoney(
+    calculatedShares.reduce(
+      (sum, item) => sum + Number(item.amount || 0),
+      0
+    )
   );
 
-  const shippingPacking =
-    Number(pricing.shippingCharge || 0) + Number(pricing.packingCharge || 0);
+  const shippingPacking = roundMoney(
+    Number(pricing.shippingCharge || 0) + Number(pricing.packingCharge || 0)
+  );
 
-  const finalSellerAmount =
-    Number(pricing.sellingPrice || 0) -
-    platformFeeAmount;
+  const finalSellerAmount = roundMoney(
+    Number(pricing.sellingPrice || 0) - platformFeeAmount
+  );
 
-  const platformNetProfit = platformFeeAmount - totalCommissionAmount;
+  const platformNetProfit = roundMoney(platformFeeAmount - totalCommissionAmount);
 
   const updateShare = (index: number, key: string, value: any) => {
     const updated = [...pricing.commissionShares] as any[];
@@ -291,13 +298,36 @@ export const AdminProductApproval = () => {
       product.name?.toLowerCase().includes(search.toLowerCase()) ||
       product.sku?.toLowerCase().includes(search.toLowerCase());
 
-    const matchesStatus = status === 'All' || product.status === status;
+    let matchesStatus = status === 'All';
+    if (!matchesStatus) {
+      if (status === 'Pending Review') {
+        matchesStatus = (product.status === 'Pending Review' || product.moderationStatus === 'pending') && !product.isVendorEdit && product.status !== 'Vendor Edited';
+      } else if (status === 'Vendor Edited') {
+        matchesStatus = product.status === 'Vendor Edited' || product.status === 'Updated - Pending Approval' || !!product.isVendorEdit;
+      } else if (status === 'Live') {
+        matchesStatus = product.status === 'Live' || product.moderationStatus === 'approved';
+      } else if (status === 'Rejected') {
+        matchesStatus = product.status === 'Rejected' || product.moderationStatus === 'rejected';
+      } else {
+        matchesStatus = product.status === status;
+      }
+    }
 
     return matchesSearch && matchesStatus;
   });
 
+  const statusTabs = [
+    { key: 'All', label: 'All Products', count: products.length },
+    { key: 'Pending Review', label: 'New Approvals', count: products.filter(p => (p.status === 'Pending Review' || p.moderationStatus === 'pending') && !p.isVendorEdit && p.status !== 'Vendor Edited').length },
+    { key: 'Vendor Edited', label: '✏️ Vendor Edits', count: products.filter(p => p.status === 'Vendor Edited' || p.status === 'Updated - Pending Approval' || p.isVendorEdit).length },
+    { key: 'Negotiation Requested', label: 'Negotiation', count: products.filter(p => p.status === 'Negotiation Requested').length },
+    { key: 'Awaiting Seller Approval', label: 'Awaiting Seller', count: products.filter(p => p.status === 'Awaiting Seller Approval').length },
+    { key: 'Live', label: 'Live Products', count: products.filter(p => p.status === 'Live' || p.moderationStatus === 'approved').length },
+    { key: 'Rejected', label: 'Rejected', count: products.filter(p => p.status === 'Rejected' || p.moderationStatus === 'rejected').length },
+  ];
+
   const franchiseShares = pricing.commissionShares.filter((share) =>
-    ['state', 'district', 'mandal', 'entrepreneur'].includes(share.type)
+    ['state', 'district', 'mandal'].includes(share.type)
   );
 
   const referralShares = pricing.commissionShares.filter((share) =>
@@ -313,11 +343,11 @@ export const AdminProductApproval = () => {
       <div className="bg-card border border-border rounded-2xl p-5 flex justify-between items-center">
         <div>
           <h1 className="text-xl font-bold text-foreground">
-            Product Approval
+            Product Approval & Catalog Management
           </h1>
 
           <p className="text-xs text-muted-foreground">
-            Review seller products, set platform fee, shipping, packing and commission distribution.
+            Review seller products, inspect model details, set platform fees, and configure commission splits.
           </p>
         </div>
 
@@ -327,35 +357,52 @@ export const AdminProductApproval = () => {
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-4 flex flex-col md:flex-row gap-3 justify-between">
-        <div className="relative w-full md:w-80">
-          <Search
-            size={15}
-            className="absolute left-3 top-2.5 text-muted-foreground"
-          />
+      <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+        <div className="flex flex-col md:flex-row gap-3 justify-between items-center">
+          <div className="relative w-full md:w-80">
+            <Search
+              size={15}
+              className="absolute left-3 top-2.5 text-muted-foreground"
+            />
 
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search product or SKU..."
-            className="w-full pl-9 pr-3 py-2 rounded-xl border border-border bg-background text-xs outline-none"
-          />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search product name or SKU..."
+              className="w-full pl-9 pr-3 py-2 rounded-xl border border-border bg-background text-xs outline-none focus:border-primary"
+            />
+          </div>
+
+          <div className="text-xs text-muted-foreground font-semibold">
+            Showing <b className="text-foreground">{filteredProducts.length}</b> of <b className="text-foreground">{products.length}</b> products
+          </div>
         </div>
 
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="px-3 py-2 rounded-xl border border-border bg-background text-xs"
-        >
-          <option value="All">All</option>
-          <option value="Pending Review">Pending Review</option>
-          <option value="Negotiation Requested">Negotiation Requested</option>
-          <option value="Awaiting Seller Approval">
-            Awaiting Seller Approval
-          </option>
-          <option value="Live">Live</option>
-          <option value="Rejected">Rejected</option>
-        </select>
+        {/* Filtering Tabs */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border">
+          {statusTabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setStatus(t.key)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                status === t.key
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground'
+              }`}
+            >
+              <span>{t.label}</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  status === t.key
+                    ? 'bg-white/20 text-white'
+                    : 'bg-secondary text-foreground border border-border/40'
+                }`}
+              >
+                {t.count}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -421,7 +468,7 @@ export const AdminProductApproval = () => {
                       <p>₹{product.adminPricing.sellingPrice}</p>
 
                       <p className="text-[10px] text-muted-foreground">
-                        Seller gets ₹{product.adminPricing.finalSellerAmount}
+                        Seller gets ₹{Number(product.adminPricing.finalSellerAmount || 0).toFixed(2)}
                       </p>
                     </>
                   ) : (
@@ -837,6 +884,147 @@ export const AdminProductApproval = () => {
                             </p>
                           </div>
                         </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Product Model & Engine Details Section */}
+                <div className="mt-3 rounded-xl bg-card border border-border p-2.5 text-xs space-y-2">
+                  <p className="font-bold text-foreground border-b border-border pb-1 flex items-center gap-1.5">
+                    <Tags size={12} className="text-primary" />
+                    Model & Engine Details
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="rounded-lg bg-secondary/30 p-2 border border-border/50">
+                      <p className="text-muted-foreground text-[10px]">Catalog Source</p>
+                      <b className="capitalize text-foreground">{selectedProduct.catalogueSource || 'vendor'}</b>
+                    </div>
+
+                    <div className="rounded-lg bg-secondary/30 p-2 border border-border/50">
+                      <p className="text-muted-foreground text-[10px]">Product Mode</p>
+                      <b className="capitalize text-foreground">{selectedProduct.productMode || 'standard'}</b>
+                    </div>
+
+                    <div className="rounded-lg bg-secondary/30 p-2 border border-border/50">
+                      <p className="text-muted-foreground text-[10px]">Subscription Available</p>
+                      <b className={selectedProduct.isSubscriptionAvailable ? 'text-emerald-600 font-bold' : 'text-muted-foreground'}>
+                        {selectedProduct.isSubscriptionAvailable ? '✓ Yes' : '✕ No'}
+                      </b>
+                    </div>
+
+                    <div className="rounded-lg bg-secondary/30 p-2 border border-border/50">
+                      <p className="text-muted-foreground text-[10px]">Master Catalog</p>
+                      <b className={selectedProduct.isCatalogueMaster ? 'text-indigo-600 font-bold' : 'text-muted-foreground'}>
+                        {selectedProduct.isCatalogueMaster ? '✓ Master' : '✕ Standard'}
+                      </b>
+                    </div>
+                  </div>
+
+                  {selectedProduct.slug && (
+                    <div className="text-[10px] text-muted-foreground bg-secondary/20 p-2 rounded-lg border border-border/40">
+                      Slug: <code className="text-foreground font-mono">{selectedProduct.slug}</code>
+                    </div>
+                  )}
+
+                  {selectedProduct.seedKey && (
+                    <div className="text-[10px] text-muted-foreground bg-secondary/20 p-2 rounded-lg border border-border/40">
+                      Seed Key: <code className="text-foreground font-mono">{selectedProduct.seedKey}</code> (v{selectedProduct.seedVersion || 1})
+                    </div>
+                  )}
+                </div>
+
+                {/* Attributes & Specifications */}
+                {((selectedProduct.attributes && Object.keys(selectedProduct.attributes).length > 0) ||
+                  (selectedProduct.specifications && Object.keys(selectedProduct.specifications).length > 0)) && (
+                  <div className="mt-3 rounded-xl bg-card border border-border p-2.5 text-xs space-y-2">
+                    <p className="font-bold text-foreground border-b border-border pb-1">
+                      Attributes & Specifications
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-1.5 text-[11px] max-h-36 overflow-y-auto">
+                      {Object.entries({
+                        ...(selectedProduct.attributes || {}),
+                        ...(selectedProduct.specifications || {}),
+                      }).map(([key, val]) => (
+                        <div key={key} className="p-1.5 rounded-lg bg-secondary/20 border border-border/40">
+                          <span className="text-[10px] text-muted-foreground block capitalize">{key}</span>
+                          <b className="text-foreground font-semibold">
+                            {typeof val === 'object' ? JSON.stringify(val) : String(val)}
+                          </b>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Rules & Configurations (Inventory / Delivery / Compliance) */}
+                {((selectedProduct.inventoryRules && Object.keys(selectedProduct.inventoryRules).length > 0) ||
+                  (selectedProduct.deliveryRules && Object.keys(selectedProduct.deliveryRules).length > 0) ||
+                  (selectedProduct.complianceRules && Object.keys(selectedProduct.complianceRules).length > 0)) && (
+                  <div className="mt-3 rounded-xl bg-card border border-border p-2.5 text-xs space-y-2">
+                    <p className="font-bold text-foreground border-b border-border pb-1">
+                      Rules & Configurations
+                    </p>
+
+                    <div className="space-y-1.5 text-[10px]">
+                      {selectedProduct.inventoryRules && Object.keys(selectedProduct.inventoryRules).length > 0 && (
+                        <div className="p-2 rounded-lg bg-secondary/20 border border-border/40">
+                          <span className="font-bold text-foreground block mb-0.5">Inventory Rules</span>
+                          <p className="text-muted-foreground font-mono">
+                            {JSON.stringify(selectedProduct.inventoryRules)}
+                          </p>
+                        </div>
+                      )}
+
+                      {selectedProduct.deliveryRules && Object.keys(selectedProduct.deliveryRules).length > 0 && (
+                        <div className="p-2 rounded-lg bg-secondary/20 border border-border/40">
+                          <span className="font-bold text-foreground block mb-0.5">Delivery Rules</span>
+                          <p className="text-muted-foreground font-mono">
+                            {JSON.stringify(selectedProduct.deliveryRules)}
+                          </p>
+                        </div>
+                      )}
+
+                      {selectedProduct.complianceRules && Object.keys(selectedProduct.complianceRules).length > 0 && (
+                        <div className="p-2 rounded-lg bg-secondary/20 border border-border/40">
+                          <span className="font-bold text-foreground block mb-0.5">Compliance & HSN Rules</span>
+                          <p className="text-muted-foreground font-mono">
+                            {JSON.stringify(selectedProduct.complianceRules)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Keywords & Badges */}
+                {((selectedProduct.tags && selectedProduct.tags.length > 0) ||
+                  (selectedProduct.keywords && selectedProduct.keywords.length > 0) ||
+                  (selectedProduct.badges && selectedProduct.badges.length > 0)) && (
+                  <div className="mt-3 rounded-xl bg-card border border-border p-2.5 text-xs space-y-1.5">
+                    <p className="font-bold text-foreground border-b border-border pb-1">
+                      Tags & Badges
+                    </p>
+
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {(selectedProduct.badges || []).map((b: string, i: number) => (
+                        <span key={`b-${i}`} className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 font-bold text-[9px]">
+                          🏷️ {b}
+                        </span>
+                      ))}
+
+                      {(selectedProduct.tags || []).map((t: string, i: number) => (
+                        <span key={`t-${i}`} className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 font-semibold text-[9px]">
+                          #{t}
+                        </span>
+                      ))}
+
+                      {(selectedProduct.keywords || []).map((k: string, i: number) => (
+                        <span key={`k-${i}`} className="px-2 py-0.5 rounded-full bg-secondary text-muted-foreground text-[9px]">
+                          {k}
+                        </span>
                       ))}
                     </div>
                   </div>

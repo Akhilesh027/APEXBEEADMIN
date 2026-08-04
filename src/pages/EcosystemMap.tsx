@@ -14,7 +14,7 @@ export const EcosystemMap: React.FC = () => {
   const [walletsList, setWalletsList] = useState<any[]>([]);
 
   // Selected state filter
-  const [selectedState, setSelectedState] = useState<string>('Telangana');
+  const [selectedState, setSelectedState] = useState<string>('');
 
   const fetchEcosystemData = async () => {
     try {
@@ -56,15 +56,22 @@ export const EcosystemMap: React.FC = () => {
 
   const getUniqueStates = () => {
     const states = new Set<string>();
-    states.add('Telangana');
-    states.add('Maharashtra');
 
     territoriesList.forEach(t => { if (t.state) states.add(t.state); });
     franchisesList.forEach(f => { if (f.state) states.add(f.state); });
     entrepreneursList.forEach(e => { if (e.state) states.add(e.state); });
     vendorsList.forEach(v => { if (v.state) states.add(v.state); });
+    usersList.forEach(u => { if (u.territory?.state) states.add(u.territory.state); });
+
     return Array.from(states);
   };
+
+  useEffect(() => {
+    const states = getUniqueStates();
+    if (states.length > 0 && (!selectedState || !states.includes(selectedState))) {
+      setSelectedState(states[0] || '');
+    }
+  }, [territoriesList, franchisesList, entrepreneursList, vendorsList, usersList]);
 
   const getWalletBalance = (franchiseId: string, ownerUserId: string) => {
     const wallet = walletsList.find((w: any) =>

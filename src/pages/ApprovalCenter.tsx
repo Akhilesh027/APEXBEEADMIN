@@ -770,7 +770,7 @@ export const ApprovalCenter: React.FC = () => {
                       <div className="text-[10px] text-muted-foreground font-mono space-y-0.5">
                         <p>ID: {item.id} • Registered: {item.date}</p>
 
-                        {(item.primaryCategory || item.category) && (
+                        {(activeSubTab === "vendors" || item.isVendor || item.roleId === "vendor" || item.applicationType === "vendor") && (item.primaryCategory || item.category) && (
                           <div className="flex flex-wrap items-center gap-1 mt-1 font-sans text-xs">
                             <span className="font-bold text-foreground">Category:</span>
                             <span className="bg-primary/10 text-primary font-extrabold px-2 py-0.5 rounded-md text-[10px]">
@@ -930,8 +930,8 @@ export const ApprovalCenter: React.FC = () => {
 
               <div className="flex items-center gap-2">
                 <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase ${selectedDetailItem.status === "approved" || selectedDetailItem.status === "pre_approved"
-                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                    : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                  ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                  : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
                   }`}>
                   {selectedDetailItem.status || "Pending"}
                 </span>
@@ -1070,172 +1070,175 @@ export const ApprovalCenter: React.FC = () => {
                   </div>
                 )}
               </div>
-              <div className="bg-primary/5 p-5 rounded-2xl border border-primary/20 space-y-4">
-                <div className="flex items-center justify-between border-b border-primary/15 pb-2">
-                  <h4 className="font-extrabold text-primary text-sm uppercase tracking-wide flex items-center gap-2">
-                    🏷️ Business Category & Subcategories Governance
-                  </h4>
-                  <span className="text-[10px] font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">
-                    Admin Managed
-                  </span>
-                </div>
+              {/* Business Category & Subcategories Governance - Shown ONLY for Vendor Role */}
+              {(activeSubTab === "vendors" || selectedDetailItem.isVendor || selectedDetailItem.roleId === "vendor" || selectedDetailItem.applicationType === "vendor" || selectedDetailItem.isDbVendor) && (
+                <div className="bg-primary/5 p-5 rounded-2xl border border-primary/20 space-y-4">
+                  <div className="flex items-center justify-between border-b border-primary/15 pb-2">
+                    <h4 className="font-extrabold text-primary text-sm uppercase tracking-wide flex items-center gap-2">
+                      🏷️ Business Category & Subcategories Governance
+                    </h4>
+                    <span className="text-[10px] font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">
+                      Admin Managed
+                    </span>
+                  </div>
 
-                {/* Display Subcategories requested by Applicant */}
-                {selectedDetailItem.approvedSubcategories && selectedDetailItem.approvedSubcategories.length > 0 && (
-                  <div className="p-3 bg-card border border-emerald-500/30 rounded-xl space-y-1.5 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-extrabold text-emerald-600 uppercase tracking-wide flex items-center gap-1.5">
-                        <span>📋</span> Subcategories Selected by Applicant ({selectedDetailItem.approvedSubcategories.length}):
-                      </span>
-                      <span className="text-[10px] text-muted-foreground font-semibold">User Selection</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedDetailItem.approvedSubcategories.map((sub: string, idx: number) => (
-                        <span key={idx} className="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 font-extrabold text-xs rounded-lg border border-emerald-500/20">
-                          ✓ {sub}
+                  {/* Display Subcategories requested by Applicant */}
+                  {selectedDetailItem.approvedSubcategories && selectedDetailItem.approvedSubcategories.length > 0 && (
+                    <div className="p-3 bg-card border border-emerald-500/30 rounded-xl space-y-1.5 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-extrabold text-emerald-600 uppercase tracking-wide flex items-center gap-1.5">
+                          <span>📋</span> Subcategories Selected by Applicant ({selectedDetailItem.approvedSubcategories.length}):
                         </span>
-                      ))}
+                        <span className="text-[10px] text-muted-foreground font-semibold">User Selection</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedDetailItem.approvedSubcategories.map((sub: string, idx: number) => (
+                          <span key={idx} className="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 font-extrabold text-xs rounded-lg border border-emerald-500/20">
+                            ✓ {sub}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <div className="space-y-4">
-                  {/* Primary Category Selector Tabs */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-foreground block">
-                      Primary Business Category (Click to select)
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {parentCategories.map((cat: any) => {
-                        const isCatSelected = (selectedParentCatId || activeParentCat?._id) === cat._id;
-                        return (
-                          <button
-                            key={cat._id}
-                            type="button"
-                            onClick={() => setSelectedParentCatId(cat._id)}
-                            className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all border cursor-pointer ${isCatSelected
-                                ? "bg-primary text-primary-foreground border-primary shadow-sm ring-2 ring-primary/20"
-                                : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
-                              }`}
-                          >
-                            {cat.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Toggle Subcategories Interactive Chip Grid */}
-                  <div className="space-y-2 pt-3 border-t border-primary/15">
-                    <div className="flex items-center justify-between">
+                  <div className="space-y-4">
+                    {/* Primary Category Selector Tabs */}
+                    <div className="space-y-1.5">
                       <label className="text-xs font-bold text-foreground block">
-                        Toggle Approved Subcategories for ({activeParentCat?.name || "Selected Category"}):
+                        Primary Business Category (Click to select)
                       </label>
-                      <span className="text-[10px] text-muted-foreground">Click any chip to toggle ON / OFF</span>
-                    </div>
-
-                    {currentSubCategories.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
-                        {currentSubCategories.map((subCat: any) => {
-                          const isSubSelected = editingSubcategories.includes(subCat.name);
+                        {parentCategories.map((cat: any) => {
+                          const isCatSelected = (selectedParentCatId || activeParentCat?._id) === cat._id;
                           return (
                             <button
-                              key={subCat._id}
+                              key={cat._id}
                               type="button"
-                              onClick={() => {
-                                if (isSubSelected) {
-                                  setEditingSubcategories(prev => prev.filter(s => s !== subCat.name));
-                                } else {
-                                  setEditingSubcategories(prev => [...prev, subCat.name]);
-                                }
-                              }}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer ${isSubSelected
-                                  ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                                  : "bg-card text-foreground border-border/80 hover:border-primary/40 hover:bg-primary/5"
+                              onClick={() => setSelectedParentCatId(cat._id)}
+                              className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all border cursor-pointer ${isCatSelected
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm ring-2 ring-primary/20"
+                                : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
                                 }`}
                             >
-                              <span>{isSubSelected ? "✓" : "+"}</span>
-                              <span>{subCat.name}</span>
+                              {cat.name}
                             </button>
                           );
                         })}
                       </div>
+                    </div>
+
+                    {/* Toggle Subcategories Interactive Chip Grid */}
+                    <div className="space-y-2 pt-3 border-t border-primary/15">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-foreground block">
+                          Toggle Approved Subcategories for ({activeParentCat?.name || "Selected Category"}):
+                        </label>
+                        <span className="text-[10px] text-muted-foreground">Click any chip to toggle ON / OFF</span>
+                      </div>
+
+                      {currentSubCategories.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {currentSubCategories.map((subCat: any) => {
+                            const isSubSelected = editingSubcategories.includes(subCat.name);
+                            return (
+                              <button
+                                key={subCat._id}
+                                type="button"
+                                onClick={() => {
+                                  if (isSubSelected) {
+                                    setEditingSubcategories(prev => prev.filter(s => s !== subCat.name));
+                                  } else {
+                                    setEditingSubcategories(prev => [...prev, subCat.name]);
+                                  }
+                                }}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer ${isSubSelected
+                                  ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                                  : "bg-card text-foreground border-border/80 hover:border-primary/40 hover:bg-primary/5"
+                                  }`}
+                              >
+                                <span>{isSubSelected ? "✓" : "+"}</span>
+                                <span>{subCat.name}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-card border border-dashed border-primary/20 rounded-xl text-xs text-muted-foreground text-center">
+                          No subcategories available in DB for this category. Type below to add custom subcategory.
+                        </div>
+                      )}
+
+                      {/* Inline Add Custom Subcategory Pill Input */}
+                      <div className="pt-2 flex items-center gap-2 max-w-md">
+                        <input
+                          type="text"
+                          value={newSubCategoryName}
+                          onChange={(e) => setNewSubCategoryName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddSubcategory(newSubCategoryName);
+                            }
+                          }}
+                          placeholder="Type custom subcategory & press enter..."
+                          className="flex-1 px-3 py-1.5 bg-card border border-primary/30 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleAddSubcategory(newSubCategoryName)}
+                          disabled={!newSubCategoryName.trim()}
+                          className="px-3 py-1.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow disabled:opacity-50 transition-all cursor-pointer"
+                        >
+                          + Add Custom
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Approved Subcategories Summary Badges */}
+                  <div className="space-y-2 pt-2 border-t border-primary/15">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-extrabold text-foreground">
+                        Selected Subcategories to Save ({editingSubcategories.length}):
+                      </span>
+                      {editingSubcategories.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingSubcategories([])}
+                          className="text-[10px] text-rose-500 hover:underline font-bold"
+                        >
+                          Clear All
+                        </button>
+                      )}
+                    </div>
+
+                    {editingSubcategories.length > 0 ? (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {editingSubcategories.map((sub, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1.5 px-3 py-1 bg-card border border-primary/30 text-primary font-bold text-xs rounded-xl shadow-sm"
+                          >
+                            <span>{sub}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSubcategory(idx)}
+                              className="text-rose-500 hover:bg-rose-500/10 p-0.5 rounded-md transition-all cursor-pointer"
+                              title="Remove subcategory"
+                            >
+                              <X size={14} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
                     ) : (
-                      <div className="p-3 bg-card border border-dashed border-primary/20 rounded-xl text-xs text-muted-foreground text-center">
-                        No subcategories available in DB for this category. Type below to add custom subcategory.
+                      <div className="p-2.5 bg-card border border-dashed border-primary/30 rounded-xl text-center text-muted-foreground text-xs">
+                        No subcategories selected yet. Click any chip above to toggle selection.
                       </div>
                     )}
-
-                    {/* Inline Add Custom Subcategory Pill Input */}
-                    <div className="pt-2 flex items-center gap-2 max-w-md">
-                      <input
-                        type="text"
-                        value={newSubCategoryName}
-                        onChange={(e) => setNewSubCategoryName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleAddSubcategory(newSubCategoryName);
-                          }
-                        }}
-                        placeholder="Type custom subcategory & press enter..."
-                        className="flex-1 px-3 py-1.5 bg-card border border-primary/30 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary/20"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleAddSubcategory(newSubCategoryName)}
-                        disabled={!newSubCategoryName.trim()}
-                        className="px-3 py-1.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow disabled:opacity-50 transition-all cursor-pointer"
-                      >
-                        + Add Custom
-                      </button>
-                    </div>
                   </div>
                 </div>
-
-                {/* Approved Subcategories Summary Badges */}
-                <div className="space-y-2 pt-2 border-t border-primary/15">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-foreground">
-                      Selected Subcategories to Save ({editingSubcategories.length}):
-                    </span>
-                    {editingSubcategories.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setEditingSubcategories([])}
-                        className="text-[10px] text-rose-500 hover:underline font-bold"
-                      >
-                        Clear All
-                      </button>
-                    )}
-                  </div>
-
-                  {editingSubcategories.length > 0 ? (
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      {editingSubcategories.map((sub, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center gap-1.5 px-3 py-1 bg-card border border-primary/30 text-primary font-bold text-xs rounded-xl shadow-sm"
-                        >
-                          <span>{sub}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSubcategory(idx)}
-                            className="text-rose-500 hover:bg-rose-500/10 p-0.5 rounded-md transition-all cursor-pointer"
-                            title="Remove subcategory"
-                          >
-                            <X size={14} />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-2.5 bg-card border border-dashed border-primary/30 rounded-xl text-center text-muted-foreground text-xs">
-                      No subcategories selected yet. Click any chip above to toggle selection.
-                    </div>
-                  )}
-                </div>
-              </div>
+              )}
 
               {/* Section 5: Verification Documents */}
               {selectedDetailItem.documents && (

@@ -126,36 +126,112 @@ export const DeliveryManagement: React.FC = () => {
             </div>
 
             {/* Courier Agent selector */}
-            <div className="space-y-1.5 text-xs">
-              <label className="text-muted-foreground block">Select Delivery Courier Agent</label>
-              {filteredAgents.length === 0 ? (
-                <div className="flex items-center gap-2 w-full p-3 border border-dashed border-border rounded-xl bg-secondary/10 text-muted-foreground text-xs">
-                  <Truck size={14} className="shrink-0 opacity-50" />
-                  <span>No agents registered for <strong>{deliveryType}</strong> channel. Add agents via the Delivery Partner Portal.</span>
-                </div>
-              ) : (
-                <select
-                  value={selectedAgentId}
-                  onChange={(e) => setSelectedAgentId(e.target.value)}
-                  className="w-full p-2.5 border border-border rounded-xl bg-card text-foreground outline-none font-semibold"
-                >
-                  {filteredAgents.map(agent => (
-                    <option key={agent.id} value={agent.id}>
-                      {agent.name} ({agent.status} • Rating: {agent.rating}★)
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
+            {(() => {
+              const selectedAgent = filteredAgents.find(a => a.id === selectedAgentId);
+              const isSelectedAvailable = selectedAgent?.status === 'Available';
+              const availableAgentsCount = filteredAgents.filter(a => a.status === 'Available').length;
 
-            {/* Submit button */}
-            <button
-              onClick={handleAssignShip}
-              disabled={!selectedAgentId}
-              className="w-full py-2.5 bg-primary hover:bg-primary/95 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-primary/10 flex items-center justify-center gap-1.5 disabled:opacity-55"
-            >
-              <Navigation size={14} /> Assign Courier & Dispatch Order
-            </button>
+              return (
+                <div className="space-y-3 text-xs">
+                  <div className="flex items-center justify-between">
+                    <label className="text-muted-foreground font-medium block">Select Delivery Courier Agent</label>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-foreground">
+                      🟢 {availableAgentsCount} Online / Available
+                    </span>
+                  </div>
+
+                  {filteredAgents.length === 0 ? (
+                    <div className="flex items-center gap-2 w-full p-3 border border-dashed border-border rounded-xl bg-secondary/10 text-muted-foreground text-xs">
+                      <Truck size={14} className="shrink-0 opacity-50" />
+                      <span>No agents registered for <strong>{deliveryType}</strong> channel. Add agents via the Delivery Partner Portal.</span>
+                    </div>
+                  ) : (
+                    <>
+                      <select
+                        value={selectedAgentId}
+                        onChange={(e) => setSelectedAgentId(e.target.value)}
+                        className={`w-full p-2.5 border rounded-xl bg-card text-foreground outline-none font-semibold text-xs transition-colors ${
+                          isSelectedAvailable
+                            ? 'border-emerald-500/50 focus:border-emerald-500'
+                            : 'border-rose-500/50 focus:border-rose-500'
+                        }`}
+                      >
+                        <option value="" disabled>-- Select Logged-In Delivery Agent --</option>
+                        
+                        {/* Group: Available / Logged in */}
+                        <optgroup label="🟢 Available (Logged In & Ready)">
+                          {filteredAgents
+                            .filter(a => a.status === 'Available')
+                            .map(agent => (
+                              <option key={agent.id} value={agent.id}>
+                                🟢 {agent.name} • Available (Rating: {agent.rating}★)
+                              </option>
+                            ))}
+                        </optgroup>
+
+                        {/* Group: On Job / Busy */}
+                        <optgroup label="🟡 On Job (Currently Delivering)">
+                          {filteredAgents
+                            .filter(a => a.status === 'On Delivery')
+                            .map(agent => (
+                              <option key={agent.id} value={agent.id} disabled>
+                                🟡 {agent.name} • On Delivery (Busy)
+                              </option>
+                            ))}
+                        </optgroup>
+
+                        {/* Group: Offline */}
+                        <optgroup label="🔴 Offline (Not Logged In - Cannot Assign)">
+                          {filteredAgents
+                            .filter(a => a.status === 'Offline')
+                            .map(agent => (
+                              <option key={agent.id} value={agent.id} disabled>
+                                🔴 {agent.name} • Offline / Not Logged In
+                              </option>
+                            ))}
+                        </optgroup>
+                      </select>
+
+                      {/* Status indicator banner */}
+                      {availableAgentsCount === 0 ? (
+                        <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-600 rounded-xl text-[11px] font-semibold flex items-center gap-2">
+                          <span>⚠️</span>
+                          <span>No delivery boys currently logged in for <strong>{deliveryType}</strong>. Waiting for delivery boy to log in via Delivery Partner App.</span>
+                        </div>
+                      ) : isSelectedAvailable ? (
+                        <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 rounded-xl text-[11px] font-semibold flex items-center gap-2">
+                          <CheckCircle size={14} className="shrink-0 text-emerald-500" />
+                          <span>Delivery driver <strong>{selectedAgent?.name}</strong> is online and available to receive dispatch.</span>
+                        </div>
+                      ) : (
+                        <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-600 rounded-xl text-[11px] font-semibold flex items-center gap-2">
+                          <span>🔴</span>
+                          <span>Selected delivery driver is offline or busy. Select an available (online) driver to assign.</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Submit button */}
+                  <button
+                    onClick={handleAssignShip}
+                    disabled={!selectedAgentId || !isSelectedAvailable}
+                    className={`w-full py-2.5 font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 ${
+                      isSelectedAvailable
+                        ? 'bg-primary hover:bg-primary/95 text-white shadow-primary/10 cursor-pointer'
+                        : 'bg-secondary text-muted-foreground border border-border/80 cursor-not-allowed opacity-60'
+                    }`}
+                  >
+                    <Navigation size={14} />
+                    {isSelectedAvailable
+                      ? 'Assign Courier & Dispatch Order'
+                      : availableAgentsCount === 0
+                      ? 'Cannot Assign (No Delivery Boy Logged In)'
+                      : 'Cannot Assign (Driver Offline / Not Available)'}
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         ) : (
           <div className="lg:col-span-5 bg-card border border-border/80 rounded-2xl p-5 shadow-sm flex flex-col items-center justify-center text-center py-20 text-xs text-muted-foreground select-none">
@@ -185,14 +261,14 @@ export const DeliveryManagement: React.FC = () => {
                 <div key={agent.id} className="bg-secondary/15 p-3 rounded-xl border border-border/40 space-y-2 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="font-semibold text-foreground">{agent.name}</span>
-                    <span className={`px-1.5 py-0.5 text-[8px] font-bold rounded-md ${
+                    <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
                       agent.status === 'Available'
-                        ? 'bg-emerald-500/10 text-emerald-500'
+                        ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
                         : agent.status === 'On Delivery'
-                        ? 'bg-indigo-500/10 text-indigo-500'
-                        : 'bg-muted text-muted-foreground'
+                        ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                        : 'bg-rose-500/10 text-rose-600 border border-rose-500/20'
                     }`}>
-                      {agent.status}
+                      {agent.status === 'Available' ? '🟢 Online' : agent.status === 'On Delivery' ? '🟡 On Job' : '🔴 Offline'}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 text-[9px] text-muted-foreground font-mono">

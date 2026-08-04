@@ -532,16 +532,16 @@ export const AcademyLeads: React.FC = () => {
                     <td className="p-4">
                       <span
                         className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${l.status === 'new'
-                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                            : l.status === 'contacted'
-                              ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                              : l.status === 'qualified'
-                                ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                                : l.status === 'follow_up'
-                                  ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                                  : l.status === 'converted'
-                                    ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                                    : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                          : l.status === 'contacted'
+                            ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                            : l.status === 'qualified'
+                              ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                              : l.status === 'follow_up'
+                                ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                                : l.status === 'converted'
+                                  ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                                  : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
                           }`}
                       >
                         {l.status}

@@ -705,8 +705,8 @@ export const VendorManagement: React.FC = () => {
 
               <div className="flex items-center gap-2">
                 <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase ${selectedVendor.status === 'Active'
-                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                    : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                  ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                  : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
                   }`}>
                   {selectedVendor.status}
                 </span>
@@ -823,8 +823,8 @@ export const VendorManagement: React.FC = () => {
                             type="button"
                             onClick={() => setSelectedParentCatId(cat._id)}
                             className={`px-2.5 py-1 rounded-lg font-bold text-[10px] transition-all border cursor-pointer ${isCatSelected
-                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                                : "bg-card text-muted-foreground border-border hover:border-primary/40"
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                              : "bg-card text-muted-foreground border-border hover:border-primary/40"
                               }`}
                           >
                             {cat.name}
@@ -859,8 +859,8 @@ export const VendorManagement: React.FC = () => {
                                 }
                               }}
                               className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border flex items-center gap-1 cursor-pointer ${isSubSelected
-                                  ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                                  : "bg-card text-foreground border-border/80 hover:bg-primary/5"
+                                ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                                : "bg-card text-foreground border-border/80 hover:bg-primary/5"
                                 }`}
                             >
                               <span>{isSubSelected ? "✓" : "+"}</span>

@@ -158,8 +158,8 @@ export const BusinessIntelligence: React.FC = () => {
                 key={t.key}
                 onClick={() => setTab(t.key)}
                 className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold transition-colors ${tab === t.key
-                    ? 'bg-primary text-white shadow'
-                    : 'text-muted-foreground hover:bg-secondary/40'
+                  ? 'bg-primary text-white shadow'
+                  : 'text-muted-foreground hover:bg-secondary/40'
                   }`}
               >
                 <t.icon size={13} /> {t.label}

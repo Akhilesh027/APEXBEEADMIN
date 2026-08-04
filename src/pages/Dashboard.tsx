@@ -13,6 +13,7 @@ import {
   Clock,
   Play,
   Pause,
+  Landmark,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -46,6 +47,7 @@ interface DashboardStats {
   activeDistricts: number;
   activeMandals: number;
   totalRevenue: number;
+  totalPlatformFee?: number;
   totalOrders: number;
   pendingProducts: number;
   pendingPayments: number;
@@ -343,12 +345,18 @@ export const Dashboard: React.FC<{ setActiveTab?: (tab: string) => void }> = ({
       </div>
 
       {/* Row 1: Core Financials & Volume */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
         <StatCard
           title="Total Revenue"
           value={formatCurrency(stats.totalRevenue)}
           icon={IndianRupee}
           subtitle="Non-cancelled order totals"
+        />
+        <StatCard
+          title="Platform Fee Amount"
+          value={formatCurrency(stats.totalPlatformFee ?? stats.platformKpis?.platformNetRevenue)}
+          icon={Landmark}
+          subtitle="Platform commission collected"
         />
         <StatCard title="Total Orders" value={stats.totalOrders} icon={ShoppingCart} />
         <StatCard title="Total Users" value={stats.totalUsers} icon={Users} />
@@ -364,8 +372,9 @@ export const Dashboard: React.FC<{ setActiveTab?: (tab: string) => void }> = ({
       </div>
 
       {/* Row 3: Platform Ecosystem KPIs */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         <StatCard title="Platform GMV" value={formatCurrency(stats.platformKpis?.platformGMV)} icon={IndianRupee} subtitle="Gross volume transactions" />
+        <StatCard title="Platform Net Revenue" value={formatCurrency(stats.platformKpis?.platformNetRevenue ?? stats.totalPlatformFee)} icon={Landmark} subtitle="Total platform fee share" />
         <StatCard title="Settlement Liability" value={formatCurrency(stats.platformKpis?.settlementLiability)} icon={Wallet} subtitle="Available funds to settle" />
         <StatCard title="Coverage Rate" value={`${stats.platformKpis?.coverageRate || 0}%`} icon={MapPin} subtitle="Mandal territory coverage" />
       </div>

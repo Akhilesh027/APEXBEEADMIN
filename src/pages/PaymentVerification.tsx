@@ -19,10 +19,13 @@ export const PaymentVerification: React.FC = () => {
   const [zoomImage, setZoomImage] = useState<string | null>(null);
 
   const filteredOrders = orders.filter(o => {
+    const isCod = ((o as any).paymentMethod || '').toUpperCase().includes('COD') || (o.paymentStatus as any) === 'COD (Pending Delivery)' || (o.paymentStatus as any) === 'Not Required';
+    if (isCod) return false;
+
     const matchesFilter = filter === 'All' || o.paymentStatus === filter;
     const matchesSearch = o.customerName.toLowerCase().includes(search.toLowerCase()) ||
                           o.id.toLowerCase().includes(search.toLowerCase()) ||
-                          o.upiRefNo.includes(search);
+                          (o.upiRefNo && o.upiRefNo.toLowerCase().includes(search.toLowerCase()));
     return matchesFilter && matchesSearch;
   });
 
