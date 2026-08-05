@@ -99,5 +99,13 @@ export const subscriptionApi = {
 
   getAuditLogs: async () => {
     return safeFetch(`${getApiBaseUrl()}/admin/subscription-audit-logs`);
+  },
+
+  getParentCategories: async () => {
+    return safeFetch(`${getApiBaseUrl()}/categories?level=1&isActive=true`);
+  },
+
+  clearAllSubscriptionData: async () => {
+    return safeFetch(`${getApiBaseUrl()}/admin/subscription-data/clear-all`, { method: 'DELETE' });
   }
 };

@@ -13,8 +13,9 @@ export const productService = {
   // ADMIN
   // ==========================
 
-  getAll: async () => {
+  getAll: async (params?: any) => {
     const res = await axios.get(`${API_URL}/products`, {
+      params: { status: 'all', limit: 1000, ...params },
       headers: authHeaders(),
     });
 
@@ -30,8 +31,9 @@ export const productService = {
   },
 
   configureAdminPricing: async (id: any, payload: any) => {
+    const prodId = (typeof id === 'object' && id !== null) ? (id._id || id.id || String(id)) : String(id || '');
     const res = await axios.patch(
-      `${API_URL}/products/${id}/admin-pricing`,
+      `${API_URL}/products/${prodId}/admin-pricing`,
       payload,
       {
         headers: authHeaders(),
@@ -42,8 +44,9 @@ export const productService = {
   },
 
   rejectProduct: async (id: any, payload: any) => {
+    const prodId = (typeof id === 'object' && id !== null) ? (id._id || id.id || String(id)) : String(id || '');
     const res = await axios.patch(
-      `${API_URL}/products/${id}/reject`,
+      `${API_URL}/products/${prodId}/reject`,
       payload,
       {
         headers: authHeaders(),

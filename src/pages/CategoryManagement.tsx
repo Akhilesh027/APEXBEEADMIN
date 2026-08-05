@@ -829,8 +829,6 @@ export const CategoryManagement: React.FC = () => {
                     <tbody className="divide-y divide-border">
                       {((resolvedSchema?.attributes && resolvedSchema.attributes.length > 0
                         ? resolvedSchema.attributes
-                        : selectedCat.level === 1
-                        ? []
                         : selectedCat.attributes
                       ) || []).map((attr: any) => (
                         <tr key={attr._id || attr.id || attr.key || attr.name} className="hover:bg-secondary/10">
@@ -878,15 +876,9 @@ export const CategoryManagement: React.FC = () => {
                         </tr>
                       ))}
 
-                      {selectedCat.level === 1 && (
-                        <tr>
-                          <td colSpan={7} className="p-6 text-center text-xs text-muted-foreground bg-secondary/10">
-                            🏛️ Level 1 Vertical Header ({selectedCat.name}). Product specifications and variant parameters are defined on Level 2 Subcategories & Level 3 Child Categories.
-                          </td>
-                        </tr>
-                      )}
 
-                      {selectedCat.level !== 1 && (!resolvedSchema?.attributes?.length && (!selectedCat.attributes || selectedCat.attributes.length === 0)) && (
+
+                      {(!resolvedSchema?.attributes?.length && (!selectedCat.attributes || selectedCat.attributes.length === 0)) && (
                         <tr>
                           <td colSpan={7} className="p-8 text-center text-xs text-muted-foreground">
                             No custom specifications or variant parameters defined for this category.
@@ -1509,8 +1501,6 @@ export const CategoryManagement: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {((modalResolvedSchema?.attributes && modalResolvedSchema.attributes.length > 0
                     ? modalResolvedSchema.attributes
-                    : detailModalCat.level === 1
-                    ? []
                     : detailModalCat.attributes
                   ) || []).map((attr: any) => (
                     <div
@@ -1574,6 +1564,136 @@ export const CategoryManagement: React.FC = () => {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* ── Add Attribute Form (in modal) ── */}
+          <div className="space-y-4 border-t border-border pt-4">
+            <div className="flex items-center gap-2">
+              <PlusCircle size={16} className="text-primary" />
+              <h3 className="text-xs font-extrabold text-foreground uppercase tracking-wider">
+                Add New Attribute to {detailModalCat.name}
+              </h3>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!attrName.trim()) return;
+                const newAttribute: CategoryAttribute = {
+                  name: attrName.trim(),
+                  type: attrType,
+                  required: attrRequired,
+                  isVariant: attrIsVariant,
+                  options: attrType === 'select' ? attrOptions.split(',').map(o => o.trim()).filter(Boolean) : undefined,
+                };
+                const updatedCat: Category = {
+                  ...detailModalCat,
+                  attributes: [...(detailModalCat.attributes || []), newAttribute],
+                };
+                await updateSelectedCategory(updatedCat);
+                setAttrName('');
+                setAttrType('text');
+                setAttrRequired(false);
+                setAttrIsVariant(false);
+                setAttrOptions('');
+                setDetailModalCat(updatedCat);
+                await fetchCategories();
+              }}
+              className="bg-secondary/10 p-4 rounded-xl border border-border/40 space-y-3"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-muted-foreground block">Attribute Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Net Weight, Spice Level"
+                    value={attrName}
+                    onChange={(e) => setAttrName(e.target.value)}
+                    className="w-full text-xs p-2 border border-border/80 focus:border-primary rounded-lg bg-card text-foreground outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-muted-foreground block">Data Type</label>
+                  <select
+                    value={attrType}
+                    onChange={(e) => setAttrType(e.target.value as AttributeType)}
+                    className="w-full text-xs p-2 border border-border/80 focus:border-primary rounded-lg bg-card text-foreground outline-none"
+                  >
+                    <option value="text">Text Box</option>
+                    <option value="number">Number Box</option>
+                    <option value="select">Dropdown Choice</option>
+                    <option value="boolean">Yes / No Checkbox</option>
+                  </select>
+                </div>
+                {attrType === 'select' && (
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-muted-foreground block">Dropdown Options</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Red, Blue, Black"
+                      value={attrOptions}
+                      onChange={(e) => setAttrOptions(e.target.value)}
+                      className="w-full text-xs p-2 border border-border/80 focus:border-primary rounded-lg bg-card text-foreground outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4 text-xs font-semibold text-foreground">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={attrRequired} onChange={(e) => setAttrRequired(e.target.checked)} />
+                  Required
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={attrIsVariant} onChange={(e) => setAttrIsVariant(e.target.checked)} />
+                  Variant Rule
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                className="px-3.5 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs rounded-xl flex items-center gap-1 transition-all"
+              >
+                <Plus size={14} /> Add Attribute
+              </button>
+            </form>
+          </div>
+
+          {/* ── Quick Apply Preset ── */}
+          <div className="space-y-3 border-t border-border pt-4">
+            <div className="flex items-center gap-2">
+              <Sparkles size={16} className="text-amber-500" />
+              <h3 className="text-xs font-extrabold text-foreground uppercase tracking-wider">
+                Quick Apply Attribute Preset
+              </h3>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              One-click apply pre-built attribute sets. Existing attributes are preserved — only new ones are added.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {['grocery', 'restaurant', 'devotional', 'fashion', 'electronics', 'service_repair', 'academy'].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await categoryService.applyPreset(detailModalCat._id, preset);
+                      await fetchCategories();
+                      // Refresh the modal cat
+                      const refreshed = await categoryService.getAll();
+                      const updated = refreshed.find((c: Category) => c._id === detailModalCat._id);
+                      if (updated) setDetailModalCat(updated);
+                    } catch (err) {
+                      console.error('Failed to apply preset:', err);
+                      alert('Failed to apply preset');
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-secondary hover:bg-secondary/80 text-foreground font-bold text-[10px] rounded-xl border border-border/80 capitalize transition-all hover:border-primary/50"
+                >
+                  {preset.replace(/_/g, ' ')}
+                </button>
+              ))}
             </div>
           </div>
         </div>

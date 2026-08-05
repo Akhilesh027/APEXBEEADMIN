@@ -253,7 +253,8 @@ export const AdminProductApproval = () => {
 
     try {
       setSaving(true);
-      await productService.configureAdminPricing(selectedProduct._id, {
+      const targetProductId = selectedProduct._id || selectedProduct.id || selectedProduct;
+      await productService.configureAdminPricing(targetProductId, {
         mrp: Number(pricing.mrp),
         sellingPrice: Number(pricing.sellingPrice),
         platformFeePercent: Number(pricing.platformFeePercent),
@@ -268,9 +269,10 @@ export const AdminProductApproval = () => {
 
       setSelectedProduct(null);
       await fetchProducts();
-    } catch (err) {
-      console.error(err);
-      alert('Failed to configure pricing');
+    } catch (err: any) {
+      console.error('Configure pricing error:', err);
+      const msg = err?.response?.data?.message || err?.message || 'Failed to configure pricing';
+      alert(`⚠️ ${msg}`);
     } finally {
       setSaving(false);
     }
@@ -298,18 +300,33 @@ export const AdminProductApproval = () => {
       product.name?.toLowerCase().includes(search.toLowerCase()) ||
       product.sku?.toLowerCase().includes(search.toLowerCase());
 
+    const isPendingStatus = (p: any) => {
+      const s = String(p.status || '').toLowerCase();
+      const mod = String(p.moderationStatus || '').toLowerCase();
+      return (s === 'pending review' || s === 'pending' || s === 'draft' || mod === 'pending' || p.adminPricingApproved === false) && !p.isVendorEdit && s !== 'vendor edited';
+    };
+
+    const isVendorEditStatus = (p: any) => {
+      const s = String(p.status || '').toLowerCase();
+      return s === 'vendor edited' || s === 'updated - pending approval' || !!p.isVendorEdit;
+    };
+
     let matchesStatus = status === 'All';
     if (!matchesStatus) {
       if (status === 'Pending Review') {
-        matchesStatus = (product.status === 'Pending Review' || product.moderationStatus === 'pending') && !product.isVendorEdit && product.status !== 'Vendor Edited';
+        matchesStatus = isPendingStatus(product);
       } else if (status === 'Vendor Edited') {
-        matchesStatus = product.status === 'Vendor Edited' || product.status === 'Updated - Pending Approval' || !!product.isVendorEdit;
+        matchesStatus = isVendorEditStatus(product);
       } else if (status === 'Live') {
-        matchesStatus = product.status === 'Live' || product.moderationStatus === 'approved';
+        const s = String(product.status || '').toLowerCase();
+        const mod = String(product.moderationStatus || '').toLowerCase();
+        matchesStatus = s === 'live' || s === 'active' || s === 'approved' || mod === 'approved';
       } else if (status === 'Rejected') {
-        matchesStatus = product.status === 'Rejected' || product.moderationStatus === 'rejected';
+        const s = String(product.status || '').toLowerCase();
+        const mod = String(product.moderationStatus || '').toLowerCase();
+        matchesStatus = s === 'rejected' || mod === 'rejected';
       } else {
-        matchesStatus = product.status === status;
+        matchesStatus = String(product.status || '').toLowerCase() === String(status).toLowerCase();
       }
     }
 
@@ -318,12 +335,12 @@ export const AdminProductApproval = () => {
 
   const statusTabs = [
     { key: 'All', label: 'All Products', count: products.length },
-    { key: 'Pending Review', label: 'New Approvals', count: products.filter(p => (p.status === 'Pending Review' || p.moderationStatus === 'pending') && !p.isVendorEdit && p.status !== 'Vendor Edited').length },
-    { key: 'Vendor Edited', label: '✏️ Vendor Edits', count: products.filter(p => p.status === 'Vendor Edited' || p.status === 'Updated - Pending Approval' || p.isVendorEdit).length },
-    { key: 'Negotiation Requested', label: 'Negotiation', count: products.filter(p => p.status === 'Negotiation Requested').length },
-    { key: 'Awaiting Seller Approval', label: 'Awaiting Seller', count: products.filter(p => p.status === 'Awaiting Seller Approval').length },
-    { key: 'Live', label: 'Live Products', count: products.filter(p => p.status === 'Live' || p.moderationStatus === 'approved').length },
-    { key: 'Rejected', label: 'Rejected', count: products.filter(p => p.status === 'Rejected' || p.moderationStatus === 'rejected').length },
+    { key: 'Pending Review', label: 'New Approvals', count: products.filter(p => (String(p.status || '').toLowerCase() === 'pending review' || String(p.status || '').toLowerCase() === 'pending' || String(p.moderationStatus || '').toLowerCase() === 'pending' || p.adminPricingApproved === false) && !p.isVendorEdit && String(p.status || '').toLowerCase() !== 'vendor edited').length },
+    { key: 'Vendor Edited', label: '✏️ Vendor Edits', count: products.filter(p => String(p.status || '').toLowerCase() === 'vendor edited' || String(p.status || '').toLowerCase() === 'updated - pending approval' || p.isVendorEdit).length },
+    { key: 'Negotiation Requested', label: 'Negotiation', count: products.filter(p => String(p.status || '').toLowerCase() === 'negotiation requested').length },
+    { key: 'Awaiting Seller Approval', label: 'Awaiting Seller', count: products.filter(p => String(p.status || '').toLowerCase() === 'awaiting seller approval').length },
+    { key: 'Live', label: 'Live Products', count: products.filter(p => String(p.status || '').toLowerCase() === 'live' || String(p.status || '').toLowerCase() === 'active' || String(p.moderationStatus || '').toLowerCase() === 'approved').length },
+    { key: 'Rejected', label: 'Rejected', count: products.filter(p => String(p.status || '').toLowerCase() === 'rejected' || String(p.moderationStatus || '').toLowerCase() === 'rejected').length },
   ];
 
   const franchiseShares = pricing.commissionShares.filter((share) =>

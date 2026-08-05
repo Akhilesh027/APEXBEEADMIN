@@ -3,13 +3,17 @@ import { useAdminState } from '../context/AdminStateContext';
 import { Order } from '../types';
 import { Search, Award } from 'lucide-react';
 
-export const OrderManagement: React.FC = () => {
+interface OrderManagementProps {
+  defaultView?: 'orders' | 'subscriptions';
+}
+
+export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 'orders' }) => {
   const { orders, updateOrderStatus, releaseCommissions } = useAdminState();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(orders[0] || null);
-  const [filter, setFilter] = useState<Order['orderStatus'] | 'All'>('All');
+  const [filter, setFilter] = useState<'All' | 'Pending Payment' | 'Confirmed' | 'Payment Verified' | 'Processing' | 'Packed' | 'Shipped' | 'Delivered' | 'Subscription Orders'>('All');
   const [search, setSearch] = useState('');
 
-  const [mainView, setMainView] = useState<'orders' | 'subscriptions'>('orders');
+  const [mainView, setMainView] = useState<'orders' | 'subscriptions'>(defaultView);
   const [adminSubscriptions, setAdminSubscriptions] = useState<any[]>([]);
   const [loadingSubs, setLoadingSubs] = useState(false);
   const [selectedSubDetail, setSelectedSubDetail] = useState<any | null>(null);
@@ -23,7 +27,7 @@ export const OrderManagement: React.FC = () => {
     (async () => {
       try {
         setLoadingSubs(true);
-        const token = localStorage.getItem('adminToken');
+        const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
         const res = await fetch('https://server.apexbee.in/api/local-shop/subscriptions/admin/all', {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
@@ -34,7 +38,7 @@ export const OrderManagement: React.FC = () => {
           }
         }
 
-        const stmtRes = await fetch('https://server.apexbee.in/api/billing/statements', {
+        const stmtRes = await fetch('https://server.apexbee.in/api/local-shop/billing/statements', {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
         if (stmtRes.ok) {
@@ -145,7 +149,7 @@ export const OrderManagement: React.FC = () => {
           {/* Filters & search */}
           <div className="bg-card border border-border/80 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm select-none">
             <div className="flex gap-2 flex-wrap max-w-full overflow-x-auto no-scrollbar">
-              {(['All', 'Pending Payment', 'Confirmed', 'Payment Verified', 'Processing', 'Packed', 'Shipped', 'Delivered'] as const).map(f => (
+              {(['All', 'Pending Payment', 'Confirmed', 'Payment Verified', 'Processing', 'Packed', 'Shipped', 'Delivered', 'Subscription Orders'] as const).map(f => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
@@ -600,88 +604,128 @@ export const OrderManagement: React.FC = () => {
                 );
 
                 return (
-                  <div className="space-y-2 pt-3 border-t border-border">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Billing Payouts & Commissions Settlements</span>
-                    {relatedStatements.length === 0 ? (
-                      <div className="p-3 bg-secondary/10 rounded-xl border border-border/40 text-center text-muted-foreground text-[10px]">
-                        No statements generated for this subscription cycle yet.
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {relatedStatements.map((stmt) => (
-                          <div key={stmt._id} className="p-3 bg-secondary/15 rounded-xl border border-border/40 flex justify-between items-center text-[10px]">
-                            <div>
-                              <span className="font-mono font-bold text-primary block">{stmt.statementNumber}</span>
-                              <span className="text-muted-foreground block text-[9px]">Period: {stmt.billingPeriod} • Delivered: {stmt.delivered} runs</span>
-                              <span className="text-muted-foreground block text-[9px]">Platform Fee: ₹{stmt.platformCommission} • Franchise Fee: ₹{stmt.franchiseCommission}</span>
+                  <div className="space-y-4 pt-3 border-t border-border">
+                    <div>
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Billing Payouts & Commissions Settlements</span>
+                      {relatedStatements.length === 0 ? (
+                        <div className="p-3 bg-secondary/10 rounded-xl border border-border/40 text-center text-muted-foreground text-[10px]">
+                          No statements generated for this subscription cycle yet.
+                        </div>
+                      ) : (
+                        <div className="space-y-2 mt-2">
+                          {relatedStatements.map((stmt) => (
+                            <div key={stmt._id} className="p-3 bg-secondary/15 rounded-xl border border-border/40 flex justify-between items-center text-[10px]">
+                              <div>
+                                <span className="font-mono font-bold text-primary block">{stmt.statementNumber}</span>
+                                <span className="text-muted-foreground block text-[9px]">Period: {stmt.billingPeriod} • Delivered: {stmt.delivered} runs</span>
+                                <span className="text-muted-foreground block text-[9px]">Platform Fee: ₹{stmt.platformCommission} • Franchise Fee: ₹{stmt.franchiseCommission}</span>
+                              </div>
+                              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                <span className="font-bold text-foreground font-mono">₹{stmt.grossAmount} Gross</span>
+                                {stmt.settlementStatus === 'settled' ? (
+                                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-bold text-[8px]">Settled</span>
+                                ) : stmt.settlementStatus === 'failed' ? (
+                                  <span className="px-2 py-0.5 rounded bg-red-500/10 text-red-600 font-bold text-[8px]">Failed</span>
+                                ) : (
+                                  <button
+                                    onClick={() => handleApproveStatement(stmt._id)}
+                                    disabled={settlingId === stmt._id}
+                                    className="px-2 py-1 bg-primary text-primary-foreground font-bold rounded text-[8px] cursor-pointer hover:bg-primary/95 disabled:opacity-50"
+                                  >
+                                    {settlingId === stmt._id ? 'Settling...' : 'Release Payout'}
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex flex-col items-end gap-1.5 shrink-0">
-                              <span className="font-bold text-foreground font-mono">₹{stmt.grossAmount} Gross</span>
-                              {stmt.settlementStatus === 'settled' ? (
-                                <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-bold text-[8px]">Settled</span>
-                              ) : stmt.settlementStatus === 'failed' ? (
-                                <span className="px-2 py-0.5 rounded bg-red-500/10 text-red-600 font-bold text-[8px]">Failed</span>
-                              ) : (
-                                <button
-                                  onClick={() => handleApproveStatement(stmt._id)}
-                                  disabled={settlingId === stmt._id}
-                                  className="px-2 py-1 bg-primary text-primary-foreground font-bold rounded text-[8px] cursor-pointer hover:bg-primary/95 disabled:opacity-50"
-                                >
-                                  {settlingId === stmt._id ? 'Settling...' : 'Release Payout'}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Status Update Trigger Select */}
+                    <div className="pt-3 border-t border-border flex gap-3 items-center">
+                      <span className="text-xs font-semibold text-muted-foreground">Administrative Status Adjust:</span>
+                      <select
+                        value={selectedSubDetail.status}
+                        onChange={async (e) => {
+                          const newStatus = e.target.value;
+                          const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+                          try {
+                            const res = await fetch(`https://server.apexbee.in/api/local-shop/subscriptions/${selectedSubDetail._id}/status`, {
+                              method: 'PATCH',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                              },
+                              body: JSON.stringify({ status: newStatus })
+                            });
+                            const data = await res.json();
+                            if (res.ok && data.success) {
+                              setSelectedSubDetail({ ...selectedSubDetail, status: newStatus });
+                              const syncRes = await fetch('https://server.apexbee.in/api/local-shop/subscriptions/admin/all', {
+                                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                              });
+                              if (syncRes.ok) {
+                                const syncData = await syncRes.json();
+                                setAdminSubscriptions(syncData.subscriptions || []);
+                              }
+                              alert('Subscription status updated successfully!');
+                            } else {
+                              alert(data.message || 'Failed to update status');
+                            }
+                          } catch (err) {
+                            console.error(err);
+                            alert('Network error encountered.');
+                          }
+                        }}
+                        className="px-3 py-1 bg-background border border-border rounded-lg text-xs font-bold"
+                      >
+                        <option value="active">Active</option>
+                        <option value="paused">Paused</option>
+                      </select>
+                    </div>
+
+                    {/* Delivery Agent Assignment for Subscription */}
+                    <div className="pt-3 border-t border-border flex flex-col gap-2">
+                      <span className="text-xs font-bold text-foreground">Assign Delivery Partner:</span>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Enter Delivery Agent Name or ID"
+                          defaultValue={selectedSubDetail.deliveryAgentName || selectedSubDetail.deliveryAgentId || ''}
+                          onBlur={async (e) => {
+                            const agentVal = e.target.value.trim();
+                            if (!agentVal) return;
+                            const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+                            try {
+                              const res = await fetch(`https://server.apexbee.in/api/local-shop/subscriptions/${selectedSubDetail._id}/status`, {
+                                method: 'PATCH',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${token}`
+                                },
+                                body: JSON.stringify({
+                                  deliveryAgentId: agentVal,
+                                  deliveryAgentName: agentVal,
+                                  deliveryAgentType: 'Platform'
+                                })
+                              });
+                              const data = await res.json();
+                              if (res.ok && data.success) {
+                                setSelectedSubDetail({ ...selectedSubDetail, deliveryAgentName: agentVal, deliveryAgentId: agentVal });
+                                alert('Delivery partner assigned to subscription successfully!');
+                              }
+                            } catch (err) {
+                              console.error('Assign agent error:', err);
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg border border-border text-xs w-full bg-background"
+                        />
                       </div>
-                    )}
+                    </div>
                   </div>
                 );
               })()}
-
-              {/* Status Update Trigger Select */}
-              <div className="pt-3 border-t border-border flex gap-3 items-center">
-                <span className="text-xs font-semibold text-muted-foreground">Administrative Status Adjust:</span>
-                <select
-                  value={selectedSubDetail.status}
-                  onChange={async (e) => {
-                    const newStatus = e.target.value;
-                    const token = localStorage.getItem('adminToken');
-                    try {
-                      const res = await fetch(`https://server.apexbee.in/api/local-shop/subscriptions/${selectedSubDetail._id}/status`, {
-                        method: 'PATCH',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({ status: newStatus })
-                      });
-                      const data = await res.json();
-                      if (res.ok && data.success) {
-                        setSelectedSubDetail({ ...selectedSubDetail, status: newStatus });
-                        const syncRes = await fetch('https://server.apexbee.in/api/local-shop/subscriptions/admin/all', {
-                          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-                        });
-                        if (syncRes.ok) {
-                          const syncData = await syncRes.json();
-                          setAdminSubscriptions(syncData.subscriptions || []);
-                        }
-                        alert('Subscription status updated successfully!');
-                      } else {
-                        alert(data.message || 'Failed to update status');
-                      }
-                    } catch (err) {
-                      console.error(err);
-                      alert('Network error encountered.');
-                    }
-                  }}
-                  className="text-xs p-2 border border-border/80 rounded-xl bg-card text-foreground outline-none font-semibold"
-                >
-                  <option value="active">Active</option>
-                  <option value="paused">Paused</option>
-                  <option value="expired">Expired</option>
-                </select>
-              </div>
             </div>
           ) : (
             <div className="lg:col-span-7 flex flex-col items-center justify-center py-20 text-center text-xs text-muted-foreground bg-card border border-border/80 rounded-2xl">

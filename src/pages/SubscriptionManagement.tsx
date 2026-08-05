@@ -6,7 +6,9 @@ import {
   Sliders,
   Tag,
   ShieldAlert,
-  Plus
+  Plus,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { SubscriptionAdminDashboard } from '../features/subscriptions/components/SubscriptionAdminDashboard';
 import { PlanBuilderModal } from '../features/subscriptions/components/PlanBuilderModal';
@@ -52,6 +54,33 @@ export const SubscriptionManagement: React.FC = () => {
     }
   };
 
+  const [clearingData, setClearingData] = useState(false);
+  const [clearMsg, setClearMsg] = useState('');
+
+  const handleClearAllSubscriptionData = async () => {
+    const confirmed = window.confirm(
+      '⚠️ WARNING: This will permanently delete ALL subscription plans, fees, prices, features, and vendor subscription records from the database.\n\nThis action CANNOT be undone.\n\nClick OK to confirm.'
+    );
+    if (!confirmed) return;
+
+    try {
+      setClearingData(true);
+      setClearMsg('');
+      const data = await subscriptionApi.clearAllSubscriptionData();
+      if (data.success) {
+        setClearMsg('✅ All subscription data cleared successfully. You may now add fresh plans and fees.');
+        await fetchDashboardAndProducts();
+      } else {
+        setClearMsg(`❌ Failed: ${data.message}`);
+      }
+    } catch (err: any) {
+      setClearMsg(`❌ Error: ${err.message}`);
+    } finally {
+      setClearingData(false);
+      setTimeout(() => setClearMsg(''), 6000);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -67,6 +96,15 @@ export const SubscriptionManagement: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <button
+            onClick={handleClearAllSubscriptionData}
+            disabled={clearingData}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600/80 hover:bg-red-600 text-white text-sm font-semibold rounded-xl transition-colors shadow-lg border border-red-500/30 cursor-pointer disabled:opacity-60"
+            title="Delete all subscription plans, fees and vendor subscription records"
+          >
+            <Trash2 className="w-4 h-4" />
+            {clearingData ? 'Clearing...' : 'Clear All Subscription Data'}
+          </button>
+          <button
             onClick={() => {
               setEditingProduct(null);
               setPlanModalOpen(true);
@@ -78,6 +116,13 @@ export const SubscriptionManagement: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Clear Data Feedback Banner */}
+      {clearMsg && (
+        <div className={`px-4 py-3 rounded-xl text-sm font-medium border ${clearMsg.startsWith('✅') ? 'bg-green-900/30 border-green-500/30 text-green-400' : 'bg-red-900/30 border-red-500/30 text-red-400'}`}>
+          {clearMsg}
+        </div>
+      )}
 
       {/* Navigation Sub-Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-800 pb-2">

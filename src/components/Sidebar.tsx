@@ -42,7 +42,8 @@ import {
   History,
   LifeBuoy,
   Shield,
-  Calendar
+  Calendar,
+  Repeat
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -56,6 +57,7 @@ export type ActiveTab =
   | 'franchise'
   | 'referrals'
   | 'orders'
+  | 'order_subscriptions'
   | 'delivery'
   | 'wallets'
   | 'reports'
@@ -135,6 +137,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'franchise', label: 'Franchise Network', icon: Network },
     { id: 'referrals', label: 'Referral Tree', icon: Users2 },
     { id: 'orders', label: 'Order Management', icon: ShoppingCart },
+    { id: 'order_subscriptions', label: 'Order Subscriptions', icon: Repeat },
     { id: 'delivery', label: 'Delivery Dispatch', icon: Truck },
     { id: 'wallets', label: 'Wallets & Payouts', icon: Wallet, badge: badgeCounts.withdrawals },
     { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },

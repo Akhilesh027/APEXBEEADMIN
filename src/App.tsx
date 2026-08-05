@@ -106,7 +106,9 @@ const App: React.FC = () => {
       case 'referrals':
         return <ReferralSystem />;
       case 'orders':
-        return <OrderManagement />;
+        return <OrderManagement defaultView="orders" />;
+      case 'order_subscriptions':
+        return <OrderManagement defaultView="subscriptions" />;
       case 'delivery':
         return <DeliveryManagement />;
       case 'wallets':
