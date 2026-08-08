@@ -43,7 +43,9 @@ import {
   LifeBuoy,
   Shield,
   Calendar,
-  Repeat
+  Repeat,
+  Navigation,
+  Utensils
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -59,6 +61,7 @@ export type ActiveTab =
   | 'orders'
   | 'order_subscriptions'
   | 'delivery'
+  | 'delivery_boys'
   | 'wallets'
   | 'reports'
   | 'subscriptions'
@@ -93,6 +96,7 @@ export type ActiveTab =
   | 'audit_logs'
   | 'support_center'
   | 'academy_leads'
+  | 'food_and_dining'
   | 'security_settings';
 
 interface SidebarProps {
@@ -129,6 +133,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const menuItems: MenuItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'kyc', label: 'KYC Verification', icon: ShieldCheck, badge: badgeCounts.kyc },
+    { id: 'food_and_dining', label: 'Food & Dining', icon: Utensils },
     { id: 'categories', label: 'Categories & Variants', icon: FolderTree },
     { id: 'products', label: 'Product Approvals', icon: FileCheck2, badge: badgeCounts.products },
     { id: 'commissions', label: 'Commission Engine', icon: Percent },
@@ -139,6 +144,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'orders', label: 'Order Management', icon: ShoppingCart },
     { id: 'order_subscriptions', label: 'Order Subscriptions', icon: Repeat },
     { id: 'delivery', label: 'Delivery Dispatch', icon: Truck },
+    { id: 'delivery_boys', label: 'Delivery Boys & GPS', icon: Navigation },
     { id: 'wallets', label: 'Wallets & Payouts', icon: Wallet, badge: badgeCounts.withdrawals },
     { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
     { id: 'subscriptions', label: 'Universal Subscriptions', icon: Calendar },

@@ -149,6 +149,12 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
           return {
             id: order.orderNumber || order._id,
             _id: order._id,
+            orderType: order.orderType || (order.restaurantId ? 'FOOD' : 'RETAIL'),
+            restaurantId: order.restaurantId || null,
+            vendorId: order.vendorId || null,
+            isSubscription: Boolean(order.isSubscription || order.deliverySlot),
+            categoryId: order.categoryId || null,
+            categoryName: order.categoryName || order.category || '',
             customerName: order.shippingAddress?.name || order.customerId?.name || 'Customer',
             customerMobile: order.shippingAddress?.phone || order.customerId?.phone || '',
             customerAddress: order.shippingAddress ? `${order.shippingAddress.address}, ${order.shippingAddress.city}, ${order.shippingAddress.state} - ${order.shippingAddress.pincode}` : 'No address',
@@ -157,7 +163,9 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
               productName: it.name || it.productName || 'Product',
               quantity: it.quantity || 1,
               price: it.price || 0,
-              variantSku: it.sku || ''
+              variantSku: it.sku || '',
+              categoryId: it.categoryId || order.categoryId || null,
+              categoryName: it.categoryName || order.categoryName || ''
             })),
             totalAmount: order.orderSummary?.total || order.totalAmount || 0,
             paymentMethod: rawMethod || (isCodOrder ? 'COD' : 'UPI'),

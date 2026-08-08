@@ -82,10 +82,10 @@ const SummaryCard = ({ title, value, icon: Icon, color = 'text-foreground' }: an
   </div>
 );
 
-const CommissionCard = ({ title, share, index, updateShare, platformFeeAmount }: any) => {
+const CommissionCard = ({ title, share, index, updateShare, distributionPool }: any) => {
   const amount = share.amount !== undefined 
     ? Number(share.amount || 0) 
-    : (platformFeeAmount * Number(share.percent || 0)) / 100;
+    : ((distributionPool || 0) * Number(share.percent || 0)) / 100;
 
   return (
     <div className="rounded-xl border border-border bg-card p-2.5">
@@ -132,6 +132,8 @@ export const AdminProductApproval = () => {
     mrp: '',
     sellingPrice: '',
     platformFeePercent: '',
+    vendorCommissionPercent: '',
+    distributedFrom: 'platform_fee',
     shippingCharge: '',
     packingCharge: '',
     remarks: '',
@@ -141,10 +143,87 @@ export const AdminProductApproval = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const data = await productService.getAll();
-      setProducts(data || []);
+      const [allProds, foodItems] = await Promise.all([
+        productService.getAll().catch(() => []),
+        productService.getFoodMenuItems().catch(() => [])
+      ]);
+
+      const deduplicatedMap = new Map<string, any>();
+
+      // 1. Process regular Products collection
+      (allProds || []).forEach((p: any) => {
+        const isFood = p.isFoodItem || p.itemType === 'FOOD' || p.productMode === 'FOOD' || Boolean(p.foodMenuItemId) || Boolean(p.restaurantId);
+
+        // Construct unique key
+        const uniqueKey = p.foodMenuItemId
+          ? `food_${p.foodMenuItemId}`
+          : p._id
+          ? `prod_${p._id}`
+          : `sku_${p.sku || p.name}`;
+
+        const formatted = {
+          ...p,
+          isFoodItem: isFood,
+          categoryName: p.categoryName || p.categoryId?.name || (isFood ? 'Food & Dining' : 'General Catalog'),
+          vendorName: p.vendorName || p.sellerId?.name || p.sellerId?.businessName || (isFood ? 'Restaurant Partner' : 'Vendor Partner'),
+          baseMrp: p.adminPricing?.mrp || p.baseMrp || p.price || 0,
+          baseSellingPrice: p.adminPricing?.sellingPrice || p.baseSellingPrice || p.price || 0,
+        };
+
+        deduplicatedMap.set(uniqueKey, formatted);
+      });
+
+      // 2. Process FoodMenuItems collection (deduplicating against existing synced items)
+      (foodItems || []).forEach((f: any) => {
+        const foodKey = `food_${f._id}`;
+
+        // Check if already present or matched by name + food flag
+        let alreadyExists = deduplicatedMap.has(foodKey);
+        if (!alreadyExists) {
+          for (const existing of deduplicatedMap.values()) {
+            if (
+              existing.foodMenuItemId === String(f._id) ||
+              String(existing._id) === String(f._id) ||
+              (existing.name?.toLowerCase() === f.name?.toLowerCase() && existing.isFoodItem)
+            ) {
+              alreadyExists = true;
+              break;
+            }
+          }
+        }
+
+        if (!alreadyExists) {
+          const restName = f.restaurantId?.restaurantName || f.restaurantId?.name || 'Restaurant Partner';
+          deduplicatedMap.set(foodKey, {
+            ...f,
+            _id: f._id,
+            foodMenuItemId: f._id,
+            isFoodItem: true,
+            categoryName: f.categoryId?.name || 'Food & Dining',
+            vendorName: restName,
+            baseMrp: f.basePrice,
+            baseSellingPrice: f.offerPrice || f.basePrice,
+            status: f.approvalStatus === 'PUBLISHED_LIVE'
+              ? 'Live'
+              : f.approvalStatus === 'PENDING_RESTAURANT_ACCEPTANCE'
+              ? 'Awaiting Seller Approval'
+              : f.approvalStatus === 'REJECTED_BY_ADMIN' || f.approvalStatus === 'REJECTED_BY_RESTAURANT'
+              ? 'Rejected'
+              : 'Pending Review',
+            adminPricing: {
+              mrp: f.basePrice,
+              sellingPrice: f.offerPrice || f.basePrice,
+              platformFeePercent: f.platformCommissionPercent || 12,
+              platformFeeAmount: f.platformShareAmount || Math.round((f.basePrice * (f.platformCommissionPercent || 12)) / 100),
+              finalSellerAmount: f.vendorPayoutAmount || (f.basePrice - (f.platformShareAmount || Math.round((f.basePrice * 12) / 100))),
+            }
+          });
+        }
+      });
+
+      setProducts(Array.from(deduplicatedMap.values()));
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching products:', err);
     } finally {
       setLoading(false);
     }
@@ -168,38 +247,60 @@ export const AdminProductApproval = () => {
       sellingPrice:
         product.adminPricing?.sellingPrice || product.baseSellingPrice || '',
       platformFeePercent: product.adminPricing?.platformFeePercent || '',
-      shippingCharge: product.adminPricing?.shippingCharge || '',
-      packingCharge: product.adminPricing?.packingCharge || '',
+      vendorCommissionPercent: product.adminPricing?.vendorCommissionPercent || product.vendorCommissionPercent || '',
+      distributedFrom: product.adminPricing?.distributedFrom || 'platform_fee',
+      shippingCharge: product.adminPricing?.shippingCharge !== undefined && product.adminPricing?.shippingCharge !== null
+        ? product.adminPricing.shippingCharge.toString()
+        : '0',
+      packingCharge: product.adminPricing?.packingCharge !== undefined && product.adminPricing?.packingCharge !== null
+        ? product.adminPricing.packingCharge.toString()
+        : '0',
       remarks: product.adminPricing?.remarks || '',
       commissionShares: existingShares,
     });
   };
   const roundMoney = (val: number) => Math.round((val + Number.EPSILON) * 100) / 100;
 
+  const vendorCommissionPercent = Number(pricing.vendorCommissionPercent || 0);
+  const vendorCommissionAmount = roundMoney(
+    (Number(pricing.sellingPrice || 0) * vendorCommissionPercent) / 100
+  );
+
   const platformFeeAmount = roundMoney(
-    (Number(pricing.sellingPrice || 0) * Number(pricing.platformFeePercent || 0)) /
-      100
+    (Number(pricing.sellingPrice || 0) * Number(pricing.platformFeePercent || 0)) / 100
+  );
+
+  const distributedFrom = pricing.distributedFrom || 'platform_fee';
+
+  const distributionPool = roundMoney(
+    distributedFrom === 'apexbee_commission'
+      ? vendorCommissionAmount
+      : distributedFrom === 'both'
+      ? (vendorCommissionAmount + platformFeeAmount)
+      : distributedFrom === 'none'
+      ? 0
+      : platformFeeAmount
   );
 
   const calculatedShares = pricing.commissionShares.map((share) => {
     const pct = Number(share.percent || 0);
     const amount = roundMoney(
-      (platformFeeAmount === 0 && share.amount !== undefined)
+      (distributionPool === 0 && share.amount !== undefined && distributedFrom !== 'none')
         ? Number(share.amount || 0)
-        : (platformFeeAmount * pct) / 100
+        : (distributionPool * pct) / 100
     );
 
     return {
       ...share,
       percent: pct,
       amount: amount,
-      isActive: true,
+      isActive: distributedFrom !== 'none',
     };
   });
 
   const totalCommissionAmount = roundMoney(
     calculatedShares.reduce(
-      (sum, item) => sum + Number(item.amount || 0),
+      (sum, item) => sum + (item.isActive ? Number(item.amount || 0) : 0),
       0
     )
   );
@@ -209,10 +310,12 @@ export const AdminProductApproval = () => {
   );
 
   const finalSellerAmount = roundMoney(
-    Number(pricing.sellingPrice || 0) - platformFeeAmount
+    Number(pricing.sellingPrice || 0) - platformFeeAmount - vendorCommissionAmount
   );
 
-  const platformNetProfit = roundMoney(platformFeeAmount - totalCommissionAmount);
+  const platformNetProfit = roundMoney(
+    (platformFeeAmount + vendorCommissionAmount) - totalCommissionAmount
+  );
 
   const updateShare = (index: number, key: string, value: any) => {
     const updated = [...pricing.commissionShares] as any[];
@@ -221,12 +324,12 @@ export const AdminProductApproval = () => {
     if (key === 'percent') {
       const pct = Number(value || 0);
       item.percent = value;
-      item.amount = (platformFeeAmount * pct) / 100;
+      item.amount = (distributionPool * pct) / 100;
     } else if (key === 'amount') {
       const amt = Number(value || 0);
       item.amount = value;
-      item.percent = platformFeeAmount > 0 
-        ? Number(((amt / platformFeeAmount) * 100).toFixed(4)) 
+      item.percent = distributionPool > 0 
+        ? Number(((amt / distributionPool) * 100).toFixed(4)) 
         : 0;
     } else {
       (item as any)[key] = value;
@@ -237,9 +340,10 @@ export const AdminProductApproval = () => {
   };
 
   const getProductImage = (product: any) =>
-    product.thumbnail || product.images?.[0] || '';
+    product.thumbnail || product.images?.[0] || product.image || '';
 
   const getCategoryPath = (product: any) =>
+    product.categoryName ||
     [
       product.categoryId?.name,
       product.subCategoryId?.name,
@@ -254,18 +358,32 @@ export const AdminProductApproval = () => {
     try {
       setSaving(true);
       const targetProductId = selectedProduct._id || selectedProduct.id || selectedProduct;
+
       await productService.configureAdminPricing(targetProductId, {
         mrp: Number(pricing.mrp),
         sellingPrice: Number(pricing.sellingPrice),
         platformFeePercent: Number(pricing.platformFeePercent),
         platformFeeAmount,
+        vendorCommissionPercent,
+        vendorCommissionAmount,
+        distributedFrom,
+        distributionPool,
         shippingCharge: Number(pricing.shippingCharge || 0),
         packingCharge: Number(pricing.packingCharge || 0),
         commissionShares: calculatedShares,
         totalCommissionAmount,
         finalSellerAmount,
+        platformNetProfit,
         remarks: pricing.remarks,
       });
+
+      if (selectedProduct.isFoodItem && selectedProduct.foodMenuItemId) {
+        await productService.reviewFoodItemCommission(selectedProduct.foodMenuItemId, {
+          platformCommissionPercent: Number(pricing.platformFeePercent),
+          adminPricingNotes: pricing.remarks,
+          action: 'APPROVE_COMMISSION',
+        });
+      }
 
       setSelectedProduct(null);
       await fetchProducts();
@@ -544,28 +662,28 @@ export const AdminProductApproval = () => {
       </div>
 
       {selectedProduct && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3">
-          <div className="bg-card border border-border rounded-2xl max-w-7xl w-full p-4 h-[92vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-2 sm:p-3">
+          <div className="bg-card border border-border rounded-2xl max-w-[98vw] w-full p-5 h-[96vh] overflow-hidden flex flex-col shadow-2xl">
             <div className="flex justify-between items-center border-b border-border pb-3 mb-3">
               <div>
-                <h2 className="text-sm font-bold">
+                <h2 className="text-base font-bold">
                   Configure Pricing - {selectedProduct.name}
                 </h2>
 
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Left side: pricing engine. Right side: product verification.
                 </p>
               </div>
 
               <button
                 onClick={() => setSelectedProduct(null)}
-                className="text-xs text-muted-foreground"
+                className="px-3 py-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-xs font-bold text-foreground border border-border cursor-pointer transition-colors"
               >
-                Close
+                ✕ Close
               </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-4 flex-1 overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_0.65fr] gap-5 flex-1 overflow-hidden">
               <div className="space-y-3 overflow-y-auto pr-1">
                 <div className="rounded-2xl border border-border bg-secondary/10 p-3">
                   <h3 className="text-[11px] font-bold uppercase text-foreground mb-3 flex items-center gap-1">
@@ -573,7 +691,7 @@ export const AdminProductApproval = () => {
                     Product Pricing
                   </h3>
 
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
                     <FormInput
                       label="MRP (₹)"
                       placeholder="MRP"
@@ -596,6 +714,18 @@ export const AdminProductApproval = () => {
                     />
 
                     <FormInput
+                      label="ApexBee Comm (%)"
+                      placeholder="Vendor Comm %"
+                      value={pricing.vendorCommissionPercent}
+                      onChange={(e: any) =>
+                        setPricing({
+                          ...pricing,
+                          vendorCommissionPercent: e.target.value,
+                        })
+                      }
+                    />
+
+                    <FormInput
                       label="Platform Fee (%)"
                       placeholder="Platform %"
                       value={pricing.platformFeePercent}
@@ -606,6 +736,24 @@ export const AdminProductApproval = () => {
                         })
                       }
                     />
+
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Distributed From
+                      </label>
+                      <select
+                        value={pricing.distributedFrom}
+                        onChange={(e) =>
+                          setPricing({ ...pricing, distributedFrom: e.target.value })
+                        }
+                        className="w-full p-2.5 rounded-xl border border-border bg-background text-xs font-bold text-foreground outline-none focus:border-primary cursor-pointer"
+                      >
+                        <option value="platform_fee">Platform Fee Pool</option>
+                        <option value="apexbee_commission">ApexBee Commission Pool</option>
+                        <option value="both">Both (Comm + Platform Fee)</option>
+                        <option value="none">None (Add to Platform Profit)</option>
+                      </select>
+                    </div>
 
                     <FormInput
                       label="Shipping (₹)"
@@ -633,7 +781,14 @@ export const AdminProductApproval = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+                  <SummaryCard
+                    title="ApexBee Comm"
+                    value={`₹${vendorCommissionAmount.toFixed(2)}`}
+                    icon={IndianRupee}
+                    color="text-amber-500"
+                  />
+
                   <SummaryCard
                     title="Platform Fee"
                     value={`₹${platformFeeAmount.toFixed(2)}`}
@@ -641,15 +796,16 @@ export const AdminProductApproval = () => {
                   />
 
                   <SummaryCard
-                    title="Distributed"
-                    value={`₹${totalCommissionAmount.toFixed(2)}`}
+                    title="Pool Target"
+                    value={`₹${distributionPool.toFixed(2)}`}
                     icon={Network}
+                    color="text-indigo-500"
                   />
 
                   <SummaryCard
-                    title="Ship + Pack"
-                    value={`₹${shippingPacking.toFixed(2)}`}
-                    icon={Truck}
+                    title="Distributed"
+                    value={`₹${totalCommissionAmount.toFixed(2)}`}
+                    icon={Network}
                   />
 
                   <SummaryCard
@@ -664,7 +820,7 @@ export const AdminProductApproval = () => {
                     value={`₹${platformNetProfit.toFixed(2)}`}
                     color={
                       platformNetProfit >= 0
-                        ? 'text-indigo-600'
+                        ? 'text-emerald-500 font-bold'
                         : 'text-rose-600'
                     }
                     icon={Landmark}
@@ -690,7 +846,7 @@ export const AdminProductApproval = () => {
                           share={share}
                           index={originalIndex}
                           updateShare={updateShare}
-                          platformFeeAmount={platformFeeAmount}
+                          distributionPool={distributionPool}
                         />
                       );
                     })}
@@ -716,7 +872,7 @@ export const AdminProductApproval = () => {
                           share={share}
                           index={originalIndex}
                           updateShare={updateShare}
-                          platformFeeAmount={platformFeeAmount}
+                          distributionPool={distributionPool}
                         />
                       );
                     })}
@@ -742,7 +898,7 @@ export const AdminProductApproval = () => {
                           share={share}
                           index={originalIndex}
                           updateShare={updateShare}
-                          platformFeeAmount={platformFeeAmount}
+                          distributionPool={distributionPool}
                         />
                       );
                     })}

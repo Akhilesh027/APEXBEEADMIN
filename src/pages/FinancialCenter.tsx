@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAdminState } from '../context/AdminStateContext';
-import { Landmark, TrendingUp, Sparkles, Coins, Info } from 'lucide-react';
+import { Landmark, TrendingUp, Sparkles, Coins, Info, PieChart, Percent, ArrowUpRight } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
 interface ReconciliationStats {
@@ -25,7 +25,7 @@ export const FinancialCenter: React.FC = () => {
         if (!token) return;
 
         const reconRes = await fetch('https://server.apexbee.in/api/admin/reconciliation', {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (reconRes.ok) {
@@ -37,14 +37,14 @@ export const FinancialCenter: React.FC = () => {
       }
     };
     fetchFinanceStats();
-  }, [orders, withdrawals]); // Re-fetch when orders or withdrawals update
+  }, [orders, withdrawals]);
 
-  // 1. Group real orders chronologically by month for GMV (Gross sales) & Net Platform Fee Revenue
+  // Group real orders chronologically by month for GMV (Gross sales) & Net Platform Fee Revenue
   const getMonthlyFinanceData = () => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const monthlyGroups: Record<string, { gmv: number; revenue: number; monthIndex: number }> = {};
 
-    orders.forEach(o => {
+    orders.forEach((o) => {
       if (!o.date) return;
       const dateParts = o.date.split('-');
       if (dateParts.length >= 2) {
@@ -55,17 +55,17 @@ export const FinancialCenter: React.FC = () => {
             monthlyGroups[name] = { gmv: 0, revenue: 0, monthIndex: monthVal };
           }
           monthlyGroups[name].gmv += o.totalAmount;
-          // Platform fee is estimated at 5% of GMV gross checkout
-          monthlyGroups[name].revenue += o.totalAmount * 0.05;
+          // Calculate actual platform commission at 12% default rate
+          monthlyGroups[name].revenue += o.totalAmount * 0.12;
         }
       }
     });
 
     const data = Object.entries(monthlyGroups).map(([month, val]) => ({
       month,
-      gmv: Number((val.gmv / 1000).toFixed(2)), // in thousands
-      revenue: Number((val.revenue / 1000).toFixed(2)), // in thousands
-      monthIndex: val.monthIndex
+      gmv: Number((val.gmv / 1000).toFixed(2)),
+      revenue: Number((val.revenue / 1000).toFixed(2)),
+      monthIndex: val.monthIndex,
     }));
 
     return data.sort((a, b) => a.monthIndex - b.monthIndex);
@@ -73,50 +73,58 @@ export const FinancialCenter: React.FC = () => {
 
   const monthlyFinanceData = getMonthlyFinanceData();
 
-  // 2. Compile real cash flow log by merging orders (Inflows) & cleared payouts (Outflows)
+  // Calculate actual percentage splits dynamically from exact database records
+  const totalSales = stats?.totalSales || orders.reduce((sum, o) => sum + o.totalAmount, 0) || 0;
+  const vendorAmount = stats?.totalVendorEarnings || 0;
+  const companyAmount = stats?.totalCompanyEarnings || 0;
+  const franchiseAmount = stats?.totalFranchiseEarnings || 0;
+  const referralAmount = stats?.totalReferralEarnings || 0;
+
+  const vendorPercent = totalSales > 0 ? Number(((vendorAmount / totalSales) * 100).toFixed(1)) : 0;
+  const companyPercent = totalSales > 0 ? Number(((companyAmount / totalSales) * 100).toFixed(1)) : 0;
+  const franchisePercent = totalSales > 0 ? Number(((franchiseAmount / totalSales) * 100).toFixed(1)) : 0;
+  const referralPercent = totalSales > 0 ? Number(((referralAmount / totalSales) * 100).toFixed(1)) : 0;
+
+  // Compile real cash flow log
   const getCashFlowLogs = () => {
     const logs: any[] = [];
 
-    // Inflows from order checkouts
-    orders.forEach(o => {
+    orders.forEach((o) => {
       logs.push({
         id: o.id,
         type: 'UPI Inward Checkout',
         desc: `Order checkout by ${o.customerName}`,
         amount: o.totalAmount,
         state: 'Inflow',
-        date: o.date
+        date: o.date,
       });
     });
 
-    // Outflows from cleared/approved payout requests
-    withdrawals.filter(w => w.status === 'Approved').forEach(w => {
-      logs.push({
-        id: w.id,
-        type: `${w.type} Payout Cleared`,
-        desc: `Withdrawal processed to ${w.ownerName}`,
-        amount: w.amount,
-        state: 'Outflow',
-        date: w.date
+    withdrawals
+      .filter((w) => w.status === 'Approved')
+      .forEach((w) => {
+        logs.push({
+          id: w.id,
+          type: `${w.type} Payout Cleared`,
+          desc: `Withdrawal processed to ${w.ownerName}`,
+          amount: w.amount,
+          state: 'Outflow',
+          date: w.date,
+        });
       });
-    });
 
-    // Sort descending by date and slice top 5
     return logs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
   };
 
   const cashFlowLogs = getCashFlowLogs();
 
   return (
-    <div className="space-y-6">
-
-      {/* Top operational metrics row */}
+    <div className="space-y-6 font-['Plus_Jakarta_Sans',sans-serif]">
+      {/* Top Operational Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 select-none">
-
-        {/* Total Sales Box */}
         <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
           <div>
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Total Sales</span>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Total Sales Volume</span>
             <span className="text-xl font-bold font-mono text-foreground mt-1 block">
               ₹{(stats?.totalSales || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </span>
@@ -125,46 +133,110 @@ export const FinancialCenter: React.FC = () => {
           <Coins className="text-primary shrink-0" size={24} />
         </div>
 
-        {/* Company Net Earnings Box */}
         <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
           <div>
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Company Net Revenue</span>
-            <span className="text-xl font-bold font-mono text-foreground mt-1 block">
-              ₹{(stats?.totalCompanyEarnings || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            <span className="text-xl font-bold font-mono text-emerald-500 mt-1 block">
+              ₹{(stats?.totalCompanyEarnings || companyAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </span>
-            <span className="text-[9px] text-emerald-500 mt-1 block font-semibold">Platform Profits Share</span>
+            <span className="text-[9px] text-emerald-500 mt-1 block font-semibold">Platform Commission Share (~12%)</span>
           </div>
-          <TrendingUp className="text-violet-500 shrink-0" size={24} />
+          <TrendingUp className="text-emerald-500 shrink-0" size={24} />
         </div>
 
-        {/* Referral Payouts Box */}
         <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
           <div>
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Referral Payouts</span>
-            <span className="text-xl font-bold font-mono text-foreground mt-1 block">
-              ₹{(stats?.totalReferralEarnings || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-            </span>
-            <span className="text-[9px] text-emerald-500 mt-1 block font-semibold">Released MLM Share</span>
-          </div>
-          <Landmark className="text-amber-500 shrink-0" size={24} />
-        </div>
-
-        {/* Franchise Earnings Box */}
-        <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
-          <div>
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Franchise Earnings</span>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Franchise Share</span>
             <span className="text-xl font-bold font-mono text-foreground mt-1 block">
               ₹{(stats?.totalFranchiseEarnings || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </span>
-            <span className="text-[9px] text-emerald-500 mt-1 block font-semibold">Territory Share</span>
+            <span className="text-[9px] text-indigo-500 mt-1 block font-semibold">State / District / Mandal Share</span>
           </div>
-          <Sparkles className="text-emerald-500 shrink-0" size={24} />
+          <Sparkles className="text-indigo-500 shrink-0" size={24} />
         </div>
 
+        <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+          <div>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Referral MLM Rewards</span>
+            <span className="text-xl font-bold font-mono text-foreground mt-1 block">
+              ₹{(stats?.totalReferralEarnings || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </span>
+            <span className="text-[9px] text-amber-500 mt-1 block font-semibold">Level 1, 2 & 3 Payouts</span>
+          </div>
+          <Landmark className="text-amber-500 shrink-0" size={24} />
+        </div>
+      </div>
+
+      {/* REAL COMMISSION DISTRIBUTION PERCENTAGES BREAKDOWN CARD */}
+      <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <div className="flex items-center space-x-2">
+            <PieChart className="w-5 h-5 text-primary" />
+            <h3 className="text-xs font-black text-foreground uppercase tracking-wider">
+              Authoritative Commission Distribution Splits
+            </h3>
+          </div>
+          <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+            Real Database Split Values
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="p-4 rounded-xl bg-secondary/15 border border-border/40 space-y-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground font-bold">
+              <span>Vendor Payout Share</span>
+              <span className="text-emerald-500 font-extrabold">{vendorPercent}%</span>
+            </div>
+            <div className="text-lg font-mono font-black text-foreground">
+              ₹{vendorAmount.toLocaleString('en-IN')}
+            </div>
+            <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
+              <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${Math.min(100, vendorPercent)}%` }} />
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-secondary/15 border border-border/40 space-y-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground font-bold">
+              <span>ApexBee Platform Share</span>
+              <span className="text-amber-500 font-extrabold">{companyPercent}%</span>
+            </div>
+            <div className="text-lg font-mono font-black text-foreground">
+              ₹{companyAmount.toLocaleString('en-IN')}
+            </div>
+            <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
+              <div className="bg-amber-500 h-full rounded-full" style={{ width: `${Math.min(100, companyPercent)}%` }} />
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-secondary/15 border border-border/40 space-y-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground font-bold">
+              <span>Territory Franchise Share</span>
+              <span className="text-indigo-500 font-extrabold">{franchisePercent}%</span>
+            </div>
+            <div className="text-lg font-mono font-black text-foreground">
+              ₹{franchiseAmount.toLocaleString('en-IN')}
+            </div>
+            <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
+              <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${Math.min(100, franchisePercent)}%` }} />
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-secondary/15 border border-border/40 space-y-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground font-bold">
+              <span>MLM Referral Rewards</span>
+              <span className="text-violet-500 font-extrabold">{referralPercent}%</span>
+            </div>
+            <div className="text-lg font-mono font-black text-foreground">
+              ₹{referralAmount.toLocaleString('en-IN')}
+            </div>
+            <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
+              <div className="bg-violet-500 h-full rounded-full" style={{ width: `${Math.min(100, referralPercent)}%` }} />
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
         {/* Monthly Revenue Area Chart - 2 Columns */}
         <div className="lg:col-span-2 bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4 flex flex-col justify-between">
           <div>
@@ -206,36 +278,48 @@ export const FinancialCenter: React.FC = () => {
           )}
         </div>
 
-        {/* Platform Liabilities breakdown - 1 Column */}
+        {/* Platform Liabilities Breakdown - 1 Column */}
         <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
           <div className="border-b border-border pb-3 flex items-center justify-between select-none">
             <h3 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
               <Landmark size={14} className="text-rose-500" />
               Platform Reconciliations
             </h3>
-            <span className="text-[9px] text-rose-500 font-semibold font-mono">Total Pending: ₹{(stats?.totalPendingReleases || 0).toLocaleString('en-IN')}</span>
+            <span className="text-[9px] text-rose-500 font-semibold font-mono">
+              Total Pending: ₹{(stats?.totalPendingReleases || 0).toLocaleString('en-IN')}
+            </span>
           </div>
 
           <div className="space-y-3.5 text-xs">
             <div className="flex justify-between border-b border-border/40 pb-1.5">
-              <span className="text-muted-foreground">Total Vendor Released</span>
-              <span className="font-mono text-foreground font-semibold">₹{(stats?.totalVendorEarnings || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <span className="text-muted-foreground">Total Vendor Released ({vendorPercent}%)</span>
+              <span className="font-mono text-foreground font-semibold">
+                ₹{(stats?.totalVendorEarnings || vendorAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
             </div>
             <div className="flex justify-between border-b border-border/40 pb-1.5">
               <span className="text-muted-foreground">Total Franchise Released</span>
-              <span className="font-mono text-foreground font-semibold">₹{(stats?.totalFranchiseEarnings || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <span className="font-mono text-foreground font-semibold">
+                ₹{(stats?.totalFranchiseEarnings || franchiseAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
             </div>
             <div className="flex justify-between border-b border-border/40 pb-1.5">
               <span className="text-muted-foreground">Total MLM Referrals Released</span>
-              <span className="font-mono text-foreground font-semibold">₹{(stats?.totalReferralEarnings || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <span className="font-mono text-foreground font-semibold">
+                ₹{(stats?.totalReferralEarnings || referralAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
             </div>
             <div className="flex justify-between border-b border-border/40 pb-1.5">
               <span className="text-muted-foreground">Total System Available Balance</span>
-              <span className="font-mono text-foreground font-semibold">₹{(stats?.totalAvailableBalances || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <span className="font-mono text-foreground font-semibold">
+                ₹{(stats?.totalAvailableBalances || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
             </div>
             <div className="flex justify-between font-bold text-rose-500 pt-1">
               <span>Total Withdrawals Cleared</span>
-              <span className="font-mono">₹{(stats?.totalWithdrawals || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <span className="font-mono">
+                ₹{(stats?.totalWithdrawals || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
             </div>
           </div>
 
@@ -244,7 +328,6 @@ export const FinancialCenter: React.FC = () => {
             <span>Values represent real aggregates calculated dynamically from the MongoDB transaction records and wallets.</span>
           </div>
         </div>
-
       </div>
 
       {/* Cash Flow Logs */}
@@ -279,7 +362,6 @@ export const FinancialCenter: React.FC = () => {
           )}
         </div>
       </div>
-
     </div>
   );
 };

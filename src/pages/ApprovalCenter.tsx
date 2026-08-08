@@ -16,6 +16,7 @@ export const ApprovalCenter: React.FC = () => {
   const { addActivityLog } = useAdminState();
 
   const [activeSubTab, setActiveSubTab] = useState<
+    | "all"
     | "vendors"
     | "wholesalers"
     | "entrepreneurs"
@@ -27,7 +28,7 @@ export const ApprovalCenter: React.FC = () => {
     | "products"
     | "kyc"
     | "withdrawals"
-  >("vendors");
+  >("all");
 
   const [pendingItems, setPendingItems] = useState<Record<string, any[]>>({
     vendors: [],
@@ -175,6 +176,8 @@ export const ApprovalCenter: React.FC = () => {
 
   const getSubTabLabel = (tab: typeof activeSubTab) => {
     switch (tab) {
+      case "all":
+        return "All Applications";
       case "vendors":
         return "Vendors";
       case "wholesalers":
@@ -264,7 +267,65 @@ export const ApprovalCenter: React.FC = () => {
     };
   };
 
-  const getPendingItemsForTab = (tab: string) => {
+  const getLocalDeliveryPartners = () => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem("apexbee_registered_partners_db");
+      const rawSingle = localStorage.getItem("delivery_partner");
+      const list: any[] = raw ? JSON.parse(raw) : [];
+      if (rawSingle) {
+        const p = JSON.parse(rawSingle);
+        if (p && p.mobile && !list.some((x: any) => x.mobile === p.mobile)) {
+          list.push(p);
+        }
+      }
+      return list.map((p: any) => ({
+        id: p.id || `dp_${p.mobile}`,
+        name: p.name || "Delivery Partner Application",
+        contact: p.name || p.mobile,
+        date: new Date().toISOString().substring(0, 10),
+        priority: p.status === "pending_approval" ? "High" : "Normal",
+        type: "Delivery Partner Application",
+        applicationType: "delivery_partner",
+        roleId: "delivery_partner",
+        email: p.email,
+        mobile: p.mobile,
+        status: p.status || "pending_approval",
+        vehicleType: p.vehicle?.type,
+        licenseNumber: p.vehicle?.drivingLicense,
+        aadhaarNumber: p.aadhaarNumber,
+        panNumber: p.panNumber,
+        bankAccounts: p.bankDetails ? [p.bankDetails] : [],
+        isLocalPartner: true,
+        partnerRaw: p,
+      }));
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const getPendingItemsForTab = (tab: string): any[] => {
+    if (tab === "all") {
+      const allAppItems = applications.map(mapApplicationToItem);
+      const localPartners = getLocalDeliveryPartners();
+      const kycItems = getPendingItemsForTab("kyc");
+      const prodItems = getPendingItemsForTab("products");
+      const walletItems = getPendingItemsForTab("withdrawals");
+      return [...allAppItems, ...localPartners, ...kycItems, ...prodItems, ...walletItems];
+    }
+
+    if (tab === "delivery_partners") {
+      const backendDeliveryApps = applications
+        .filter(app => {
+          const t = String(app.roleId || app.applicationType || "").toLowerCase();
+          return t.includes("delivery") || t.includes("rider") || t.includes("partner");
+        })
+        .map(mapApplicationToItem);
+
+      const localPartners = getLocalDeliveryPartners();
+      return [...backendDeliveryApps, ...localPartners];
+    }
+
     if (tab === "kyc") {
       const appItems = applications
         .filter(
@@ -309,24 +370,46 @@ export const ApprovalCenter: React.FC = () => {
     }
 
     if (tab === "products") {
-      return dbProducts
-        .filter((p: any) => p.status !== "Live" && p.status !== "Rejected")
-        .map((p: any) => ({
-          id: p._id,
-          name: p.name,
-          contact: p.sellerId?.name || p.sellerType || "Vendor",
-          date: new Date(p.updatedAt || p.createdAt || Date.now()).toISOString().substring(0, 10),
-          priority: p.status === "Pending Review" ? "High" : "Normal",
-          type: `Product (${p.sku || "SKU"})`,
-          status: p.status,
-          baseMrp: p.baseMrp,
-          baseSellingPrice: p.baseSellingPrice,
-          sellerType: p.sellerType,
-          description: p.description,
-          variants: p.variants || [],
-          images: p.images || [],
-          isProduct: true,
-        }));
+      const pendingProds = dbProducts.filter((p: any) => p.status !== "Live" && p.status !== "Rejected");
+
+      const uniqueProdsMap = new Map();
+      pendingProds.forEach((p: any) => {
+        const isFood = p.isFoodItem || p.itemType === 'FOOD' || p.productMode === 'FOOD' || Boolean(p.foodMenuItemId) || Boolean(p.restaurantId);
+        const key = p.foodMenuItemId ? `food_${p.foodMenuItemId}` : `prod_${p._id || p.id || p.sku}`;
+
+        // Avoid adding duplicate by checking key or name
+        let alreadyExists = uniqueProdsMap.has(key);
+        if (!alreadyExists) {
+          for (const existing of uniqueProdsMap.values()) {
+            if (existing.name?.toLowerCase() === p.name?.toLowerCase() && isFood === existing.isFood) {
+              alreadyExists = true;
+              break;
+            }
+          }
+        }
+
+        if (!alreadyExists) {
+          uniqueProdsMap.set(key, {
+            id: p._id,
+            name: p.name,
+            contact: p.sellerId?.name || p.sellerType || (isFood ? "Restaurant Partner" : "Vendor"),
+            date: new Date(p.updatedAt || p.createdAt || Date.now()).toISOString().substring(0, 10),
+            priority: p.status === "Pending Review" ? "High" : "Normal",
+            type: isFood ? `Restaurant Item (${p.sku || "FOOD"})` : `Product (${p.sku || "SKU"})`,
+            status: p.status,
+            baseMrp: p.baseMrp || p.basePrice || 0,
+            baseSellingPrice: p.baseSellingPrice || p.offerPrice || 0,
+            sellerType: p.sellerType,
+            description: p.description,
+            variants: p.variants || [],
+            images: p.images || (p.image ? [p.image] : []),
+            isProduct: true,
+            isFood,
+          });
+        }
+      });
+
+      return Array.from(uniqueProdsMap.values());
     }
 
     if (tab === "withdrawals") {
@@ -552,10 +635,38 @@ export const ApprovalCenter: React.FC = () => {
     const isRealApp = applications.some(app => app._id === id);
 
     if (!isRealApp) {
-      const queue = pendingItems[activeSubTab] || [];
+      const queue = getPendingItemsForTab(activeSubTab);
       const item = queue.find(i => i.id === id);
 
       if (!item) return;
+
+      if (item.isLocalPartner || item.partnerRaw) {
+        const mob = item.mobile;
+        const newStatus = action === "Approved" ? "active" : "rejected";
+
+        try {
+          const rawList = localStorage.getItem("apexbee_registered_partners_db");
+          if (rawList) {
+            const list = JSON.parse(rawList);
+            const idx = list.findIndex((p: any) => p.mobile === mob);
+            if (idx >= 0) {
+              list[idx].status = newStatus;
+              localStorage.setItem("apexbee_registered_partners_db", JSON.stringify(list));
+            }
+          }
+
+          const rawSingle = localStorage.getItem("delivery_partner");
+          if (rawSingle) {
+            const p = JSON.parse(rawSingle);
+            if (p.mobile === mob) {
+              p.status = newStatus;
+              localStorage.setItem("delivery_partner", JSON.stringify(p));
+            }
+          }
+        } catch (e) { }
+
+        alert(`Delivery Partner ${item.name} (${mob}) status updated to ${newStatus.toUpperCase()}!`);
+      }
 
       addActivityLog(
         `Ecosystem Approval: ${action}`,

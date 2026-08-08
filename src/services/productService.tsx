@@ -22,6 +22,20 @@ export const productService = {
     return res.data.products;
   },
 
+  getFoodMenuItems: async () => {
+    try {
+      const res = await axios.get(`${API_URL}/food-partner/admin/menu/items`, { headers: authHeaders() });
+      return res.data?.items || [];
+    } catch {
+      return [];
+    }
+  },
+
+  reviewFoodItemCommission: async (id: string, payload: any) => {
+    const res = await axios.post(`${API_URL}/food-partner/admin/menu/items/${id}/review-commission`, payload, { headers: authHeaders() });
+    return res.data;
+  },
+
   getById: async (id: any) => {
     const res = await axios.get(`${API_URL}/products/${id}`, {
       headers: authHeaders(),

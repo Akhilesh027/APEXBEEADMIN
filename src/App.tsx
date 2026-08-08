@@ -11,6 +11,7 @@ import { FranchiseNetwork } from './pages/FranchiseNetwork';
 import { ReferralSystem } from './pages/ReferralSystem';
 import { OrderManagement } from './pages/OrderManagement';
 import { DeliveryManagement } from './pages/DeliveryManagement';
+import { DeliveryBoyTracking } from './pages/DeliveryBoyTracking';
 import { WalletManagement } from './pages/WalletManagement';
 import { ReportsAnalytics } from './pages/ReportsAnalytics';
 import { SubscriptionManagement } from './pages/SubscriptionManagement';
@@ -26,6 +27,7 @@ import { CommunicationCenter } from './pages/CommunicationCenter';
 import { BusinessIntelligence } from './pages/BusinessIntelligence';
 import { HyperlocalOperations } from './pages/HyperlocalOperations';
 import { FinancialCenter } from './pages/FinancialCenter';
+import { MasterTreasury } from './pages/MasterTreasury';
 import { RiskCenter } from './pages/RiskCenter';
 import { QrNetwork } from './pages/QrNetwork';
 import { FranchiseManagement } from './pages/FranchiseManagement';
@@ -47,6 +49,7 @@ import { StaffManagement } from './pages/StaffManagement';
 import { AuditLogs } from './pages/AuditLogs';
 import { SupportCenter } from './pages/SupportCenter';
 import { SecuritySettings } from './pages/SecuritySettings';
+import { FoodAndDiningManagement } from './pages/FoodAndDiningManagement';
 
 const App: React.FC = () => {
   const { sellers, products, orders, withdrawals, isAuthenticated } = useAdminState();
@@ -111,6 +114,8 @@ const App: React.FC = () => {
         return <OrderManagement defaultView="subscriptions" />;
       case 'delivery':
         return <DeliveryManagement />;
+      case 'delivery_boys':
+        return <DeliveryBoyTracking />;
       case 'wallets':
         return <WalletManagement />;
       case 'reports':
@@ -140,7 +145,7 @@ const App: React.FC = () => {
       case 'hyperlocal':
         return <HyperlocalOperations />;
       case 'financial_center':
-        return <FinancialCenter />;
+        return <MasterTreasury />;
       case 'risk_center':
         return <RiskCenter />;
       case 'qr_network':
@@ -179,6 +184,8 @@ const App: React.FC = () => {
         return <SupportCenter />;
       case 'security_settings':
         return <SecuritySettings />;
+      case 'food_and_dining':
+        return <FoodAndDiningManagement />;
       default:
         return <Dashboard setActiveTab={handleTabChange} />;
     }
