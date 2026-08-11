@@ -35,6 +35,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
   // Tab Filtering States
   const [dbCategories, setDbCategories] = useState<any[]>([]);
   const [selectedDbCategory, setSelectedDbCategory] = useState<string>('ALL');
+  const [orderTypeFilter, setOrderTypeFilter] = useState<'All' | 'normal' | 'pickup' | 'subscribed'>('All');
   const [filter, setFilter] = useState<
     'All' | 'Pending Payment' | 'Confirmed' | 'Payment Verified' | 'Processing' | 'Packed' | 'Shipped' | 'Delivered' | 'Cancelled'
   >('All');
@@ -168,6 +169,18 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
       });
     }
 
+    // Order Type Filter (Normal, Self Pickup, Subscribed)
+    if (orderTypeFilter !== 'All') {
+      result = result.filter((o: any) => {
+        const isSub = Boolean(o.isScheduledSubscription || o.isSubscription);
+        const isPickup = Boolean(o.fulfillment?.type === 'pickup' || o.deliveryType === 'pickup' || o.isSelfPickup);
+        if (orderTypeFilter === 'subscribed') return isSub;
+        if (orderTypeFilter === 'pickup') return isPickup && !isSub;
+        if (orderTypeFilter === 'normal') return !isSub && !isPickup;
+        return true;
+      });
+    }
+
     // Order Fulfillment Status Filter
     if (filter !== 'All') {
       result = result.filter((o) => {
@@ -243,13 +256,14 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
     });
 
     return result;
-  }, [orders, selectedDbCategory, dbCategories, filter, paymentFilter, dateFilter, sortBy, search]);
+  }, [orders, selectedDbCategory, orderTypeFilter, dbCategories, filter, paymentFilter, dateFilter, sortBy, search]);
 
   const hasActiveFilters =
-    selectedDbCategory !== 'ALL' || filter !== 'All' || paymentFilter !== 'All' || dateFilter !== 'All' || sortBy !== 'newest' || search !== '';
+    selectedDbCategory !== 'ALL' || orderTypeFilter !== 'All' || filter !== 'All' || paymentFilter !== 'All' || dateFilter !== 'All' || sortBy !== 'newest' || search !== '';
 
   const handleResetFilters = () => {
     setSelectedDbCategory('ALL');
+    setOrderTypeFilter('All');
     setFilter('All');
     setPaymentFilter('All');
     setDateFilter('All');
@@ -355,8 +369,8 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
               <button
                 onClick={() => setSelectedDbCategory('ALL')}
                 className={`px-3.5 py-2 rounded-xl text-xs font-extrabold border transition shrink-0 cursor-pointer ${selectedDbCategory === 'ALL'
-                    ? 'bg-primary text-primary-foreground border-primary shadow-xs'
-                    : 'bg-card text-muted-foreground border-border hover:bg-secondary/40'
+                  ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                  : 'bg-card text-muted-foreground border-border hover:bg-secondary/40'
                   }`}
               >
                 🌐 All DB Categories ({orders.length})
@@ -371,8 +385,8 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
                     key={cat._id || cat.name}
                     onClick={() => setSelectedDbCategory(catIdStr)}
                     className={`px-3.5 py-2 rounded-xl text-xs font-extrabold border transition shrink-0 cursor-pointer flex items-center gap-1.5 ${isSelected
-                        ? 'bg-primary text-primary-foreground border-primary shadow-xs font-black'
-                        : 'bg-card text-muted-foreground border-border hover:bg-secondary/40'
+                      ? 'bg-primary text-primary-foreground border-primary shadow-xs font-black'
+                      : 'bg-card text-muted-foreground border-border hover:bg-secondary/40'
                       }`}
                   >
                     <span>{cat.name}</span>
@@ -381,7 +395,36 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
               })}
             </div>
 
-            {/* TAB BAR 2: FULFILLMENT ORDER STATUS TABS */}
+            {/* TAB BAR 2: ORDER TYPE CLASSIFICATION (NORMAL, SELF PICKUP, SUBSCRIBED) */}
+            <div className="pt-2 border-t border-border/40">
+              <div className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-2">
+                Order Type Classification
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {[
+                  { id: 'All', label: '🌐 All Types', count: orders.length },
+                  { id: 'normal', label: '🚚 Normal Delivery', count: orders.filter((o: any) => !o.isScheduledSubscription && o.fulfillment?.type !== 'pickup' && o.deliveryType !== 'pickup').length },
+                  { id: 'pickup', label: '🏪 In-Store Self Pickup', count: orders.filter((o: any) => o.fulfillment?.type === 'pickup' || o.deliveryType === 'pickup' || o.isSelfPickup).length },
+                  { id: 'subscribed', label: '🔁 Subscribed Orders', count: orders.filter((o: any) => Boolean(o.isScheduledSubscription || o.isSubscription)).length },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setOrderTypeFilter(t.id as any)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 ${orderTypeFilter === t.id
+                      ? 'bg-primary text-primary-foreground border-primary shadow-xs font-black'
+                      : 'bg-card text-muted-foreground border-border hover:bg-secondary/40'
+                      }`}
+                  >
+                    <span>{t.label}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${orderTypeFilter === t.id ? 'bg-white/20 text-white' : 'bg-secondary text-muted-foreground'}`}>
+                      {t.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* TAB BAR 3: FULFILLMENT ORDER STATUS TABS */}
             <div className="pt-2 border-t border-border/40">
               <div className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-2">
                 Order Fulfillment Status
@@ -394,8 +437,8 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
                     key={f}
                     onClick={() => setFilter(f)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-extrabold border transition cursor-pointer ${filter === f
-                        ? 'bg-card border-primary text-primary shadow-xs font-black'
-                        : 'bg-secondary/20 text-muted-foreground border-border hover:bg-secondary/40'
+                      ? 'bg-card border-primary text-primary shadow-xs font-black'
+                      : 'bg-secondary/20 text-muted-foreground border-border hover:bg-secondary/40'
                       }`}
                   >
                     {f === 'Pending Payment' ? 'Unpaid' : f === 'Payment Verified' ? 'Paid' : f}
@@ -417,8 +460,8 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
                       key={p}
                       onClick={() => setPaymentFilter(p)}
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${paymentFilter === p
-                          ? 'bg-foreground text-background border-foreground font-black'
-                          : 'bg-card text-muted-foreground border-border hover:bg-secondary/30'
+                        ? 'bg-foreground text-background border-foreground font-black'
+                        : 'bg-card text-muted-foreground border-border hover:bg-secondary/30'
                         }`}
                     >
                       {p === 'Approved' ? 'Paid' : p === 'Pending Verification' ? 'Pending' : p}
@@ -445,8 +488,8 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
                       key={t.id}
                       onClick={() => setDateFilter(t.id)}
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${dateFilter === t.id
-                          ? 'bg-foreground text-background border-foreground font-black'
-                          : 'bg-card text-muted-foreground border-border hover:bg-secondary/30'
+                        ? 'bg-foreground text-background border-foreground font-black'
+                        : 'bg-card text-muted-foreground border-border hover:bg-secondary/30'
                         }`}
                     >
                       {t.label}
@@ -549,8 +592,8 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
                         key={pg}
                         onClick={() => setOrdersPage(pg)}
                         className={`w-7 h-7 rounded-lg text-xs font-black transition ${ordersPage === pg
-                            ? 'bg-primary text-primary-foreground shadow-xs'
-                            : 'bg-card border text-muted-foreground hover:text-foreground'
+                          ? 'bg-primary text-primary-foreground shadow-xs'
+                          : 'bg-card border text-muted-foreground hover:text-foreground'
                           }`}
                       >
                         {pg}
@@ -660,6 +703,39 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
                   </div>
                 </div>
 
+                {/* Order Type & Fulfillment Classification Box */}
+                <div className="p-4 rounded-2xl border bg-secondary/10 space-y-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Order Fulfillment Classification</span>
+                    {Boolean((selectedOrder as any).isScheduledSubscription || (selectedOrder as any).isSubscription) ? (
+                      <span className="px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-600 dark:text-purple-400 font-black text-xs border border-purple-500/30">
+                        🔁 SUBSCRIBED ORDER
+                      </span>
+                    ) : Boolean((selectedOrder as any).fulfillment?.type === 'pickup' || (selectedOrder as any).deliveryType === 'pickup' || (selectedOrder as any).isSelfPickup) ? (
+                      <span className="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 font-black text-xs border border-amber-500/30">
+                        🏪 IN-STORE SELF PICKUP ORDER
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400 font-black text-xs border border-blue-500/30">
+                        🚚 NORMAL HOME DELIVERY ORDER
+                      </span>
+                    )}
+                  </div>
+
+                  {Boolean((selectedOrder as any).fulfillment?.type === 'pickup' || (selectedOrder as any).deliveryType === 'pickup' || (selectedOrder as any).isSelfPickup) && (
+                    <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-1.5 text-xs">
+                      <p className="font-bold text-amber-800 dark:text-amber-400">🏪 Pickup Storefront: ApexBee Verified Store Hub</p>
+                      <p className="text-muted-foreground">🗓️ Slot: {(selectedOrder as any).fulfillment?.pickupSlot?.date || 'Today'} • {(selectedOrder as any).fulfillment?.pickupSlot?.time || '10:00 AM - 06:00 PM'}</p>
+                      <div className="flex justify-between items-center font-extrabold pt-1 text-emerald-700 dark:text-emerald-400">
+                        <span>CUSTOMER PICKUP OTP:</span>
+                        <span className="font-mono text-sm tracking-widest bg-emerald-500/20 px-2.5 py-0.5 rounded border border-emerald-500/40">
+                          {(selectedOrder as any).pickupVerification?.otp || '9823'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Timeline Progress Bar */}
                 <div className="space-y-3 bg-secondary/10 p-4 rounded-2xl border border-border/40">
                   <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">Fulfillment Milestones Tracker</span>
@@ -673,8 +749,8 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
                         <div key={idx} className="space-y-1.5 flex flex-col items-center">
                           <div
                             className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all text-xs font-black ${isCompleted
-                                ? 'bg-primary border-primary text-primary-foreground shadow-xs'
-                                : 'bg-card border-border text-muted-foreground'
+                              ? 'bg-primary border-primary text-primary-foreground shadow-xs'
+                              : 'bg-card border-border text-muted-foreground'
                               }`}
                           >
                             {idx + 1}

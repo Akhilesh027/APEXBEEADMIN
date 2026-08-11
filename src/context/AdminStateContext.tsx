@@ -105,22 +105,26 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
         const list = data.orders || [];
         const mapped = list.map((order: any) => {
           let orderStatus: Order['orderStatus'] = 'Pending Payment';
-          if (order.orderStatus === 'Placed') {
+          if (order.orderStatus === 'Placed' || order.orderStatus === 'placed') {
             orderStatus = order.paymentStatus === 'Paid' || order.paymentStatus === 'Approved' ? 'Processing' : 'Pending Payment';
           } else if (order.orderStatus === 'Confirmed') {
             orderStatus = 'Confirmed';
+          } else if (['Accepted', 'Assigned', 'assigned'].includes(order.orderStatus)) {
+            orderStatus = 'Accepted' as any;
           } else if (order.orderStatus === 'Payment Verified') {
             orderStatus = 'Payment Verified';
           } else if (order.orderStatus === 'Packed') {
             orderStatus = 'Packed';
-          } else if (order.orderStatus === 'Shipped') {
-            orderStatus = 'Shipped';
+          } else if (['Shipped', 'Picked Up', 'Out for Delivery', 'Reached Customer', 'Reached Vendor'].includes(order.orderStatus)) {
+            orderStatus = order.orderStatus;
           } else if (order.orderStatus === 'Delivered') {
             orderStatus = 'Delivered';
           } else if (order.orderStatus === 'Returned') {
             orderStatus = 'Returned';
           } else if (order.orderStatus === 'Cancelled') {
             orderStatus = 'Cancelled';
+          } else {
+            orderStatus = order.orderStatus || 'Confirmed';
           }
 
           const rawMethod = (
@@ -178,6 +182,11 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
             deliveryType: order.deliveryType || 'Platform',
             courierPartner: order.courierPartner || '',
             trackingId: order.trackingId || '',
+            fulfillment: order.fulfillment || null,
+            isSelfPickup: order.isSelfPickup || order.fulfillment?.type === 'pickup' || order.deliveryType === 'pickup' || false,
+            pickupVerification: order.pickupVerification || null,
+            deliveryDetails: order.deliveryDetails || null,
+            isScheduledSubscription: Boolean(order.isScheduledSubscription || order.isSubscription),
             returnAllowed: true,
             returnWindowDays: 7,
             refundType: 'Both',

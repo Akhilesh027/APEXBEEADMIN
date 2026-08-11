@@ -146,6 +146,12 @@ export interface Order {
   commissionReleaseStatus?: 'Pending' | 'Released';
   commissionReleasedAt?: string | null;
   timeline: { status: string; date: string; note: string }[];
+  fulfillment?: any;
+  pickupVerification?: any;
+  deliveryDetails?: any;
+  isSelfPickup?: boolean;
+  isScheduledSubscription?: boolean;
+  isSubscription?: boolean;
 }
 
 export interface FranchiseNode {

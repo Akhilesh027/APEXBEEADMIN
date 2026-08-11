@@ -7,6 +7,8 @@ import {
   Plus,
   Layers,
   Edit,
+  Edit3,
+  Tag,
   ImageIcon,
   UploadCloud,
   X,
@@ -18,7 +20,7 @@ import {
 } from 'lucide-react';
 import { categoryService } from '../services/categoryService';
 
-type AttributeType = 'text' | 'number' | 'select' | 'boolean';
+type AttributeType = 'text' | 'number' | 'select' | 'multiselect' | 'boolean';
 
 const ALL_ITEM_TYPES = [
   { key: 'product', label: 'Physical Products' },
@@ -34,12 +36,14 @@ const ALL_ITEM_TYPES = [
 interface CategoryAttribute {
   _id?: string;
   id?: string;
+  key?: string;
   name: string;
   type: AttributeType;
   required: boolean;
   isVariant: boolean;
   options?: string[];
   unit?: string;
+  placeholder?: string;
 }
 
 interface Category {
@@ -86,6 +90,9 @@ export const CategoryManagement: React.FC = () => {
   const [detailModalCat, setDetailModalCat] = useState<Category | null>(null);
 
   const [attrName, setAttrName] = useState('');
+  const [attrKey, setAttrKey] = useState('');
+  const [attrUnit, setAttrUnit] = useState('');
+  const [attrPlaceholder, setAttrPlaceholder] = useState('');
   const [attrType, setAttrType] = useState<AttributeType>('text');
   const [attrRequired, setAttrRequired] = useState(false);
   const [attrIsVariant, setAttrIsVariant] = useState(false);
@@ -299,20 +306,96 @@ export const CategoryManagement: React.FC = () => {
     await fetchCategories();
   };
 
+  // Parameter & Option Values Management State
+  const [editingAttrModal, setEditingAttrModal] = useState<any | null>(null);
+  const [editAttrName, setEditAttrName] = useState<string>('');
+  const [editAttrKey, setEditAttrKey] = useState<string>('');
+  const [editAttrUnit, setEditAttrUnit] = useState<string>('');
+  const [editAttrPlaceholder, setEditAttrPlaceholder] = useState<string>('');
+  const [editAttrType, setEditAttrType] = useState<AttributeType>('text');
+  const [editAttrRequired, setEditAttrRequired] = useState<boolean>(false);
+  const [editAttrIsVariant, setEditAttrIsVariant] = useState<boolean>(false);
+  const [editAttrOptions, setEditAttrOptions] = useState<string[]>([]);
+  const [newOptionInput, setNewOptionInput] = useState<string>('');
+
+  const openEditAttrModal = (attr: any) => {
+    setEditingAttrModal(attr);
+    setEditAttrName(attr.name || '');
+    setEditAttrKey(attr.key || (attr.name ? attr.name.toLowerCase().replace(/[^a-z0-9]+/g, '_') : ''));
+    setEditAttrUnit(attr.unit || '');
+    setEditAttrPlaceholder(attr.placeholder || '');
+    setEditAttrType(attr.type || 'text');
+    setEditAttrRequired(Boolean(attr.required));
+    setEditAttrIsVariant(Boolean(attr.isVariant));
+    setEditAttrOptions(Array.isArray(attr.options) ? [...attr.options] : []);
+    setNewOptionInput('');
+  };
+
+  const handleAddOptionToEdit = (rawVal: string) => {
+    if (!rawVal.trim()) return;
+    const split = rawVal.split(',').map(s => s.trim()).filter(Boolean);
+    const updated = [...editAttrOptions];
+    split.forEach(val => {
+      if (!updated.includes(val)) updated.push(val);
+    });
+    setEditAttrOptions(updated);
+    setNewOptionInput('');
+  };
+
+  const handleRemoveOptionFromEdit = (index: number) => {
+    setEditAttrOptions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveEditedAttribute = async () => {
+    if (!selectedCat || !editingAttrModal || !editAttrName.trim()) return;
+
+    const currentAttrs = selectedCat.attributes || [];
+    const updatedAttrList = currentAttrs.map((attr: any) => {
+      const isMatch = (attr._id && attr._id === editingAttrModal._id) ||
+                      (attr.id && attr.id === editingAttrModal.id) ||
+                      (attr.name === editingAttrModal.name);
+      if (!isMatch) return attr;
+
+      return {
+        ...attr,
+        name: editAttrName.trim(),
+        key: editAttrKey.trim() || attr.key || editAttrName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_'),
+        type: editAttrType,
+        unit: editAttrUnit.trim() || undefined,
+        placeholder: editAttrPlaceholder.trim() || undefined,
+        required: editAttrRequired,
+        isVariant: editAttrIsVariant,
+        options: editAttrOptions.length > 0 ? editAttrOptions : undefined,
+      };
+    });
+
+    const updatedCategory: Category = {
+      ...selectedCat,
+      attributes: updatedAttrList,
+    };
+
+    await updateSelectedCategory(updatedCategory);
+    setEditingAttrModal(null);
+  };
+
   const handleAddAttribute = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedCat || !attrName.trim()) return;
 
+    const parsedOptions = attrOptions.trim()
+      ? attrOptions.split(',').map((o) => o.trim()).filter(Boolean)
+      : undefined;
+
     const newAttribute: CategoryAttribute = {
       name: attrName.trim(),
+      key: attrKey.trim() || attrName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_'),
       type: attrType,
+      unit: attrUnit.trim() || undefined,
+      placeholder: attrPlaceholder.trim() || undefined,
       required: attrRequired,
       isVariant: attrIsVariant,
-      options:
-        attrType === 'select'
-          ? attrOptions.split(',').map((o) => o.trim()).filter(Boolean)
-          : undefined,
+      options: parsedOptions,
     };
 
     const updatedCategory: Category = {
@@ -323,6 +406,9 @@ export const CategoryManagement: React.FC = () => {
     await updateSelectedCategory(updatedCategory);
 
     setAttrName('');
+    setAttrKey('');
+    setAttrUnit('');
+    setAttrPlaceholder('');
     setAttrType('text');
     setAttrRequired(false);
     setAttrIsVariant(false);
@@ -335,7 +421,7 @@ export const CategoryManagement: React.FC = () => {
     const updatedCategory: Category = {
       ...selectedCat,
       attributes: selectedCat.attributes.filter(
-        (attr) => (attr._id || attr.id) !== attrId
+        (attr) => (attr._id || attr.id || attr.name) !== attrId
       ),
     };
 
@@ -862,16 +948,38 @@ export const CategoryManagement: React.FC = () => {
                           <td className="p-3 font-mono text-[10px] text-muted-foreground">
                             {attr.unit || '-'}
                           </td>
-                          <td className="p-3 text-muted-foreground text-[10px] max-w-xs truncate">
-                            {attr.options?.length ? attr.options.join(', ') : 'Free Input'}
+                          <td className="p-3 text-muted-foreground text-[10px]">
+                            {attr.options && attr.options.length > 0 ? (
+                              <div className="flex flex-wrap gap-1 max-w-xs">
+                                {attr.options.map((opt: string, idx: number) => (
+                                  <span key={idx} className="px-1.5 py-0.5 bg-primary/10 text-primary font-bold rounded text-[9px]">
+                                    ✓ {opt}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground italic text-[10px]">Free Input</span>
+                            )}
                           </td>
                           <td className="p-3 text-center">
-                            <button
-                              onClick={() => handleDeleteAttribute((attr._id || attr.id)!)}
-                              className="p-1 hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 rounded transition-colors"
-                            >
-                              <Trash2 size={12} />
-                            </button>
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                title="Edit Parameter & Manage Values"
+                                onClick={() => openEditAttrModal(attr)}
+                                className="p-1.5 hover:bg-primary/10 text-muted-foreground hover:text-primary rounded-lg transition-colors cursor-pointer"
+                              >
+                                <Edit3 size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                title="Delete Parameter"
+                                onClick={() => handleDeleteAttribute((attr._id || attr.id || attr.name)!)}
+                                className="p-1.5 hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 rounded-lg transition-colors cursor-pointer"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -903,14 +1011,27 @@ export const CategoryManagement: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     <div className="space-y-1">
                       <label className="text-[10px] text-muted-foreground block">
-                        Attribute Name
+                        Attribute Name *
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g. Fit Type, RAM, Display"
+                        placeholder="e.g. Net Weight, RAM, Display"
                         value={attrName}
                         onChange={(e) => setAttrName(e.target.value)}
                         className="w-full text-xs p-2 border border-border/80 focus:border-primary rounded-lg bg-card text-foreground outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground block">
+                        Attribute Key (Identifier)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. net_weight, ram, display_size"
+                        value={attrKey}
+                        onChange={(e) => setAttrKey(e.target.value)}
+                        className="w-full text-xs p-2 border border-border/80 focus:border-primary rounded-lg bg-card text-foreground outline-none font-mono"
                       />
                     </div>
 
@@ -926,24 +1047,49 @@ export const CategoryManagement: React.FC = () => {
                         <option value="text">Text Box</option>
                         <option value="number">Number Box</option>
                         <option value="select">Dropdown Choice</option>
+                        <option value="multiselect">Multi-Choice Chips (Multiselect)</option>
                         <option value="boolean">Yes / No Checkbox</option>
                       </select>
                     </div>
 
-                    {attrType === 'select' && (
-                      <div className="space-y-1 md:col-span-2 lg:col-span-1">
-                        <label className="text-[10px] text-muted-foreground block">
-                          Dropdown Options
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Red, Blue, Black"
-                          value={attrOptions}
-                          onChange={(e) => setAttrOptions(e.target.value)}
-                          className="w-full text-xs p-2 border border-border/80 focus:border-primary rounded-lg bg-card text-foreground outline-none"
-                        />
-                      </div>
-                    )}
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground block">
+                        Measurement Unit (e.g. kg, GB, cm)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. kg, GB, cm, litres, W"
+                        value={attrUnit}
+                        onChange={(e) => setAttrUnit(e.target.value)}
+                        className="w-full text-xs p-2 border border-border/80 focus:border-primary rounded-lg bg-card text-foreground outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground block">
+                        Input Placeholder Text
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Enter RAM size in GB"
+                        value={attrPlaceholder}
+                        onChange={(e) => setAttrPlaceholder(e.target.value)}
+                        className="w-full text-xs p-2 border border-border/80 focus:border-primary rounded-lg bg-card text-foreground outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground block font-medium">
+                        Preset Values / Options (Comma Separated)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Red, Blue, Black or S, M, L"
+                        value={attrOptions}
+                        onChange={(e) => setAttrOptions(e.target.value)}
+                        className="w-full text-xs p-2 border border-border/80 focus:border-primary rounded-lg bg-card text-foreground outline-none"
+                      />
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-4 text-xs font-semibold text-foreground py-1">
@@ -1696,6 +1842,195 @@ export const CategoryManagement: React.FC = () => {
               ))}
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* ── Edit Parameter & Manage Values Modal ── */}
+  {editingAttrModal && (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-card border border-border rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 animate-in fade-in zoom-in duration-150">
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <div className="flex items-center gap-2">
+            <Tag className="text-primary" size={18} />
+            <h3 className="font-extrabold text-sm text-foreground">
+              Edit Parameter & Manage Values
+            </h3>
+          </div>
+          <button
+            onClick={() => setEditingAttrModal(null)}
+            className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-muted-foreground block">
+                Parameter Name *
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Net Weight"
+                value={editAttrName}
+                onChange={(e) => setEditAttrName(e.target.value)}
+                className="w-full text-xs p-2.5 border border-border rounded-xl bg-background text-foreground outline-none font-semibold focus:border-primary"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-muted-foreground block">
+                Attribute Key (Identifier)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. net_weight"
+                value={editAttrKey}
+                onChange={(e) => setEditAttrKey(e.target.value)}
+                className="w-full text-xs p-2.5 border border-border rounded-xl bg-background text-foreground outline-none font-mono focus:border-primary"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-muted-foreground block">
+                Data Input Type
+              </label>
+              <select
+                value={editAttrType}
+                onChange={(e) => setEditAttrType(e.target.value as AttributeType)}
+                className="w-full text-xs p-2.5 border border-border rounded-xl bg-background text-foreground outline-none font-semibold focus:border-primary"
+              >
+                <option value="text">Text Box</option>
+                <option value="number">Number Box</option>
+                <option value="select">Dropdown Choice</option>
+                <option value="multiselect">Multi-Choice Chips (Multiselect)</option>
+                <option value="boolean">Yes / No Checkbox</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-muted-foreground block">
+                Measurement Unit (e.g. kg, GB, cm)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. kg, GB, cm, litres"
+                value={editAttrUnit}
+                onChange={(e) => setEditAttrUnit(e.target.value)}
+                className="w-full text-xs p-2.5 border border-border rounded-xl bg-background text-foreground outline-none focus:border-primary"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 items-center">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-muted-foreground block">
+                Input Placeholder Text
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Enter weight in kg"
+                value={editAttrPlaceholder}
+                onChange={(e) => setEditAttrPlaceholder(e.target.value)}
+                className="w-full text-xs p-2.5 border border-border rounded-xl bg-background text-foreground outline-none focus:border-primary"
+              />
+            </div>
+
+            <div className="space-y-2 pt-3">
+              <label className="flex items-center gap-2 text-xs font-bold text-foreground cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={editAttrRequired}
+                  onChange={(e) => setEditAttrRequired(e.target.checked)}
+                />
+                Required Field
+              </label>
+              <label className="flex items-center gap-2 text-xs font-bold text-foreground cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={editAttrIsVariant}
+                  onChange={(e) => setEditAttrIsVariant(e.target.checked)}
+                />
+                Variant Rule
+              </label>
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-2 border-t border-border">
+            <label className="text-xs font-extrabold text-foreground block">
+              Configured Parameter Option Values ({editAttrOptions.length}):
+            </label>
+
+            {editAttrOptions.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5 p-3 bg-secondary/20 rounded-xl border border-border/60 max-h-36 overflow-y-auto">
+                {editAttrOptions.map((opt, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-card border border-primary/30 text-primary font-bold text-xs rounded-lg shadow-sm"
+                  >
+                    <span>✓ {opt}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveOptionFromEdit(idx)}
+                      className="text-rose-500 hover:text-rose-700 ml-1 font-black cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground italic p-3 bg-secondary/10 rounded-xl border border-dashed text-center">
+                No option values added yet. Type below to add options.
+              </p>
+            )}
+
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="text"
+                placeholder="Type new option value (or comma separated, e.g. Red, Blue, Black)"
+                value={newOptionInput}
+                onChange={(e) => setNewOptionInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddOptionToEdit(newOptionInput);
+                  }
+                }}
+                className="flex-1 text-xs p-2.5 border border-border rounded-xl bg-background text-foreground outline-none focus:border-primary"
+              />
+              <button
+                type="button"
+                onClick={() => handleAddOptionToEdit(newOptionInput)}
+                disabled={!newOptionInput.trim()}
+                className="px-3 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground font-bold text-xs rounded-xl cursor-pointer transition-all flex items-center gap-1 shrink-0"
+              >
+                <Plus size={14} /> Add Value
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+          <button
+            type="button"
+            onClick={() => setEditingAttrModal(null)}
+            className="px-4 py-2 border border-border text-muted-foreground hover:text-foreground text-xs font-bold rounded-xl transition-all cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveEditedAttribute}
+            className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer"
+          >
+            Save Parameter & Values
+          </button>
         </div>
       </div>
     </div>
