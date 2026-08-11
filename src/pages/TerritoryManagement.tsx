@@ -21,6 +21,8 @@ interface Franchise {
   _id: string;
   businessName?: string;
   ownerName?: string;
+  name?: string;
+  contactPerson?: string;
   email?: string;
   mobile?: string;
   franchiseCode?: string;
@@ -341,15 +343,19 @@ export const TerritoryManagement: React.FC = () => {
     });
 
     return list.sort((a, b) => {
-      const nameA = a.businessName || a.ownerName || a.email || "";
-      const nameB = b.businessName || b.ownerName || b.email || "";
+      const nameA = a.ownerName || a.name || a.contactPerson || a.businessName || a.email || "";
+      const nameB = b.ownerName || b.name || b.contactPerson || b.businessName || b.email || "";
       return nameA.localeCompare(nameB, undefined, { sensitivity: "base" });
     });
   }, [franchises, selectedTerritory]);
 
   const getFranchiseName = (franchise: Territory["franchiseId"]) => {
     if (!franchise || typeof franchise === "string") return "-";
-    return franchise.businessName || franchise.ownerName || franchise.email || franchise.mobile || franchise.franchiseCode || "-";
+    const f = franchise as any;
+    const ownerName = f.ownerName || f.name || f.contactPerson || "";
+    const bName = f.businessName || "";
+    if (ownerName && bName) return `${ownerName} (${bName})`;
+    return ownerName || bName || f.email || f.mobile || f.franchiseCode || "-";
   };
 
   const resetAddForm = () => {
@@ -569,8 +575,8 @@ export const TerritoryManagement: React.FC = () => {
                 <td className="p-3">
                   <span
                     className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${item.status === "Active"
-                        ? "bg-emerald-500/10 text-emerald-500"
-                        : "bg-red-500/10 text-red-500"
+                      ? "bg-emerald-500/10 text-emerald-500"
+                      : "bg-red-500/10 text-red-500"
                       }`}
                   >
                     {item.status}
@@ -660,8 +666,8 @@ export const TerritoryManagement: React.FC = () => {
               setSuccessMsg("");
             }}
             className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${activeSubTab === key
-                ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                : "bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60"
+              ? "bg-primary text-primary-foreground border-primary shadow-xs"
+              : "bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60"
               }`}
           >
             {label}
@@ -966,12 +972,20 @@ export const TerritoryManagement: React.FC = () => {
                 <option value="">
                   {selectedTerritoryId ? "Select Matching Franchise" : "Select territory first"}
                 </option>
-                {filteredFranchises.map((f) => (
-                  <option key={f._id} value={f._id}>
-                    {f.businessName || f.ownerName || f.email || f.mobile}
-                    {f.franchiseCode ? ` (${f.franchiseCode})` : ""}
-                  </option>
-                ))}
+                {filteredFranchises.map((f: any) => {
+                  const ownerName = f.ownerName || f.name || f.contactPerson || "";
+                  const bName = f.businessName || "";
+                  const displayName = ownerName && bName
+                    ? `${ownerName} (${bName})`
+                    : ownerName || bName || f.email || f.mobile || "Unnamed Franchisee";
+                  const code = f.franchiseCode ? ` [${f.franchiseCode}]` : "";
+
+                  return (
+                    <option key={f._id} value={f._id}>
+                      {displayName}{code}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -1127,11 +1141,21 @@ export const TerritoryManagement: React.FC = () => {
                   className="w-full p-2.5 border border-border rounded-xl bg-secondary/15 focus:outline-none focus:border-primary transition-colors text-xs"
                 >
                   <option value="">No Franchise Assigned</option>
-                  {franchises.map((f) => (
-                    <option key={f._id} value={f._id}>
-                      {f.businessName || f.ownerName || f.email} ({f.franchiseLevel} - {f.state})
-                    </option>
-                  ))}
+                  {franchises.map((f: any) => {
+                    const ownerName = f.ownerName || f.name || f.contactPerson || "";
+                    const bName = f.businessName || "";
+                    const displayName = ownerName && bName
+                      ? `${ownerName} (${bName})`
+                      : ownerName || bName || f.email || f.mobile || "Unnamed Franchisee";
+                    const code = f.franchiseCode ? ` [${f.franchiseCode}]` : "";
+                    const lvl = f.franchiseLevel ? ` (${String(f.franchiseLevel).toUpperCase()} - ${f.state || ''})` : "";
+
+                    return (
+                      <option key={f._id} value={f._id}>
+                        {displayName}{code}{lvl}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

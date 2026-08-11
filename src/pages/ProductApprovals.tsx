@@ -23,12 +23,12 @@ interface CommissionShareInput {
 }
 
 const defaultShares: CommissionShareInput[] = [
-  { type: 'state', label: 'State Franchise', percent: 10 },
-  { type: 'district', label: 'District Franchise', percent: 10 },
+  { type: 'state', label: 'State Franchise', percent: 2.5 },
+  { type: 'district', label: 'District Franchise', percent: 5 },
   { type: 'mandal', label: 'Mandal Franchise', percent: 10 },
   { type: 'level1', label: 'Level 1 Referral', percent: 10 },
   { type: 'level2', label: 'Level 2 Referral', percent: 5 },
-  { type: 'level3', label: 'Level 3 Referral', percent: 5 },
+  { type: 'level3', label: 'Level 3 Referral', percent: 2.5 },
   { type: 'firstPurchase', label: 'First Purchase Reward', percent: 5 },
   { type: 'wishlink', label: 'WishLink Reward', percent: 5 },
 ];
@@ -215,7 +215,7 @@ export const AdminProductApproval = () => {
               sellingPrice: f.offerPrice || f.basePrice,
               platformFeePercent: f.platformCommissionPercent || 12,
               platformFeeAmount: f.platformShareAmount || Math.round((f.basePrice * (f.platformCommissionPercent || 12)) / 100),
-              finalSellerAmount: f.vendorPayoutAmount || (f.basePrice - (f.platformShareAmount || Math.round((f.basePrice * 12) / 100))),
+              finalSellerAmount: f.vendorPayoutAmount !== undefined && f.vendorPayoutAmount !== null ? f.vendorPayoutAmount : (f.offerPrice || f.basePrice),
             }
           });
         }
@@ -310,7 +310,7 @@ export const AdminProductApproval = () => {
   );
 
   const finalSellerAmount = roundMoney(
-    Number(pricing.sellingPrice || 0) - platformFeeAmount - vendorCommissionAmount
+    Number(pricing.sellingPrice || 0) - vendorCommissionAmount
   );
 
   const platformNetProfit = roundMoney(
