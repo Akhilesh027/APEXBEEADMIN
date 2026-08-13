@@ -11,6 +11,8 @@ import {
   Gift,
   Network,
   Landmark,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { productService } from '../services/productService';
 

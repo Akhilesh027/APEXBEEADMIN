@@ -685,6 +685,17 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
                           ₹{selectedOrder.items.reduce((sum, i) => sum + i.price * i.quantity, 0)}
                         </span>
                       </div>
+                      {(() => {
+                        const subTotalSum = selectedOrder.items.reduce((sum: number, i: any) => sum + i.price * i.quantity, 0);
+                        const gstPct = (selectedOrder as any).gstPercent || (selectedOrder as any).gstRate || (selectedOrder as any).taxPercent || 5;
+                        const gstVal = (selectedOrder as any).gstAmount || Math.round(subTotalSum * (gstPct / 100));
+                        return (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">GST ({gstPct}% Tax Included):</span>
+                            <span className="text-amber-500 font-bold">₹{gstVal}</span>
+                          </div>
+                        );
+                      })()}
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Courier Charges:</span>
                         <span className="text-foreground">+₹{selectedOrder.orderStatus === 'Pending Payment' ? '0' : '40'}</span>
@@ -693,6 +704,12 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
                         <span className="text-muted-foreground">Packing Charges:</span>
                         <span className="text-foreground">+₹{selectedOrder.orderStatus === 'Pending Payment' ? '0' : '15'}</span>
                       </div>
+                      {((selectedOrder as any).couponCode || (selectedOrder as any).coupon || (selectedOrder as any).discount > 0) && (
+                        <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 p-1.5 rounded-lg border border-emerald-500/20">
+                          <span>🎟️ Coupon ({(selectedOrder as any).couponCode || (selectedOrder as any).coupon || 'SPECIAL10'}):</span>
+                          <span>-₹{(selectedOrder as any).couponDiscount || (selectedOrder as any).discount || Math.round(selectedOrder.items.reduce((sum: number, i: any) => sum + i.price * i.quantity, 0) * 0.1)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between border-t border-dashed border-border pt-1.5 font-black text-sm">
                         <span className="text-foreground">Grand Total:</span>
                         <span className="text-emerald-600 dark:text-emerald-400">
@@ -736,6 +753,61 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
                   )}
                 </div>
 
+                {/* 📝 Customer Selected Delivery Preferences & Driver Instructions Card */}
+                {!((selectedOrder.fulfillment as any)?.type === 'pickup' || selectedOrder.deliveryType === 'pickup' || (selectedOrder as any).isSelfPickup) && (
+                  <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 space-y-3 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5 font-heading">
+                        <span>📝</span> Customer Delivery Preferences & Driver Instructions
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black text-[10px] uppercase">
+                        {selectedOrder.fulfillment?.deliveryMode === 'express' || (selectedOrder as any).deliveryMode === 'express'
+                          ? '🚀 Express 15-30 Min'
+                          : selectedOrder.fulfillment?.deliveryMode === 'same_day' || (selectedOrder as any).deliveryMode === 'same_day'
+                            ? '🌆 Same Day'
+                            : '🚚 Standard'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                      <div className="p-3 bg-card rounded-xl border border-border/60">
+                        <span className="font-bold text-muted-foreground block text-[10px] uppercase tracking-wider mb-1">⚡ Delivery Speed</span>
+                        <span className="font-extrabold text-foreground">
+                          {selectedOrder.fulfillment?.deliveryMode === 'express' || (selectedOrder as any).deliveryMode === 'express'
+                            ? '🚀 Express 15-30 Mins (+₹49)'
+                            : selectedOrder.fulfillment?.deliveryMode === 'same_day' || (selectedOrder as any).deliveryMode === 'same_day'
+                              ? '🌆 Same Day Slot (+₹19)'
+                              : '🚚 Standard Delivery (Free)'}
+                        </span>
+                      </div>
+
+                      <div className="p-3 bg-card rounded-xl border border-border/60">
+                        <span className="font-bold text-muted-foreground block text-[10px] uppercase tracking-wider mb-1">🔔 Driver Drop-off Preference</span>
+                        <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                          {selectedOrder.fulfillment?.deliveryInstruction === 'call_before' || (selectedOrder as any).deliveryInstruction === 'call_before'
+                            ? '📞 Call me before delivery'
+                            : selectedOrder.fulfillment?.deliveryInstruction === 'ring_bell' || (selectedOrder as any).deliveryInstruction === 'ring_bell'
+                              ? '🔔 Ring doorbell'
+                              : selectedOrder.fulfillment?.deliveryInstruction === 'leave_gate' || (selectedOrder as any).deliveryInstruction === 'leave_gate'
+                                ? '🚪 Leave at gate / door'
+                                : selectedOrder.fulfillment?.deliveryInstruction === 'contactless' || (selectedOrder as any).deliveryInstruction === 'contactless'
+                                  ? '🛡️ Contactless drop-off'
+                                  : '📞 Call me before delivery'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {(selectedOrder.fulfillment?.customInstruction || (selectedOrder as any).customInstruction || (selectedOrder as any).deliveryInstructions) && (
+                      <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/20 text-amber-900 dark:text-amber-300">
+                        <span className="font-extrabold text-amber-800 dark:text-amber-400 block text-[10px] uppercase tracking-wider mb-0.5">💬 Special Driver Note from Customer:</span>
+                        <p className="font-medium text-xs italic">
+                          "{selectedOrder.fulfillment?.customInstruction || (selectedOrder as any).customInstruction || (selectedOrder as any).deliveryInstructions}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Timeline Progress Bar */}
                 <div className="space-y-3 bg-secondary/10 p-4 rounded-2xl border border-border/40">
                   <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">Fulfillment Milestones Tracker</span>
@@ -766,17 +838,117 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
 
                 {/* Items List */}
                 <div className="space-y-3">
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">Ordered Products</span>
-                  <div className="divide-y divide-border/60 border border-border/60 rounded-xl overflow-hidden">
-                    {selectedOrder.items.map((item, idx) => (
-                      <div key={idx} className="p-3.5 flex justify-between items-center bg-card text-xs">
-                        <div>
-                          <strong className="text-foreground block">{item.productName}</strong>
-                          <span className="text-[10px] text-muted-foreground font-mono">Qty: {item.quantity} • Unit Price: ₹{item.price}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">
+                      Ordered Products &amp; Item Variants ({selectedOrder.items.length})
+                    </span>
+                    <span className="text-[10px] font-extrabold text-primary lowercase">
+                      complete SKU &amp; variant audit
+                    </span>
+                  </div>
+
+                  <div className="divide-y divide-border/60 border border-border/80 rounded-2xl overflow-hidden shadow-2xs">
+                    {selectedOrder.items.map((item: any, idx: number) => {
+                      // Extract variant attributes
+                      const attrObj = item.variantAttributes || item.selectedAttributes || item.attributes;
+                      const attrsList: string[] = [];
+                      if (attrObj && typeof attrObj === 'object') {
+                        Object.entries(attrObj).forEach(([k, v]) => {
+                          if (v && v !== 'default' && k !== 'default') {
+                            attrsList.push(`${k}: ${v}`);
+                          }
+                        });
+                      }
+                      if (attrsList.length === 0) {
+                        if (item.color && item.color !== 'default') attrsList.push(`Color: ${item.color}`);
+                        if (item.size && item.size !== 'default') attrsList.push(`Size: ${item.size}`);
+                        if (item.selectedColor && item.selectedColor !== 'default') attrsList.push(`Color: ${item.selectedColor}`);
+                        if (item.selectedSize && item.selectedSize !== 'default') attrsList.push(`Size: ${item.selectedSize}`);
+                      }
+                      if (attrsList.length === 0 && item.variantName) {
+                        attrsList.push(`Variant: ${item.variantName}`);
+                      }
+                      // Fallback: Parse SKU hyphenated variant e.g. PHO-IDOL-06384-2CM -> 2CM
+                      if (attrsList.length === 0 && item.sku && typeof item.sku === 'string') {
+                        const parts = item.sku.split('-');
+                        if (parts.length > 1) {
+                          const lastPart = parts[parts.length - 1].trim();
+                          if (/^(\d+cm|\d+g|\d+kg|xl|l|m|s|2cm|3cm|4cm|5cm)$/i.test(lastPart) || lastPart.length <= 5) {
+                            attrsList.push(`Variant / Size: ${lastPart.toUpperCase()}`);
+                          }
+                        }
+                      }
+                      // Fallback: Parse Title bracket e.g. "Idol (2cm)"
+                      if (attrsList.length === 0 && (item.productName || item.itemName)) {
+                        const titleText = item.productName || item.itemName;
+                        const match = titleText.match(/\(([^)]+)\)/);
+                        if (match && match[1]) {
+                          attrsList.push(`Variant: ${match[1]}`);
+                        }
+                      }
+
+                      const hasSub = item.isSubscription || item.subscriptionFrequency || (selectedOrder as any).isScheduledSubscription;
+                      const subFreq = item.subscriptionFrequency || (selectedOrder as any).scheduleDetails?.frequency || 'Daily';
+                      const subSlot = item.deliverySlot || (selectedOrder as any).scheduleDetails?.deliverySlot || '6:00 AM - 8:00 AM';
+
+                      return (
+                        <div key={idx} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card hover:bg-secondary/20 transition">
+                          <div className="flex items-start gap-3 min-w-0 flex-1">
+                            <img
+                              src={item.image || (item as any).images?.[0] || "/placeholder.svg"}
+                              alt={item.productName || item.itemName}
+                              className="h-12 w-12 rounded-xl object-cover border border-border/80 flex-shrink-0 shadow-xs bg-secondary/30"
+                            />
+                            <div className="flex flex-col gap-1 min-w-0 flex-1">
+                              <span className="font-extrabold text-foreground text-xs leading-snug">
+                                {item.productName || item.itemName}
+                              </span>
+
+                              <div className="flex flex-wrap items-center gap-2 text-[10px]">
+                                <span className="text-muted-foreground font-mono bg-secondary/40 px-2 py-0.5 rounded border border-border/60">
+                                  SKU: {item.sku || 'N/A'}
+                                </span>
+                                {(item.vendorId || item.sellerId) && (
+                                  <span className="text-blue-600 dark:text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
+                                    Seller: {typeof item.vendorId === 'string' ? item.vendorId : item.vendorId?.name || 'ApexBee Merchant'}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Selected Variant Badges */}
+                              {attrsList.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                  <span className="text-[10px] font-black text-primary uppercase tracking-wider">Selected Variant:</span>
+                                  {attrsList.map((attr, aIdx) => (
+                                    <span key={aIdx} className="text-[10px] font-black text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-md">
+                                      {attr}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Subscription Info */}
+                              {hasSub && (
+                                <div className="mt-1 flex items-center gap-1.5 bg-purple-500/10 border border-purple-500/30 rounded-lg p-1.5 text-[10px]">
+                                  <span className="text-purple-600 dark:text-purple-400 font-bold">🔄 Recurring Subscription:</span>
+                                  <span className="font-black uppercase text-foreground">{subFreq}</span>
+                                  <span className="text-muted-foreground">({subSlot})</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="text-right flex sm:flex-col items-end justify-between sm:justify-center gap-1 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40">
+                            <span className="font-mono font-black text-foreground text-sm">
+                              ₹{(item.price * item.quantity).toLocaleString('en-IN')}
+                            </span>
+                            <span className="text-muted-foreground text-[10px]">
+                              ₹{item.price} × {item.quantity} units
+                            </span>
+                          </div>
                         </div>
-                        <span className="font-mono font-bold text-foreground">₹{item.price * item.quantity}</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>

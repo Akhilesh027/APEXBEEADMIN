@@ -54,21 +54,66 @@ export const UserManagement: React.FC = () => {
           }
         });
 
+        const getRolePrefix = (role: string) => {
+          const r = role.toLowerCase();
+          if (r.includes('grocery') || r === 'vendor') return 'APX-GRC';
+          if (r.includes('restaurant')) return 'APX-RES';
+          if (r.includes('milk')) return 'APX-MLK';
+          if (r === 'wholesaler') return 'APX-WHS';
+          if (r === 'manufacturer') return 'APX-MNF';
+          if (r === 'delivery_partner' || r === 'delivery') return 'APX-DP';
+          if (r === 'service_provider') return 'APX-SP';
+          if (r === 'entrepreneur') return 'APX-ENT';
+          if (r.includes('franchise')) return 'APX-FR';
+          return 'APX-CUS';
+        };
+
         const mapped = (data.users || []).map((u: any) => {
           const userWallet = walletMap.get(String(u._id));
           const walletBalance = userWallet ? userWallet.availableBalance : 0;
           const referralsCount = referralsCountMap.get(String(u._id)) || 0;
+
+          // 1. 9-Digit ApexBee Master Customer ID
+          const hexHash = String(parseInt(String(u._id).slice(-8), 16) || 123456789).padStart(9, '0').slice(-9);
+          const masterCustomerId = u.masterCustomerId || (hexHash.startsWith('0') ? '5' + hexHash.slice(1) : hexHash);
+
+          // 2. Universal Referral Code
+          const universalReferralCode = u.referralCode || `AB${String(u._id).slice(-5).toUpperCase()}`;
+
+          // 3. Role Reference IDs Map
+          const userRoles: string[] = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : ['customer'];
+          const roleRefMap: Record<string, string> = {};
+
+          userRoles.forEach((r: string) => {
+            const rawRef = u.roleReferenceIds?.[r] || (typeof u.roleReferenceIds?.get === 'function' ? u.roleReferenceIds.get(r) : null);
+            if (rawRef) {
+              roleRefMap[r] = rawRef;
+            } else {
+              const prefix = getRolePrefix(r);
+              const suffix = String(u._id).slice(-6).toUpperCase();
+              roleRefMap[r] = `${prefix}-${suffix}`;
+            }
+          });
+
+          const primaryRole = userRoles.find(r => r !== 'customer') || 'customer';
+          const primaryRoleRefId = roleRefMap[primaryRole] || `${getRolePrefix(primaryRole)}-${String(u._id).slice(-6).toUpperCase()}`;
+
           return {
             id: u._id,
+            masterCustomerId,
+            universalReferralCode,
+            roleRefMap,
+            primaryRoleRefId,
             name: u.name,
             email: u.email,
+            phone: u.phone || u.mobile || '-',
             type: getUserType(u.roles, u.isVerified),
             registered: u.createdAt ? new Date(u.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
             walletBalance: walletBalance,
             status: u.isVerified ? 'Verified' : 'Pending',
             activity: u.status === 'active' ? 'Active on platform' : 'Inactive',
             referralsCount: referralsCount,
-            roles: u.roles,
+            roles: userRoles,
             isVerified: u.isVerified,
             rawStatus: u.status || 'active'
           };
@@ -459,10 +504,11 @@ export const UserManagement: React.FC = () => {
               <table className="w-full text-left text-xs border-collapse">
                 <thead className="bg-secondary/40 select-none border-b border-border/60">
                   <tr>
-                    <th className="p-3 font-semibold text-muted-foreground">User</th>
-                    <th className="p-3 font-semibold text-muted-foreground">ID</th>
+                    <th className="p-3 font-semibold text-muted-foreground">User &amp; Contact</th>
+                    <th className="p-3 font-semibold text-muted-foreground">Master Customer ID</th>
+                    <th className="p-3 font-semibold text-muted-foreground">Primary Role Ref ID</th>
+                    <th className="p-3 font-semibold text-muted-foreground">Referral Code</th>
                     <th className="p-3 font-semibold text-muted-foreground">Role</th>
-                    <th className="p-3 font-semibold text-muted-foreground">Registered Date</th>
                     <th className="p-3 font-semibold text-muted-foreground text-center">Action</th>
                   </tr>
                 </thead>
@@ -470,12 +516,23 @@ export const UserManagement: React.FC = () => {
                   {currentUsers.map(user => (
                     <tr key={user.id} className="hover:bg-secondary/10 transition-colors">
                       <td className="p-3">
-                        <span className="font-semibold text-foreground block">{user.name}</span>
-                        <span className="text-[10px] text-muted-foreground block">{user.email}</span>
+                        <span className="font-extrabold text-foreground block">{user.name}</span>
+                        <span className="text-[10px] text-muted-foreground block font-mono">{user.email}</span>
                       </td>
-                      <td className="p-3 font-mono font-semibold text-muted-foreground">{user.id}</td>
-                      <td className="p-3 text-muted-foreground">{user.type}</td>
-                      <td className="p-3 font-mono text-muted-foreground">{user.registered}</td>
+                      <td className="p-3">
+                        <span className="font-mono font-black text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20 text-xs block w-fit">
+                          {user.masterCustomerId}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <span className="font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded text-[11px] border border-primary/20 block w-fit">
+                          {user.primaryRoleRefId}
+                        </span>
+                      </td>
+                      <td className="p-3 font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded text-[11px] border border-emerald-500/20 w-fit">
+                        {user.universalReferralCode}
+                      </td>
+                      <td className="p-3 text-muted-foreground font-semibold">{user.type}</td>
                       <td className="p-3 text-center">
                         <button
                           onClick={() => {
@@ -483,7 +540,7 @@ export const UserManagement: React.FC = () => {
                             setRemarks('');
                             setShowRemarksInput(false);
                           }}
-                          className="px-2.5 py-1 bg-secondary hover:bg-secondary/80 border border-border text-foreground rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                          className="px-2.5 py-1 bg-secondary hover:bg-secondary/80 border border-border text-foreground rounded-lg text-[10px] font-extrabold transition-all cursor-pointer"
                         >
                           Details
                         </button>
@@ -492,7 +549,7 @@ export const UserManagement: React.FC = () => {
                   ))}
                   {currentUsers.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="p-12 text-center text-xs text-muted-foreground">
+                      <td colSpan={6} className="p-12 text-center text-xs text-muted-foreground">
                         No matches found.
                       </td>
                     </tr>
@@ -586,6 +643,41 @@ export const UserManagement: React.FC = () => {
             </div>
 
             <div className="space-y-3 text-left">
+              {/* ApexBee Master Identity Card */}
+              <div className="p-4 bg-gradient-to-br from-amber-500/15 via-secondary/20 to-primary/10 border border-amber-500/30 rounded-2xl space-y-3 shadow-xs">
+                <div className="flex justify-between items-center border-b border-amber-500/20 pb-2">
+                  <span className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider flex items-center gap-1">
+                    <span>👑 ApexBee Master Identity Specs</span>
+                  </span>
+                  <span className="text-[9px] font-mono font-bold text-muted-foreground">1 Person = 1 Master ID</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-background/80 p-2.5 rounded-xl border border-amber-500/30">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase block">Master Customer ID</span>
+                    <strong className="text-sm font-mono font-black text-amber-500 block mt-0.5">{selectedUser.masterCustomerId}</strong>
+                  </div>
+
+                  <div className="bg-background/80 p-2.5 rounded-xl border border-emerald-500/30">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase block">Universal Referral Code</span>
+                    <strong className="text-sm font-mono font-black text-emerald-500 block mt-0.5">{selectedUser.universalReferralCode}</strong>
+                  </div>
+                </div>
+
+                {/* Role Specific Reference IDs */}
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-wider block">Assigned Role Reference IDs</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(selectedUser.roleRefMap || {}).map(([rKey, rVal]) => (
+                      <div key={rKey} className="px-2.5 py-1 rounded-lg bg-background/90 border border-border text-[10px] flex items-center gap-1.5">
+                        <span className="font-bold text-muted-foreground capitalize">{rKey.replace('_', ' ')}:</span>
+                        <span className="font-mono font-extrabold text-primary">{String(rVal)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3 bg-secondary/15 p-4 rounded-xl border border-border/40">
                 <div>
                   <span className="text-muted-foreground block text-[9px] font-bold">NAME</span>
@@ -594,6 +686,14 @@ export const UserManagement: React.FC = () => {
                 <div>
                   <span className="text-muted-foreground block text-[9px] font-bold">EMAIL</span>
                   <span className="font-semibold block mt-0.5 truncate">{selectedUser.email}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[9px] font-bold">PHONE</span>
+                  <span className="font-mono font-semibold block mt-0.5">{selectedUser.phone}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[9px] font-bold">DATABASE OBJECT ID</span>
+                  <span className="font-mono text-[10px] font-bold text-primary block mt-0.5 truncate">{selectedUser.id}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-[9px] font-bold">ROLE</span>
