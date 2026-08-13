@@ -754,7 +754,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
                 </div>
 
                 {/* 📝 Customer Selected Delivery Preferences & Driver Instructions Card */}
-                {!((selectedOrder.fulfillment as any)?.type === 'pickup' || selectedOrder.deliveryType === 'pickup' || (selectedOrder as any).isSelfPickup) && (
+                {!((selectedOrder as any).fulfillment?.type === 'pickup' || (selectedOrder as any).deliveryType === 'pickup' || (selectedOrder as any).isSelfPickup) && (
                   <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 space-y-3 text-xs">
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5 font-heading">
