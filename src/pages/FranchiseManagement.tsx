@@ -438,8 +438,8 @@ export const FranchiseManagement: React.FC = () => {
                 setCurrentPage(1);
               }}
               className={`px-3 py-1 rounded-xl text-xs font-bold border transition cursor-pointer capitalize ${levelFilter === lvl
-                  ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                  : "bg-card text-muted-foreground border-border hover:bg-secondary/40"
+                ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                : "bg-card text-muted-foreground border-border hover:bg-secondary/40"
                 }`}
             >
               {lvl === "All" ? "All Levels" : `${lvl} Franchise`}
@@ -455,8 +455,8 @@ export const FranchiseManagement: React.FC = () => {
                 setCurrentPage(1);
               }}
               className={`px-3 py-1 rounded-xl text-xs font-bold border transition cursor-pointer ${statusFilter === st
-                  ? "bg-foreground text-background border-foreground font-black"
-                  : "bg-card text-muted-foreground border-border hover:bg-secondary/40"
+                ? "bg-foreground text-background border-foreground font-black"
+                : "bg-card text-muted-foreground border-border hover:bg-secondary/40"
                 }`}
             >
               {st}
@@ -504,10 +504,10 @@ export const FranchiseManagement: React.FC = () => {
                   </td>
                   <td className="p-3.5">
                     <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${f.franchiseLevel === "state"
-                        ? "bg-purple-500/10 text-purple-600 border-purple-500/20"
-                        : f.franchiseLevel === "district"
-                          ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                          : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                      ? "bg-purple-500/10 text-purple-600 border-purple-500/20"
+                      : f.franchiseLevel === "district"
+                        ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                        : "bg-amber-500/10 text-amber-600 border-amber-500/20"
                       }`}>
                       {f.franchiseLevel || "mandal"}
                     </span>
@@ -569,8 +569,8 @@ export const FranchiseManagement: React.FC = () => {
                     key={pg}
                     onClick={() => setCurrentPage(pg)}
                     className={`w-7 h-7 rounded-xl text-xs font-black transition cursor-pointer ${currentPage === pg
-                        ? "bg-primary text-primary-foreground shadow-xs"
-                        : "bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
                       }`}
                   >
                     {pg}

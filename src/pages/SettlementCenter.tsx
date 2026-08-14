@@ -325,7 +325,7 @@ export const SettlementCenter: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-[9px] text-muted-foreground mt-1 select-none font-semibold">
-                  <span className="capitalize">Type: {item.type} ({item.status})</span>
+                  <span className="capitalize">Type: {item.type} ({item.status === 'Approved' ? 'Payout Cleared - Successfully Done' : item.status})</span>
                   <span>{item.date}</span>
                 </div>
               </div>

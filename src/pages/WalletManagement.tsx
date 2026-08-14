@@ -411,7 +411,7 @@ export const WalletManagement: React.FC = () => {
                     ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
                     : 'bg-rose-500/10 border-rose-500/20 text-rose-500'
                     }`}>
-                    Request Status: {req.status.toUpperCase()}
+                    Status: {req.status === 'Approved' ? 'PAYOUT CLEARED - SUCCESSFULLY DONE' : req.status.toUpperCase()}
                   </div>
                 )}
               </div>

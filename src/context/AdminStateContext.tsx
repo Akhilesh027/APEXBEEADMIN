@@ -892,12 +892,14 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
         );
         await fetchWithdrawals();
         await fetchWallets();
+        alert(status === 'Approved' ? 'Payout cleared successfully done!' : `Payout ${status.toLowerCase()} successfully done!`);
       } else {
         const data = await res.json();
         alert(data.message || `Failed to ${action} withdrawal`);
       }
     } catch (err) {
       console.error('Error processing withdrawal:', err);
+      alert('Error processing withdrawal payout.');
     }
   };
 
