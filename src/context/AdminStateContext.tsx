@@ -55,7 +55,7 @@ interface AdminStateContextProps {
   verifyPayment: (orderId: string, status: Order['paymentStatus'], comments?: string) => void;
   assignDelivery: (orderId: string, agentId: string, type: Order['deliveryType']) => void;
   updateOrderStatus: (orderId: string, status: Order['orderStatus'], courierPartner?: string, trackingId?: string) => Promise<boolean>;
-  processWithdrawal: (id: string, status: WithdrawalRequest['status']) => void;
+  processWithdrawal: (id: string, status: WithdrawalRequest['status'], referenceId?: string, payoutMethod?: string, remarks?: string) => void;
   releaseCommissions: (orderId: string) => void;
   addCoupon: (coupon: Coupon) => void;
   toggleCouponStatus: (id: string) => void;
@@ -872,7 +872,7 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
   };
 
   // 9. Withdrawal Payout Request Handling
-  const processWithdrawal = async (id: string, status: WithdrawalRequest['status']) => {
+  const processWithdrawal = async (id: string, status: WithdrawalRequest['status'], referenceId?: string, payoutMethod?: string, remarks?: string) => {
     const token = localStorage.getItem('adminToken');
     if (!token) return;
     try {
@@ -882,17 +882,19 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        }
+        },
+        body: JSON.stringify({ referenceId, payoutMethod, remarks })
       });
       if (res.ok) {
+        const data = await res.json();
         addActivityLog(
           status === 'Approved' ? 'Withdrawal Cleared' : `Withdrawal ${status}`,
-          `Withdrawal request ID ${id} was ${status.toLowerCase()}.`,
+          `Withdrawal request ID ${id} was ${status.toLowerCase()} ${referenceId ? `with Reference ID / UTR: ${referenceId}` : ''} via ${payoutMethod || 'Bank'}.`,
           'withdrawal'
         );
         await fetchWithdrawals();
         await fetchWallets();
-        alert(status === 'Approved' ? 'Payout cleared successfully done!' : `Payout ${status.toLowerCase()} successfully done!`);
+        alert(status === 'Approved' ? `Payout cleared successfully! Reference ID / UTR: ${data.referenceId || referenceId || id} (${payoutMethod || 'Bank'})` : `Payout ${status.toLowerCase()} successfully done!`);
       } else {
         const data = await res.json();
         alert(data.message || `Failed to ${action} withdrawal`);

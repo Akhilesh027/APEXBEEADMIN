@@ -112,8 +112,9 @@ export const SettlementCenter: React.FC = () => {
   );
 
   const handleApproveSettlement = (id: string) => {
-    if (window.confirm('Approve and release payout for this recipient?')) {
-      processWithdrawal(id, 'Approved');
+    const refId = window.prompt("Enter Bank Reference ID / UTR Number for this Payout Settlement (Optional):");
+    if (refId !== null) {
+      processWithdrawal(id, 'Approved', refId.trim());
     }
   };
 

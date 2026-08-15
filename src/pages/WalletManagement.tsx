@@ -61,8 +61,32 @@ export const WalletManagement: React.FC = () => {
     }
   };
 
-  const handleProcess = (id: string, status: 'Approved' | 'Rejected') => {
-    processWithdrawal(id, status);
+  const [selectedPayout, setSelectedPayout] = useState<any | null>(null);
+  const [payoutTxnId, setPayoutTxnId] = useState('');
+  const [payoutMethod, setPayoutMethod] = useState<string>('UPI');
+  const [payoutRemarks, setPayoutRemarks] = useState('');
+
+  const handleOpenClearModal = (req: any) => {
+    setSelectedPayout(req);
+    setPayoutTxnId(`TXN${Date.now().toString().slice(-8)}`);
+    setPayoutMethod(req.method === 'UPI' ? 'UPI' : 'Bank Transfer (NEFT/IMPS)');
+    setPayoutRemarks('Payout cleared & verified by admin');
+  };
+
+  const handleConfirmClearPayout = () => {
+    if (!selectedPayout) return;
+    if (!payoutTxnId.trim()) {
+      alert("Please enter Transaction ID / UTR Number");
+      return;
+    }
+    processWithdrawal(selectedPayout.id, 'Approved', payoutTxnId.trim(), payoutMethod, payoutRemarks.trim());
+    setSelectedPayout(null);
+  };
+
+  const handleRejectPayout = (id: string) => {
+    if (window.confirm("Are you sure you want to reject this withdrawal request?")) {
+      processWithdrawal(id, 'Rejected');
+    }
   };
 
   // Filtered Ledgers
@@ -394,14 +418,14 @@ export const WalletManagement: React.FC = () => {
                 {req.status === 'Pending' ? (
                   <div className="flex gap-2 pt-1.5 border-t border-border/40">
                     <button
-                      onClick={() => handleProcess(req.id, 'Approved')}
-                      className="w-1/2 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg transition-all text-[10px] flex items-center justify-center gap-1 shadow-md shadow-emerald-500/10"
+                      onClick={() => handleOpenClearModal(req)}
+                      className="w-1/2 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg transition-all text-[10px] flex items-center justify-center gap-1 shadow-md shadow-emerald-500/10 cursor-pointer"
                     >
                       <Check size={12} /> Clear Payout
                     </button>
                     <button
-                      onClick={() => handleProcess(req.id, 'Rejected')}
-                      className="w-1/2 py-1.5 bg-rose-500/10 hover:bg-rose-500/25 border border-rose-500/20 text-rose-500 font-semibold rounded-lg transition-all text-[10px] flex items-center justify-center gap-1"
+                      onClick={() => handleRejectPayout(req.id)}
+                      className="w-1/2 py-1.5 bg-rose-500/10 hover:bg-rose-500/25 border border-rose-500/20 text-rose-500 font-semibold rounded-lg transition-all text-[10px] flex items-center justify-center gap-1 cursor-pointer"
                     >
                       <X size={12} /> Reject
                     </button>
@@ -424,6 +448,107 @@ export const WalletManagement: React.FC = () => {
 
       </div>
 
+      {/* CLEAR PAYOUT MODAL DIALOG */}
+      {selectedPayout && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 text-white w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                  <Landmark className="w-4 h-4 text-emerald-400" />
+                  Clear & Authorize Payout Settlement
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Recipient: <span className="font-bold text-white">{selectedPayout.ownerName}</span> ({selectedPayout.type})
+                </p>
+              </div>
+              <button onClick={() => setSelectedPayout(null)} className="text-slate-400 hover:text-white p-1 rounded-lg border-none bg-transparent cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Payout Summary breakdown */}
+            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1.5 text-xs font-mono">
+              <div className="flex justify-between text-slate-400">
+                <span>Gross Requested Amount</span>
+                <span className="font-bold text-white">₹{Number(selectedPayout.amount || 0).toLocaleString('en-IN')}</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>TDS & Platform Fee ({selectedPayout.feePercent || 15}%)</span>
+                <span className="font-bold text-rose-400">-₹{Number(selectedPayout.feeAmount || 0).toLocaleString('en-IN')}</span>
+              </div>
+              <div className="flex justify-between text-slate-200 border-t border-slate-800 pt-1.5 font-bold">
+                <span>Net Bank Payout</span>
+                <span className="text-emerald-400 text-sm font-extrabold">₹{Number(selectedPayout.netAmount || selectedPayout.amount || 0).toLocaleString('en-IN')}</span>
+              </div>
+              <div className="text-[10px] text-amber-300/80 pt-1 border-t border-slate-800/80">
+                Destination: {selectedPayout.details}
+              </div>
+            </div>
+
+            {/* Admin Input Fields */}
+            <div className="space-y-3">
+              <div className="space-y-1 text-left">
+                <label className="text-xs font-bold text-slate-300 block">
+                  Transaction ID / Bank UTR Number <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={payoutTxnId}
+                  onChange={(e) => setPayoutTxnId(e.target.value)}
+                  placeholder="e.g. TXN98401928 or UTR9847102934"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs font-mono font-bold text-amber-300 outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div className="space-y-1 text-left">
+                <label className="text-xs font-bold text-slate-300 block">Payout Method</label>
+                <select
+                  value={payoutMethod}
+                  onChange={(e) => setPayoutMethod(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs font-bold text-white outline-none focus:border-amber-400 cursor-pointer"
+                >
+                  <option value="UPI">UPI Payment</option>
+                  <option value="Bank Transfer (NEFT/IMPS)">Bank Transfer (NEFT / IMPS / RTGS)</option>
+                  <option value="Cash">Cash Handout</option>
+                  <option value="Cheque">Bank Cheque</option>
+                  <option value="Wallet Direct">ApexBee Direct Wallet Disbursal</option>
+                </select>
+              </div>
+
+              <div className="space-y-1 text-left">
+                <label className="text-xs font-bold text-slate-300 block">Admin Remarks / Audit Notes</label>
+                <input
+                  type="text"
+                  value={payoutRemarks}
+                  onChange={(e) => setPayoutRemarks(e.target.value)}
+                  placeholder="e.g. Payout cleared via HDFC NetBanking"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-slate-200 outline-none focus:border-amber-400"
+                />
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setSelectedPayout(null)}
+                className="w-1/3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer border-none"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmClearPayout}
+                className="w-2/3 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold rounded-xl text-xs transition shadow-lg cursor-pointer border-none flex items-center justify-center gap-1.5"
+              >
+                <Check className="w-4 h-4" />
+                Submit & Clear Payout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

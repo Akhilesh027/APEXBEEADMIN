@@ -126,7 +126,8 @@ export const AdminProductApproval = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('Pending Review');
+  const [status, setStatus] = useState('All');
+  const [catalogFilter, setCatalogFilter] = useState<'ALL' | 'STORE' | 'FOOD'>('ALL');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -142,6 +143,26 @@ export const AdminProductApproval = () => {
     commissionShares: defaultShares,
   });
 
+  const normalizeProductStatus = (p: any) => {
+    const rawStatus = (p.status || p.moderationStatus || p.approvalStatus || '').toString().toLowerCase();
+    if (p.isVendorEdit || rawStatus === 'vendor edited' || rawStatus === 'updated - pending approval' || rawStatus === 'vendor_edited') {
+      return 'Vendor Edited';
+    }
+    if (rawStatus === 'live' || rawStatus === 'active' || rawStatus === 'approved' || rawStatus === 'published_live' || rawStatus === 'published') {
+      return 'Live';
+    }
+    if (rawStatus === 'rejected' || rawStatus === 'rejected_by_admin' || rawStatus === 'rejected_by_restaurant') {
+      return 'Rejected';
+    }
+    if (rawStatus === 'negotiation requested' || rawStatus === 'negotiation') {
+      return 'Negotiation Requested';
+    }
+    if (rawStatus === 'awaiting seller approval' || rawStatus === 'pending_restaurant_acceptance') {
+      return 'Awaiting Seller Approval';
+    }
+    return 'Pending Review';
+  };
+
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -155,6 +176,7 @@ export const AdminProductApproval = () => {
       // 1. Process regular Products collection
       (allProds || []).forEach((p: any) => {
         const isFood = p.isFoodItem || p.itemType === 'FOOD' || p.productMode === 'FOOD' || Boolean(p.foodMenuItemId) || Boolean(p.restaurantId);
+        const normStatus = normalizeProductStatus(p);
 
         // Construct unique key
         const uniqueKey = p.foodMenuItemId
@@ -166,6 +188,8 @@ export const AdminProductApproval = () => {
         const formatted = {
           ...p,
           isFoodItem: isFood,
+          normalizedStatus: normStatus,
+          status: p.status || normStatus,
           categoryName: p.categoryName || p.categoryId?.name || (isFood ? 'Food & Dining' : 'General Catalog'),
           vendorName: p.vendorName || p.sellerId?.name || p.sellerId?.businessName || (isFood ? 'Restaurant Partner' : 'Vendor Partner'),
           baseMrp: p.adminPricing?.mrp || p.baseMrp || p.price || 0,
@@ -196,22 +220,25 @@ export const AdminProductApproval = () => {
 
         if (!alreadyExists) {
           const restName = f.restaurantId?.restaurantName || f.restaurantId?.name || 'Restaurant Partner';
+          const normStatus = f.approvalStatus === 'PUBLISHED_LIVE'
+            ? 'Live'
+            : f.approvalStatus === 'PENDING_RESTAURANT_ACCEPTANCE'
+            ? 'Awaiting Seller Approval'
+            : f.approvalStatus === 'REJECTED_BY_ADMIN' || f.approvalStatus === 'REJECTED_BY_RESTAURANT'
+            ? 'Rejected'
+            : 'Pending Review';
+
           deduplicatedMap.set(foodKey, {
             ...f,
             _id: f._id,
             foodMenuItemId: f._id,
             isFoodItem: true,
+            normalizedStatus: normStatus,
+            status: normStatus,
             categoryName: f.categoryId?.name || 'Food & Dining',
             vendorName: restName,
             baseMrp: f.basePrice,
             baseSellingPrice: f.offerPrice || f.basePrice,
-            status: f.approvalStatus === 'PUBLISHED_LIVE'
-              ? 'Live'
-              : f.approvalStatus === 'PENDING_RESTAURANT_ACCEPTANCE'
-              ? 'Awaiting Seller Approval'
-              : f.approvalStatus === 'REJECTED_BY_ADMIN' || f.approvalStatus === 'REJECTED_BY_RESTAURANT'
-              ? 'Rejected'
-              : 'Pending Review',
             adminPricing: {
               mrp: f.basePrice,
               sellingPrice: f.offerPrice || f.basePrice,
@@ -416,51 +443,48 @@ export const AdminProductApproval = () => {
   };
 
   const filteredProducts = products.filter((product: any) => {
-    const matchesSearch =
-      product.name?.toLowerCase().includes(search.toLowerCase()) ||
-      product.sku?.toLowerCase().includes(search.toLowerCase());
+    // 1. Search filter
+    const query = search.toLowerCase().trim();
+    const nameMatch = (product.name || '').toLowerCase().includes(query);
+    const skuMatch = (product.sku || '').toLowerCase().includes(query);
+    const vendorMatch = (product.vendorName || '').toLowerCase().includes(query);
+    const catMatch = (product.categoryName || '').toLowerCase().includes(query);
+    const matchesSearch = !query || nameMatch || skuMatch || vendorMatch || catMatch;
 
-    const isPendingStatus = (p: any) => {
-      const s = String(p.status || '').toLowerCase();
-      const mod = String(p.moderationStatus || '').toLowerCase();
-      return (s === 'pending review' || s === 'pending' || s === 'draft' || mod === 'pending' || p.adminPricingApproved === false) && !p.isVendorEdit && s !== 'vendor edited';
-    };
+    // 2. Catalog type filter (ALL vs STORE vs FOOD)
+    let matchesCatalog = true;
+    if (catalogFilter === 'STORE') matchesCatalog = !product.isFoodItem;
+    else if (catalogFilter === 'FOOD') matchesCatalog = Boolean(product.isFoodItem);
 
-    const isVendorEditStatus = (p: any) => {
-      const s = String(p.status || '').toLowerCase();
-      return s === 'vendor edited' || s === 'updated - pending approval' || !!p.isVendorEdit;
-    };
-
+    // 3. Status filter
     let matchesStatus = status === 'All';
     if (!matchesStatus) {
-      if (status === 'Pending Review') {
-        matchesStatus = isPendingStatus(product);
-      } else if (status === 'Vendor Edited') {
-        matchesStatus = isVendorEditStatus(product);
-      } else if (status === 'Live') {
-        const s = String(product.status || '').toLowerCase();
-        const mod = String(product.moderationStatus || '').toLowerCase();
-        matchesStatus = s === 'live' || s === 'active' || s === 'approved' || mod === 'approved';
-      } else if (status === 'Rejected') {
-        const s = String(product.status || '').toLowerCase();
-        const mod = String(product.moderationStatus || '').toLowerCase();
-        matchesStatus = s === 'rejected' || mod === 'rejected';
-      } else {
-        matchesStatus = String(product.status || '').toLowerCase() === String(status).toLowerCase();
-      }
+      matchesStatus = (product.normalizedStatus || product.status) === status;
     }
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesCatalog && matchesStatus;
   });
 
+  const getStatusCount = (targetStatus: string) => {
+    return products.filter((p: any) => {
+      let matchesCatalog = true;
+      if (catalogFilter === 'STORE') matchesCatalog = !p.isFoodItem;
+      else if (catalogFilter === 'FOOD') matchesCatalog = Boolean(p.isFoodItem);
+      if (!matchesCatalog) return false;
+
+      if (targetStatus === 'All') return true;
+      return (p.normalizedStatus || p.status) === targetStatus;
+    }).length;
+  };
+
   const statusTabs = [
-    { key: 'All', label: 'All Products', count: products.length },
-    { key: 'Pending Review', label: 'New Approvals', count: products.filter(p => (String(p.status || '').toLowerCase() === 'pending review' || String(p.status || '').toLowerCase() === 'pending' || String(p.moderationStatus || '').toLowerCase() === 'pending' || p.adminPricingApproved === false) && !p.isVendorEdit && String(p.status || '').toLowerCase() !== 'vendor edited').length },
-    { key: 'Vendor Edited', label: '✏️ Vendor Edits', count: products.filter(p => String(p.status || '').toLowerCase() === 'vendor edited' || String(p.status || '').toLowerCase() === 'updated - pending approval' || p.isVendorEdit).length },
-    { key: 'Negotiation Requested', label: 'Negotiation', count: products.filter(p => String(p.status || '').toLowerCase() === 'negotiation requested').length },
-    { key: 'Awaiting Seller Approval', label: 'Awaiting Seller', count: products.filter(p => String(p.status || '').toLowerCase() === 'awaiting seller approval').length },
-    { key: 'Live', label: 'Live Products', count: products.filter(p => String(p.status || '').toLowerCase() === 'live' || String(p.status || '').toLowerCase() === 'active' || String(p.moderationStatus || '').toLowerCase() === 'approved').length },
-    { key: 'Rejected', label: 'Rejected', count: products.filter(p => String(p.status || '').toLowerCase() === 'rejected' || String(p.moderationStatus || '').toLowerCase() === 'rejected').length },
+    { key: 'All', label: 'All Products', count: getStatusCount('All') },
+    { key: 'Pending Review', label: 'New Approvals', count: getStatusCount('Pending Review') },
+    { key: 'Vendor Edited', label: '✏️ Vendor Edits', count: getStatusCount('Vendor Edited') },
+    { key: 'Negotiation Requested', label: 'Negotiation', count: getStatusCount('Negotiation Requested') },
+    { key: 'Awaiting Seller Approval', label: 'Awaiting Seller', count: getStatusCount('Awaiting Seller Approval') },
+    { key: 'Live', label: 'Live Products', count: getStatusCount('Live') },
+    { key: 'Rejected', label: 'Rejected', count: getStatusCount('Rejected') },
   ];
 
   const franchiseShares = pricing.commissionShares.filter((share) =>
@@ -495,6 +519,27 @@ export const AdminProductApproval = () => {
       </div>
 
       <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+        {/* Catalog Source Filter Tabs */}
+        <div className="flex items-center gap-2 p-1.5 bg-secondary/30 rounded-xl border border-border/60 w-fit flex-wrap">
+          {[
+            { id: 'ALL', label: '🌐 All Catalogs' },
+            { id: 'STORE', label: '🏬 Store / Retail Products' },
+            { id: 'FOOD', label: '🍲 Food & Dining Items' },
+          ].map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setCatalogFilter(cat.id as any)}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                catalogFilter === cat.id
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex flex-col md:flex-row gap-3 justify-between items-center">
           <div className="relative w-full md:w-80">
             <Search
@@ -505,7 +550,7 @@ export const AdminProductApproval = () => {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search product name or SKU..."
+              placeholder="Search by product name, SKU, vendor or category..."
               className="w-full pl-9 pr-3 py-2 rounded-xl border border-border bg-background text-xs outline-none focus:border-primary"
             />
           </div>
