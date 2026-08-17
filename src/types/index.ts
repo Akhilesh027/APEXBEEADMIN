@@ -27,7 +27,7 @@ export interface Seller {
   upiId: string;
   bankDetails: BankDetails;
   address: string;
-  status: 'Pending KYC' | 'Approved' | 'Suspended' | 'Additional Docs Requested';
+  status: 'Pending KYC' | 'Approved' | 'Suspended' | 'Additional Docs Requested' | 'Rejected';
   comments?: string;
   documents: DocumentUploads;
   dateJoined: string;
@@ -120,6 +120,7 @@ export interface Order {
   customerAddress: string;
   items: OrderItem[];
   totalAmount: number;
+  paymentMethod?: string;
   upiRefNo: string;
   paymentScreenshot: string; // URL mock
   paymentStatus: 'Pending Verification' | 'Approved' | 'Rejected' | 'Request Reupload';

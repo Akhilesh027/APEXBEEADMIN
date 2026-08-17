@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAdminState } from '../context/AdminStateContext';
-import { Compass, Zap, MapPin, AlertTriangle, ArrowRight, Activity } from 'lucide-react';
+import { Compass, Zap, MapPin, AlertTriangle, ArrowRight, Activity, Store, CheckCircle2 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from 'recharts';
 
 export const HyperlocalOperations: React.FC = () => {
@@ -31,29 +31,35 @@ export const HyperlocalOperations: React.FC = () => {
     fetchTerritories();
   }, []);
 
-  // 1. Group active states, districts, and mandals dynamically from database franchises
+  // 1. Group active states, districts, and mandals dynamically from live database franchises
   const activeStates = Array.from(new Set(franchises.map(f => f.state).filter(Boolean))).length;
   const activeDistricts = Array.from(new Set(franchises.map(f => f.district).filter(Boolean))).length;
   const activeMandals = Array.from(new Set(franchises.map(f => f.mandal).filter(Boolean))).length;
 
   // 2. Calculate real average delivery times from completed order logs
   const getAvgDeliveryTime = () => {
-    const deliveredOrders = orders.filter(o => o.orderStatus === 'Delivered' && o.timeline.length >= 2);
+    const deliveredOrders = orders.filter(o => o.orderStatus === 'Delivered');
     if (deliveredOrders.length === 0) return 0;
 
     let totalMinutes = 0;
+    let validCount = 0;
+
     deliveredOrders.forEach(o => {
-      const placedEvent = o.timeline.find(t => t.status === 'Placed' || t.status === 'Pending Payment' || t.status === 'Payment Verified' || t.status === 'Processing');
-      const deliveredEvent = o.timeline.find(t => t.status === 'Delivered');
-      if (placedEvent && deliveredEvent) {
-        const diffMs = new Date(deliveredEvent.date).getTime() - new Date(placedEvent.date).getTime();
-        const diffMins = Math.max(15, Math.round(diffMs / (1000 * 60))); // cap at minimum 15 mins
+      const placedEvent = o.timeline?.find(t => t.status === 'Placed' || t.status === 'Pending Payment' || t.status === 'Payment Verified' || t.status === 'Processing');
+      const deliveredEvent = o.timeline?.find(t => t.status === 'Delivered');
+      
+      const placedTime = placedEvent ? new Date(placedEvent.date).getTime() : new Date(o.date).getTime();
+      const deliveredTime = deliveredEvent ? new Date(deliveredEvent.date).getTime() : null;
+
+      if (deliveredTime && placedTime && deliveredTime > placedTime) {
+        const diffMins = Math.round((deliveredTime - placedTime) / (1000 * 60));
         totalMinutes += diffMins;
-      } else {
-        totalMinutes += 28;
+        validCount += 1;
       }
     });
-    return Number((totalMinutes / deliveredOrders.length).toFixed(1));
+
+    if (validCount === 0) return 0;
+    return Number((totalMinutes / validCount).toFixed(1));
   };
 
   const avgDeliveryTime = getAvgDeliveryTime();
@@ -62,69 +68,54 @@ export const HyperlocalOperations: React.FC = () => {
   const getCityDeliveryData = () => {
     const cityStats: Record<string, { totalTime: number; count: number }> = {};
     orders.filter(o => o.orderStatus === 'Delivered').forEach(o => {
-      const parts = o.customerAddress.split(',');
-      let city = 'Other';
+      const parts = (o.customerAddress || '').split(',');
+      let city = 'Main Hub';
       if (parts.length >= 2) {
-        city = (parts[parts.length - 2] || '').trim() || 'Other';
+        city = (parts[parts.length - 2] || '').trim() || 'Main Hub';
       }
 
-      const placedEvent = o.timeline.find(t => t.status === 'Placed' || t.status === 'Pending Payment' || t.status === 'Payment Verified' || t.status === 'Processing');
-      const deliveredEvent = o.timeline.find(t => t.status === 'Delivered');
-      let diffMins = 28;
-      if (placedEvent && deliveredEvent) {
-        diffMins = Math.max(15, Math.round((new Date(deliveredEvent.date).getTime() - new Date(placedEvent.date).getTime()) / (1000 * 60)));
-      }
+      const placedEvent = o.timeline?.find(t => t.status === 'Placed' || t.status === 'Pending Payment' || t.status === 'Payment Verified' || t.status === 'Processing');
+      const deliveredEvent = o.timeline?.find(t => t.status === 'Delivered');
 
-      if (!cityStats[city]) {
-        cityStats[city] = { totalTime: 0, count: 0 };
-      }
-      const cStat = cityStats[city];
-      if (cStat) {
-        cStat.totalTime += diffMins;
-        cStat.count += 1;
+      const placedTime = placedEvent ? new Date(placedEvent.date).getTime() : new Date(o.date).getTime();
+      const deliveredTime = deliveredEvent ? new Date(deliveredEvent.date).getTime() : null;
+
+      if (deliveredTime && placedTime && deliveredTime > placedTime) {
+        const diffMins = Math.round((deliveredTime - placedTime) / (1000 * 60));
+        if (!cityStats[city]) {
+          cityStats[city] = { totalTime: 0, count: 0 };
+        }
+        const cStat = cityStats[city];
+        if (cStat) {
+          cStat.totalTime += diffMins;
+          cStat.count += 1;
+        }
       }
     });
 
-    const data = Object.entries(cityStats).map(([city, val]) => ({
+    return Object.entries(cityStats).map(([city, val]) => ({
       city,
       avgTime: Math.round(val.totalTime / val.count),
       target: 30
-    }));
-
-    const baselines = [
-      { city: 'Mumbai', avgTime: 28, target: 30 },
-      { city: 'Pune', avgTime: 34, target: 30 },
-      { city: 'Bangalore', avgTime: 32, target: 30 }
-    ];
-
-    if (data.length === 0) return baselines;
-    return data.slice(0, 5);
+    })).slice(0, 5);
   };
 
-  // 4. Store density count grouped dynamically by type
+  // 4. Store density count grouped dynamically by type from actual database sellers
   const getStoreDensityData = () => {
-    const zoneStats: Record<string, number> = {};
-    sellers.forEach(s => {
-      const zone = s.type === 'Vendor' ? 'Vendors' : s.type === 'Wholesaler' ? 'Wholesalers' : 'Manufacturers';
-      zoneStats[zone] = (zoneStats[zone] || 0) + 1;
-    });
+    const counts = {
+      Vendors: sellers.filter(s => s.type === 'Vendor').length,
+      Wholesalers: sellers.filter(s => s.type === 'Wholesaler').length,
+      Manufacturers: sellers.filter(s => s.type === 'Manufacturer').length
+    };
 
-    const data = Object.entries(zoneStats).map(([zone, count]) => ({
-      zone,
-      density: count
-    }));
-
-    const baselines = [
-      { zone: 'Vendors', density: 18 },
-      { zone: 'Wholesalers', density: 14 },
-      { zone: 'Manufacturers', density: 8 }
+    return [
+      { zone: 'Vendors', density: counts.Vendors },
+      { zone: 'Wholesalers', density: counts.Wholesalers },
+      { zone: 'Manufacturers', density: counts.Manufacturers }
     ];
-
-    if (data.length === 0) return baselines;
-    return data;
   };
 
-  // 5. Identify coverage gaps from unassigned master districts
+  // 5. Identify coverage gaps from unassigned master territories
   const getCoverageGaps = () => {
     const unassigned = territoriesList.filter(t => {
       if (t.level !== 'District' && (t.mandal || t.pincode)) return false;
@@ -135,42 +126,29 @@ export const HyperlocalOperations: React.FC = () => {
       return !hasFranchise;
     });
 
-    const mapped = unassigned.map(t => ({
+    return unassigned.map(t => ({
       title: `${t.district || t.name} Hub`,
-      desc: `Unallocated District mapping in ${t.state}. Store density index is critical. Territory requires franchise manager onboarding.`
-    }));
-
-    const defaults = [
-      { title: 'Central Rural Mandals', desc: 'Store Density index: 1.2/10k. Required target threshold is 5.0. Fulfillment delay average: 48 mins.' },
-      { title: 'North Haryana Blocks', desc: 'Logistics coverage gap. DAP fertilizer delivery transit times exceed 2 days due to lack of local depot nodes.' }
-    ];
-
-    if (mapped.length === 0) return defaults;
-    return mapped.slice(0, 3);
+      desc: `Unallocated District mapping in ${t.state || 'Region'}. Requires franchise manager onboarding.`
+    })).slice(0, 5);
   };
 
-  // 6. Local store scorecard populated from active sellers
+  // 6. Local store scorecard populated purely from active sellers & their completed orders
   const getStoreScorecard = () => {
-    const data = sellers.filter(s => s.type === 'Vendor').map(s => {
-      const storeOrders = orders.filter(o => o.items.some(it => it.productId && it.productId.startsWith(s.id) || (o as any).sellerId === s.id));
-      const completedCount = storeOrders.length;
-      const score = completedCount > 5 ? '98%' : '92%';
+    return sellers.filter(s => s.type === 'Vendor').map(s => {
+      const storeOrders = orders.filter(o => 
+        (o as any).vendorId === s.id || 
+        o.items?.some(it => it.productId && it.productId.startsWith(s.id))
+      );
+      const completedCount = storeOrders.filter(o => o.orderStatus === 'Delivered').length;
+      const score = completedCount >= 5 ? '98%' : completedCount > 0 ? '94%' : 'N/A';
       return {
-        name: s.businessName,
-        location: s.ownerName,
+        name: s.businessName || s.ownerName || 'Vendor Store',
+        location: s.address ? s.address.substring(0, 30) : (s.ownerName || 'Vendor'),
         score,
         orders: completedCount,
         rating: '★ 4.8'
       };
-    });
-
-    const baselines = [
-      { name: 'Balaji Kirana Store', location: 'Ramesh (Pune)', score: '98%', orders: 145, rating: '★ 4.9' },
-      { name: 'Shree Sai Veg Market', location: 'Suresh (Pune)', score: '94%', orders: 98, rating: '★ 4.7' }
-    ];
-
-    if (data.length === 0) return baselines;
-    return data.slice(0, 5);
+    }).slice(0, 10);
   };
 
   const deliveryData = getCityDeliveryData();
@@ -182,7 +160,7 @@ export const HyperlocalOperations: React.FC = () => {
     <div className="space-y-6">
 
       {/* Action Header */}
-      <div className="flex justify-between items-center bg-card border border-border/80 rounded-2xl p-4 shadow-sm">
+      <div className="flex justify-between items-center bg-card border border-border/80 rounded-2xl p-4 shadow-sm select-none">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-primary/10 text-primary rounded-xl">
             <Compass size={24} />
@@ -259,20 +237,28 @@ export const HyperlocalOperations: React.FC = () => {
             <p className="text-[10px] text-muted-foreground mt-0.5">Average checkout to delivery agent drop-off times</p>
           </div>
 
-          <div className="h-56 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={deliveryData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(100, 116, 139, 0.1)" />
-                <XAxis dataKey="city" stroke="rgba(100, 116, 139, 0.5)" fontSize={10} tickLine={false} />
-                <YAxis stroke="rgba(100, 116, 139, 0.5)" fontSize={10} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
-                  itemStyle={{ fontSize: 11, color: 'var(--foreground)' }}
-                />
-                <Line type="monotone" dataKey="avgTime" name="Avg Delivery (mins)" stroke="#6366f1" strokeWidth={3.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                <Line type="monotone" dataKey="target" name="Target (30 mins)" stroke="#a855f7" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
+          <div className="h-56 w-full flex items-center justify-center">
+            {deliveryData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={deliveryData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(100, 116, 139, 0.1)" />
+                  <XAxis dataKey="city" stroke="rgba(100, 116, 139, 0.5)" fontSize={10} tickLine={false} />
+                  <YAxis stroke="rgba(100, 116, 139, 0.5)" fontSize={10} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
+                    itemStyle={{ fontSize: 11, color: 'var(--foreground)' }}
+                  />
+                  <Line type="monotone" dataKey="avgTime" name="Avg Delivery (mins)" stroke="#6366f1" strokeWidth={3.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="target" name="Target (30 mins)" stroke="#a855f7" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-center text-xs text-muted-foreground space-y-1 select-none">
+                <Activity size={28} className="mx-auto text-muted-foreground/60 mb-2" />
+                <p className="font-bold text-foreground">No Delivery Timelines Logged Yet</p>
+                <p className="text-[10px]">Real regional delivery time stats will automatically render as orders are completed.</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -291,7 +277,7 @@ export const HyperlocalOperations: React.FC = () => {
               <BarChart data={densityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(100, 116, 139, 0.1)" />
                 <XAxis dataKey="zone" stroke="rgba(100, 116, 139, 0.5)" fontSize={10} tickLine={false} />
-                <YAxis stroke="rgba(100, 116, 139, 0.5)" fontSize={10} tickLine={false} />
+                <YAxis stroke="rgba(100, 116, 139, 0.5)" fontSize={10} tickLine={false} allowDecimals={false} />
                 <Tooltip
                   contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
                   itemStyle={{ fontSize: 11, color: 'var(--foreground)' }}
@@ -311,7 +297,7 @@ export const HyperlocalOperations: React.FC = () => {
           <div className="border-b border-border pb-3 flex items-center justify-between select-none">
             <h3 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
               <AlertTriangle className="text-rose-500 animate-pulse" size={14} />
-              Coverage Gaps identified
+              Coverage Gaps Identified
             </h3>
             <span className="text-[9px] text-rose-500 font-semibold font-mono">{coverageGaps.length} Gaps</span>
           </div>
@@ -323,6 +309,14 @@ export const HyperlocalOperations: React.FC = () => {
                 <p className="text-[10px] text-muted-foreground">{gap.desc}</p>
               </div>
             ))}
+
+            {coverageGaps.length === 0 && (
+              <div className="py-10 text-center text-xs text-muted-foreground flex flex-col items-center justify-center space-y-2 select-none">
+                <CheckCircle2 size={30} className="text-emerald-500" />
+                <p className="font-bold text-foreground">Complete Coverage</p>
+                <p className="text-[10px] text-muted-foreground">All active territories currently have assigned franchise managers.</p>
+              </div>
+            )}
           </div>
 
           <button
@@ -339,16 +333,16 @@ export const HyperlocalOperations: React.FC = () => {
         <div className="lg:col-span-2 bg-card border border-border/80 rounded-2xl overflow-hidden shadow-sm">
           <div className="px-5 py-4 border-b border-border/60 bg-secondary/10 flex justify-between items-center select-none">
             <span className="text-xs font-bold text-foreground uppercase tracking-wider">Local Store Performance Scorecard</span>
-            <span className="text-[10px] text-muted-foreground">Active merchant metrics</span>
+            <span className="text-[10px] text-muted-foreground">{localStores.length} Active Stores</span>
           </div>
 
-          <div className="divide-y divide-border/60">
+          <div className="divide-y divide-border/60 min-h-[220px]">
             {localStores.map((store, idx) => (
               <div key={idx} className="p-4 flex items-center justify-between text-xs hover:bg-secondary/10 transition-colors">
                 <div className="space-y-1">
                   <span className="font-semibold text-foreground text-sm block">{store.name}</span>
                   <span className="text-[10px] text-muted-foreground block">
-                    Operator: {store.location} • Rating: {store.rating} • Completed: {store.orders} checkouts
+                    Location: {store.location} • Rating: {store.rating} • Completed: {store.orders} deliveries
                   </span>
                 </div>
                 <div className="shrink-0 flex items-center gap-2 select-none">
@@ -357,6 +351,14 @@ export const HyperlocalOperations: React.FC = () => {
                 </div>
               </div>
             ))}
+
+            {localStores.length === 0 && (
+              <div className="py-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center space-y-2 select-none">
+                <Store size={32} className="text-muted-foreground/60" />
+                <p className="font-bold text-foreground">No Local Stores Onboarded</p>
+                <p className="text-[10px] text-muted-foreground">Onboarded vendor stores will be listed here with fulfillment scorecards.</p>
+              </div>
+            )}
           </div>
         </div>
 
