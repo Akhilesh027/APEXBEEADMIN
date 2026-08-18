@@ -60,11 +60,14 @@ interface Franchise {
 
 interface Territory {
   _id: string;
-  level?: "State" | "District" | "Mandal" | "Pincode";
+  ftid?: string;
+  codeNumber?: string;
+  level?: "State" | "District" | "Mandal" | "Village" | "Pincode";
   name?: string;
   state: string;
   district?: string;
   mandal?: string;
+  village?: string;
   pincode?: string;
   franchiseId?: any;
   status?: string;
@@ -101,36 +104,50 @@ export const FranchiseManagement: React.FC = () => {
 
   const normalize = (value?: string) => (value || "").trim().toLowerCase();
 
-  const getTerritoryLevel = (t: Territory) => {
+  const [copiedFtid, setCopiedFtid] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedFtid(text);
+    setTimeout(() => setCopiedFtid(null), 2000);
+  };
+
+  const getFranchiseFTIDs = (f: Franchise) => {
+    return territories.filter((t) => {
+      const fId = typeof t.franchiseId === "object" ? t.franchiseId?._id : t.franchiseId;
+      return String(fId) === String(f._id);
+    });
+  };
+
+  const getTerritoryLevel = (t: any) => {
     if (t.level) return t.level;
-    if (t.pincode) return "Pincode";
+    if (t.village) return "Village";
     if (t.mandal) return "Mandal";
     if (t.district) return "District";
     return "State";
   };
 
-  const getTerritoryName = (t: Territory) => {
+  const getTerritoryName = (t: any) => {
     if (t.name) return t.name;
-    if (t.pincode) return t.pincode;
+    if (t.village) return t.village;
     if (t.mandal) return t.mandal;
     if (t.district) return t.district;
     return t.state;
   };
 
-  const getTerritoryDisplay = (t: Territory) => {
+  const getTerritoryDisplay = (t: any) => {
     const level = getTerritoryLevel(t);
     const name = getTerritoryName(t);
+    const ftid = t.ftid ? `[${t.ftid}] ` : "";
+    const path = [t.state, t.district, t.mandal, t.village].filter(Boolean);
 
-    const path = [t.state, t.district, t.mandal, t.pincode].filter(Boolean);
-
-    return `${level} - ${name}${path.length ? ` (${path.join(" / ")})` : ""}`;
+    return `${ftid}${level} - ${name}${path.length ? ` (${path.join(" / ")})` : ""}`;
   };
 
   const getFranchiseDisplay = (f: Franchise) => {
-    return (
-      `${f.businessName || f.ownerName || f.email || f.mobile || "Franchise"}` +
-      `${f.franchiseCode ? ` (${f.franchiseCode})` : ""}`
-    );
+    const code = f.franchiseCode ? ` [${f.franchiseCode}]` : "";
+    const master = f.userId ? ` (ID: ${String(f.userId).slice(-6)})` : "";
+    return `${f.businessName || f.ownerName || f.email || "Franchise"}${code}${master}`;
   };
 
   const fetchData = async () => {
@@ -478,62 +495,108 @@ export const FranchiseManagement: React.FC = () => {
           <table className="w-full text-xs text-left">
             <thead className="bg-secondary/40 text-muted-foreground font-bold">
               <tr>
-                <th className="p-3.5">Code / Ref</th>
-                <th className="p-3.5">Business Name</th>
-                <th className="p-3.5">Owner Contact</th>
+                <th className="p-3.5">Franchise Code / Master ID</th>
+                <th className="p-3.5">Assigned FTID(s)</th>
+                <th className="p-3.5">Business &amp; Owner</th>
                 <th className="p-3.5">Level</th>
-                <th className="p-3.5">Territory Location</th>
+                <th className="p-3.5">Territory Jurisdiction</th>
                 <th className="p-3.5">KYC &amp; Status</th>
                 <th className="p-3.5 text-right">Action</th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-border">
-              {paginatedFranchises.map((f) => (
-                <tr key={f._id} className="hover:bg-secondary/15 transition">
-                  <td className="p-3.5 font-mono font-bold text-primary">
-                    {f.franchiseCode || f.referenceId || "N/A"}
-                  </td>
-                  <td className="p-3.5">
-                    <div className="font-extrabold text-foreground">{f.businessName || "ApexBee Partner"}</div>
-                    <div className="text-[10px] text-muted-foreground font-mono">{f.email || "No email registered"}</div>
-                  </td>
-                  <td className="p-3.5">
-                    <div className="font-bold text-foreground">{f.ownerName || "-"}</div>
-                    <div className="text-[10px] text-muted-foreground font-mono">{f.mobile || "-"}</div>
-                  </td>
-                  <td className="p-3.5">
-                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${f.franchiseLevel === "state"
-                      ? "bg-purple-500/10 text-purple-600 border-purple-500/20"
-                      : f.franchiseLevel === "district"
-                        ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                        : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                      }`}>
-                      {f.franchiseLevel || "mandal"}
-                    </span>
-                  </td>
-                  <td className="p-3.5 text-muted-foreground font-medium">
-                    {[f.state, f.district, f.mandal].filter(Boolean).join(" / ") || "Not specified"}
-                  </td>
-                  <td className="p-3.5">
-                    <div className="flex flex-col gap-1">
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-black w-fit uppercase ${f.status === "active" ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" : "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+              {paginatedFranchises.map((f) => {
+                const franchiseFtids = getFranchiseFTIDs(f);
+
+                return (
+                  <tr key={f._id} className="hover:bg-secondary/15 transition">
+                    {/* Code & Master ID */}
+                    <td className="p-3.5">
+                      <div className="font-mono font-black text-primary text-xs">
+                        {f.franchiseCode || f.referenceId || "N/A"}
+                      </div>
+                      {f.userId && (
+                        <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                          Master ID: <span className="text-foreground font-bold">{String(f.userId).slice(-8)}</span>
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Assigned FTID(s) Badge */}
+                    <td className="p-3.5">
+                      {franchiseFtids.length > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          {franchiseFtids.map((t) => (
+                            <div
+                              key={t._id}
+                              className="inline-flex items-center gap-1.5 bg-primary/10 border border-primary/25 text-primary px-2 py-0.5 rounded-md font-mono font-bold text-[10px] w-fit"
+                            >
+                              <span>{t.ftid || `APX-${(t.level || 'TR').substring(0, 2).toUpperCase()}-001`}</span>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(t.ftid || "")}
+                                className="hover:text-foreground transition p-0.5"
+                                title="Copy FTID"
+                              >
+                                {copiedFtid === t.ftid ? "✓" : "📋"}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-amber-500 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                          🟡 No FTID Assigned
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Business Name & Owner */}
+                    <td className="p-3.5">
+                      <div className="font-extrabold text-foreground">{f.businessName || "ApexBee Partner"}</div>
+                      <div className="text-[10px] text-muted-foreground">Owner: {f.ownerName || "-"} ({f.mobile || "-"})</div>
+                    </td>
+
+                    {/* Franchise Level */}
+                    <td className="p-3.5">
+                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${f.franchiseLevel === "state"
+                        ? "bg-purple-500/10 text-purple-600 border-purple-500/20"
+                        : f.franchiseLevel === "district"
+                          ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                          : "bg-amber-500/10 text-amber-600 border-amber-500/20"
                         }`}>
-                        {f.status || "pending"}
+                        {f.franchiseLevel || "mandal"}
                       </span>
-                    </div>
-                  </td>
-                  <td className="p-3.5 text-right">
-                    <button
-                      onClick={() => setInspectFranchise(f)}
-                      className="px-3 py-1.5 rounded-xl border border-border bg-secondary/30 hover:bg-secondary text-foreground text-xs font-extrabold cursor-pointer transition flex items-center gap-1.5 ml-auto"
-                    >
-                      <Eye size={14} className="text-primary" />
-                      <span>Inspect Details</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+
+                    {/* Jurisdiction */}
+                    <td className="p-3.5 text-muted-foreground font-medium">
+                      {[f.state, f.district, f.mandal, f.village].filter(Boolean).join(" / ") || "Not specified"}
+                    </td>
+
+                    {/* KYC & Status */}
+                    <td className="p-3.5">
+                      <div className="flex flex-col gap-1">
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-black w-fit uppercase ${f.status === "active" ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" : "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                          }`}>
+                          {f.status || "pending"}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Action */}
+                    <td className="p-3.5 text-right">
+                      <button
+                        onClick={() => setInspectFranchise(f)}
+                        className="px-3 py-1.5 rounded-xl border border-border bg-secondary/30 hover:bg-secondary text-foreground text-xs font-extrabold cursor-pointer transition flex items-center gap-1.5 ml-auto"
+                      >
+                        <Eye size={14} className="text-primary" />
+                        <span>Inspect Details</span>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
 
               {filteredFranchises.length === 0 && (
                 <tr>
@@ -548,7 +611,7 @@ export const FranchiseManagement: React.FC = () => {
 
         {/* PAGINATION FOOTER */}
         {totalPages > 1 && (
-          <div className="p-4 border-t border-border bg-secondary/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div className="p-4 border-t border-border bg-secondary/10 flex flex-col sm:row items-center justify-between gap-3 text-xs">
             <div className="text-muted-foreground font-semibold text-[11px]">
               Showing <b>{(currentPage - 1) * pageSize + 1}</b> to <b>{Math.min(currentPage * pageSize, filteredFranchises.length)}</b> of <b>{filteredFranchises.length}</b> franchises
             </div>
@@ -608,6 +671,7 @@ export const FranchiseManagement: React.FC = () => {
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5 font-mono">
                   Franchise Code: <strong className="text-primary">{inspectFranchise.franchiseCode || 'N/A'}</strong> • Ref: {inspectFranchise.referenceId || 'N/A'}
+                  {inspectFranchise.userId && ` • Master User ID: ${inspectFranchise.userId}`}
                 </p>
               </div>
               <button
@@ -644,6 +708,38 @@ export const FranchiseManagement: React.FC = () => {
               </div>
             </div>
 
+            {/* Assigned Franchise Territory IDs (FTIDs) Section */}
+            <div className="space-y-3 bg-secondary/15 p-4 rounded-2xl border border-border/60">
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block flex items-center gap-1.5">
+                <MapPin size={14} className="text-primary" /> Assigned Franchise Territory ID(s) [FTID]
+              </span>
+              {getFranchiseFTIDs(inspectFranchise).length > 0 ? (
+                <div className="space-y-2">
+                  {getFranchiseFTIDs(inspectFranchise).map((t) => (
+                    <div key={t._id} className="p-3 bg-card rounded-xl border border-border flex items-center justify-between">
+                      <div>
+                        <div className="font-mono font-black text-primary text-xs">{t.ftid || 'APX-FTID'}</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {t.level} - {t.name} ({[t.state, t.district, t.mandal, t.village].filter(Boolean).join(" ➔ ")})
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(t.ftid || "")}
+                        className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-bold hover:bg-primary/20 transition"
+                      >
+                        {copiedFtid === t.ftid ? "✓ Copied" : "Copy FTID"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-3 bg-card/60 rounded-xl border border-dashed border-border text-center text-muted-foreground text-xs">
+                  No territory slot currently assigned. Assign one using the selector above.
+                </div>
+              )}
+            </div>
+
             {/* 1. Owner & Contact Information */}
             <div className="space-y-3 bg-secondary/15 p-4 rounded-2xl border border-border/60">
               <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block flex items-center gap-1.5">
@@ -672,7 +768,7 @@ export const FranchiseManagement: React.FC = () => {
             {/* 2. Location & Territory Coverage */}
             <div className="space-y-3 bg-secondary/15 p-4 rounded-2xl border border-border/60">
               <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block flex items-center gap-1.5">
-                <MapPin size={14} className="text-primary" /> Assigned Location &amp; Address
+                <MapPin size={14} className="text-primary" /> Registered Location &amp; Address
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs mb-2">
                 <div>

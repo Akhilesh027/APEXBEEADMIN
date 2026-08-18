@@ -692,8 +692,16 @@ export const UserManagement: React.FC = () => {
                   <span className="font-mono font-semibold block mt-0.5">{selectedUser.phone}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block text-[9px] font-bold">DATABASE OBJECT ID</span>
-                  <span className="font-mono text-[10px] font-bold text-primary block mt-0.5 truncate">{selectedUser.id}</span>
+                  <span className="text-muted-foreground block text-[9px] font-bold">MASTER CUSTOMER ID</span>
+                  <span className="font-mono text-xs font-black text-amber-500 block mt-0.5">{selectedUser.masterCustomerId}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[9px] font-bold">PRIMARY ROLE REF ID</span>
+                  <span className="font-mono text-[11px] font-bold text-primary block mt-0.5">{selectedUser.primaryRoleRefId}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[9px] font-bold">UNIVERSAL REFERRAL CODE</span>
+                  <span className="font-mono text-[11px] font-bold text-emerald-500 block mt-0.5">{selectedUser.universalReferralCode}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-[9px] font-bold">ROLE</span>

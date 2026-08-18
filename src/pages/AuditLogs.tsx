@@ -34,7 +34,7 @@ export const AuditLogs: React.FC = () => {
     }
   };
 
-  const currentLogs = getFilteredLogs().filter(l => 
+  const currentLogs = getFilteredLogs().filter(l =>
     l.operator.toLowerCase().includes(searchQuery.toLowerCase()) ||
     l.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
     l.details.toLowerCase().includes(searchQuery.toLowerCase())
@@ -42,7 +42,7 @@ export const AuditLogs: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      
+
       {/* Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 select-none">
         <div className="bg-card border border-border/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
@@ -85,11 +85,10 @@ export const AuditLogs: React.FC = () => {
           <button
             key={tab}
             onClick={() => setActiveSubTab(tab)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
-              activeSubTab === tab
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${activeSubTab === tab
                 ? 'bg-primary text-primary-foreground border-primary shadow-md'
                 : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground'
-            }`}
+              }`}
           >
             {tab === 'wallet' ? 'Wallet Transactions' : tab === 'login' ? 'Login History' : tab === 'approval' ? 'Approval History' : tab.charAt(0).toUpperCase() + tab.slice(1) + ' Activity'}
           </button>
@@ -113,7 +112,7 @@ export const AuditLogs: React.FC = () => {
                 className="pl-8 pr-4 py-1.5 bg-secondary/50 border border-border/80 focus:border-primary rounded-xl text-xs outline-none w-full sm:w-64 font-medium"
               />
             </div>
-            <button 
+            <button
               onClick={() => alert('Exporting audit log sheets...')}
               className="px-3.5 py-1.5 bg-secondary hover:bg-secondary/80 text-foreground font-bold text-xs rounded-xl border border-border/60 transition-all shadow-sm flex items-center gap-1 cursor-pointer"
             >
