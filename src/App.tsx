@@ -50,6 +50,7 @@ import { AuditLogs } from './pages/AuditLogs';
 import { SupportCenter } from './pages/SupportCenter';
 import { SecuritySettings } from './pages/SecuritySettings';
 import { FoodAndDiningManagement } from './pages/FoodAndDiningManagement';
+import { BannerManagement } from './pages/BannerManagement';
 
 const App: React.FC = () => {
   const { sellers, products, orders, withdrawals, isAuthenticated } = useAdminState();
@@ -186,6 +187,8 @@ const App: React.FC = () => {
         return <SecuritySettings />;
       case 'food_and_dining':
         return <FoodAndDiningManagement />;
+      case 'banner_management':
+        return <BannerManagement />;
       default:
         return <Dashboard setActiveTab={handleTabChange} />;
     }

@@ -10,7 +10,7 @@ export const SecuritySettings: React.FC = () => {
   const securityLogs = [
     { id: 'SEC-01', event: 'Suspicious login block', user: 'SEL-002 (Karan Organic)', ip: '198.51.100.4', details: 'Blocked login attempt from unauthorized country IP', time: '10 mins ago', status: 'Blocked' },
     { id: 'SEC-02', event: 'MFA setup completed', user: 'STF-04 (Suresh Shah)', ip: '192.168.1.101', details: 'Activated TOTP authentication check', time: '1 hr ago', status: 'Audit Clear' },
-    { id: 'SEC-03', event: 'Failed login password mismatch', user: 'ananya@apexbee.com', ip: '203.0.113.12', details: '2 consecutive failed attempts logged', time: '3 hrs ago', status: 'Flagged' }
+    { id: 'SEC-03', event: 'Failed login password mismatch', user: 'admin@apexbee.in', ip: '203.0.113.12', details: '2 consecutive failed attempts logged', time: '3 hrs ago', status: 'Flagged' }
   ];
 
   const failedLoginData = [

@@ -765,11 +765,10 @@ export const TerritoryManagement: React.FC = () => {
                 {/* Franchise Vacancy Status */}
                 <td className="p-3 text-center">
                   <span
-                    className={`px-2 py-0.5 rounded-lg text-[10px] font-black border ${
-                      item.franchiseId || item.currentFranchisee?.name
-                        ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
-                        : "bg-amber-500/10 text-amber-600 border-amber-500/30"
-                    }`}
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-black border ${item.franchiseId || item.currentFranchisee?.name
+                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                      : "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                      }`}
                   >
                     {item.franchiseId || item.currentFranchisee?.name ? "🟢 ACTIVE" : "🟡 VACANT"}
                   </span>
@@ -778,11 +777,10 @@ export const TerritoryManagement: React.FC = () => {
                 {/* Status */}
                 <td className="p-3 text-center">
                   <span
-                    className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${
-                      item.status === "Active"
-                        ? "bg-emerald-500/10 text-emerald-500"
-                        : "bg-red-500/10 text-red-500"
-                    }`}
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${item.status === "Active"
+                      ? "bg-emerald-500/10 text-emerald-500"
+                      : "bg-red-500/10 text-red-500"
+                      }`}
                   >
                     {item.status}
                   </span>
@@ -873,11 +871,10 @@ export const TerritoryManagement: React.FC = () => {
               setActiveSubTab(key as any);
               setSuccessMsg("");
             }}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
-              activeSubTab === key
-                ? "bg-primary text-primary-foreground border-primary shadow-xs font-bold"
-                : "bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60"
-            }`}
+            className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${activeSubTab === key
+              ? "bg-primary text-primary-foreground border-primary shadow-xs font-bold"
+              : "bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60"
+              }`}
           >
             {label}
           </button>

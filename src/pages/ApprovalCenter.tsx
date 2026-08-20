@@ -9,6 +9,13 @@ import {
   Filter,
   Eye,
   ExternalLink,
+  ShieldCheck,
+  Store,
+  ShoppingBag,
+  Wallet,
+  ArrowRight,
+  Zap,
+  RefreshCw
 } from "lucide-react";
 import { productService } from "../services/productService";
 
@@ -808,8 +815,173 @@ export const ApprovalCenter: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-2 flex-wrap bg-card border border-border/60 p-2 rounded-2xl select-none shadow-sm">
+      {/* Header Banner */}
+      <div className="bg-card border border-border rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-extrabold text-foreground">
+              Approval Center
+            </h1>
+            <span className="bg-primary/10 text-primary px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+              Omni-Queue Active
+            </span>
+          </div>
+
+          <p className="text-xs text-muted-foreground mt-1">
+            Centralized moderation hub across Vendors, Wholesalers, Franchises, Products, KYC verifications, and Wallet Payouts.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => fetchEcosystemData()}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/80 hover:bg-secondary text-xs font-semibold text-foreground border border-border cursor-pointer transition-all"
+            title="Refresh list"
+          >
+            <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+            <span>Refresh Queue</span>
+          </button>
+        </div>
+      </div>
+
+      {/* UPPER 30%: Overview KPI Cards Deck */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: 🌐 Omni-Queue Total */}
+        <div
+          onClick={() => setActiveSubTab("all")}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group ${activeSubTab === "all"
+            ? "bg-primary/10 border-primary shadow-md shadow-primary/15"
+            : "bg-card border-border hover:border-primary/50 hover:bg-primary/[0.03]"
+            }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-primary">
+              Omni-Queue Total
+            </span>
+            <div className="p-2 rounded-xl bg-primary/10 text-primary">
+              <ClipboardCheck size={18} />
+            </div>
+          </div>
+          <div className="mt-2">
+            <h3 className="text-2xl font-black text-foreground">
+              {getPendingItemsForTab("all").length}
+            </h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
+              All pending approvals across platform
+            </p>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-border/60 flex items-center justify-between text-[10px] font-bold">
+            <span className="text-primary">Master Queue</span>
+            <span className="text-muted-foreground group-hover:text-foreground transition-colors flex items-center gap-1">
+              View All <ArrowRight size={10} />
+            </span>
+          </div>
+        </div>
+
+        {/* Card 2: 🏬 Partner & Merchant Onboarding */}
+        <div
+          onClick={() => setActiveSubTab("vendors")}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group ${["vendors", "wholesalers", "franchises", "manufacturers", "entrepreneurs", "service_providers", "course_providers", "delivery_partners"].includes(activeSubTab)
+            ? "bg-indigo-500/10 border-indigo-500 shadow-md shadow-indigo-500/15"
+            : "bg-card border-border hover:border-indigo-500/50 hover:bg-indigo-500/[0.03]"
+            }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+              Partner Onboarding
+            </span>
+            <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600">
+              <Store size={18} />
+            </div>
+          </div>
+          <div className="mt-2">
+            <h3 className="text-2xl font-black text-foreground">
+              {getPendingItemsForTab("vendors").length +
+                getPendingItemsForTab("wholesalers").length +
+                getPendingItemsForTab("franchises").length +
+                getPendingItemsForTab("delivery_partners").length}
+            </h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
+              Stores, franchises & rider registrations
+            </p>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-border/60 flex items-center justify-between text-[10px] font-bold">
+            <span className="text-indigo-600">Merchant Networks</span>
+            <span className="text-muted-foreground group-hover:text-foreground transition-colors flex items-center gap-1">
+              View Partners <ArrowRight size={10} />
+            </span>
+          </div>
+        </div>
+
+        {/* Card 3: 🛒 Products & Daily Price Edits */}
+        <div
+          onClick={() => setActiveSubTab("products")}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group ${activeSubTab === "products"
+            ? "bg-amber-500/10 border-amber-500 shadow-md shadow-amber-500/15"
+            : "bg-card border-border hover:border-amber-500/50 hover:bg-amber-500/[0.03]"
+            }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+              Products & Daily Prices
+            </span>
+            <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600">
+              <ShoppingBag size={18} />
+            </div>
+          </div>
+          <div className="mt-2">
+            <h3 className="text-2xl font-black text-foreground">
+              {getPendingItemsForTab("products").length}
+            </h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
+              Store catalogues & vegetable price edits
+            </p>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-border/60 flex items-center justify-between text-[10px] font-bold">
+            <span className="text-amber-600">Catalogue Health</span>
+            <span className="text-muted-foreground group-hover:text-foreground transition-colors flex items-center gap-1">
+              Review Items <ArrowRight size={10} />
+            </span>
+          </div>
+        </div>
+
+        {/* Card 4: 🛡️ KYC & Payouts */}
+        <div
+          onClick={() => setActiveSubTab("kyc")}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group ${["kyc", "withdrawals"].includes(activeSubTab)
+            ? "bg-emerald-500/10 border-emerald-500 shadow-md shadow-emerald-500/15"
+            : "bg-card border-border hover:border-emerald-500/50 hover:bg-emerald-500/[0.03]"
+            }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              KYC & Withdrawals
+            </span>
+            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600">
+              <ShieldCheck size={18} />
+            </div>
+          </div>
+          <div className="mt-2">
+            <h3 className="text-2xl font-black text-foreground">
+              {getPendingItemsForTab("kyc").length + getPendingItemsForTab("withdrawals").length}
+            </h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
+              Identity verification & partner payouts
+            </p>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-border/60 flex items-center justify-between text-[10px] font-bold">
+            <span className="text-emerald-600">Compliance & Finance</span>
+            <span className="text-muted-foreground group-hover:text-foreground transition-colors flex items-center gap-1">
+              Verify Now <ArrowRight size={10} />
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Subtab Navigation Pills */}
+      <div className="flex gap-1.5 flex-wrap bg-card border border-border/60 p-2 rounded-2xl select-none shadow-sm">
         {[
+          "all",
           "vendors",
           "wholesalers",
           "entrepreneurs",
@@ -821,18 +993,30 @@ export const ApprovalCenter: React.FC = () => {
           "products",
           "kyc",
           "withdrawals",
-        ].map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveSubTab(tab as any)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${activeSubTab === tab
-              ? "bg-primary text-primary-foreground border-primary shadow-md"
-              : "bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground"
-              }`}
-          >
-            {getSubTabLabel(tab as any)}
-          </button>
-        ))}
+        ].map(tab => {
+          const count = getPendingItemsForTab(tab).length;
+          const isSelected = activeSubTab === tab;
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveSubTab(tab as any)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${isSelected
+                ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-[1.02]"
+                : "bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground"
+                }`}
+            >
+              <span>{tab === "all" ? "🌐 All Applications" : getSubTabLabel(tab as any)}</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${isSelected
+                  ? "bg-white text-primary"
+                  : "bg-secondary text-foreground border border-border/40"
+                  }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">

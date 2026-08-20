@@ -173,20 +173,18 @@ export const Header: React.FC<HeaderProps> = ({
             }}
             className="flex items-center gap-2.5 p-1.5 pr-3 hover:bg-secondary/50 rounded-xl transition-all select-none border border-transparent hover:border-border/60"
           >
-            <img
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100"
-              alt="Admin Profile"
-              className="w-7 h-7 rounded-lg object-cover ring-1 ring-border"
-            />
-            <span className="hidden sm:inline text-xs font-medium text-foreground select-none">Ananya</span>
+            <div className="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center font-extrabold text-xs ring-1 ring-primary/30">
+              A
+            </div>
+            <span className="hidden sm:inline text-xs font-semibold text-foreground select-none">Apexbee Admin</span>
             <ChevronDown size={14} className="text-muted-foreground shrink-0" />
           </button>
 
           {showProfileDropdown && (
             <div className="absolute right-0 mt-3 w-52 bg-card border border-border shadow-xl rounded-2xl p-2 z-50">
               <div className="px-3 py-2 border-b border-border mb-1">
-                <p className="text-xs font-bold text-foreground">Ananya Sharma</p>
-                <p className="text-[10px] text-muted-foreground">ananya@apexmarket.in</p>
+                <p className="text-xs font-bold text-foreground">Apexbee Admin</p>
+                <p className="text-[10px] text-muted-foreground font-mono">admin@apexbee.in</p>
               </div>
               <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-secondary/60 text-xs font-medium text-muted-foreground hover:text-foreground transition-all">
                 <User size={14} /> My Profile

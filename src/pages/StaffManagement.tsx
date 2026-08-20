@@ -8,7 +8,7 @@ export const StaffManagement: React.FC = () => {
 
   // Sample internal staff
   const staffList = [
-    { id: 'STF-01', name: 'Ananya Sharma', email: 'ananya@apexbee.com', role: 'Super Admin', dept: 'Operations Team', status: 'Present', performance: '100%' },
+    { id: 'STF-01', name: 'Apexbee Admin', email: 'admin@apexbee.in', role: 'Super Admin', dept: 'Operations Team', status: 'Present', performance: '100%' },
     { id: 'STF-02', name: 'Vikram Rane', email: 'vikram@apexbee.com', role: 'State Manager', dept: 'Operations Team', status: 'Present', performance: '94%' },
     { id: 'STF-03', name: 'Deepak Joshi', email: 'deepak@apexbee.com', role: 'District Coordinator', dept: 'Operations Team', status: 'Present', performance: '92%' },
     { id: 'STF-04', name: 'Suresh Shah', email: 'suresh@apexbee.com', role: 'Finance Auditor', dept: 'Finance Team', status: 'Present', performance: '98%' },
@@ -34,7 +34,7 @@ export const StaffManagement: React.FC = () => {
   );
 
   const performanceData = [
-    { name: 'Ananya S.', score: 100 },
+    { name: 'Apexbee Admin', score: 100 },
     { name: 'Vikram R.', score: 94 },
     { name: 'Deepak J.', score: 92 },
     { name: 'Suresh S.', score: 98 },

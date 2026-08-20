@@ -7,12 +7,12 @@ export const AuditLogs: React.FC = () => {
 
   // Sample static operations logs
   const logsList = [
-    { id: 'LOG-901', operator: 'Ananya Sharma (Admin)', action: 'Approved KYC documents', details: 'KYC verified for Rajesh Wholesalers Pvt Ltd (SEL-002)', timestamp: '2026-06-14 09:30:12', type: 'admin' },
+    { id: 'LOG-901', operator: 'Apexbee Admin', action: 'Approved KYC documents', details: 'KYC verified for Rajesh Wholesalers Pvt Ltd (SEL-002)', timestamp: '2026-06-14 09:30:12', type: 'admin' },
     { id: 'LOG-902', operator: 'Vikram Rane (Franchise)', action: 'Dispatched delivery agent', details: 'Assigned platform agent for order ORD-99298', timestamp: '2026-06-14 08:15:45', type: 'franchise' },
     { id: 'LOG-903', operator: 'Karan Organic (Vendor)', action: 'Added product variant', details: 'Added SKU HALDI-1KG to Organic Turmeric', timestamp: '2026-06-13 18:42:01', type: 'vendor' },
     { id: 'LOG-904', operator: 'Suresh Shah (Finance)', action: 'Cleared vendor payout', details: 'Released ₹8,500 withdrawal for SEL-002. Bank Ref: TXN-3829104', timestamp: '2026-06-13 14:10:00', type: 'wallet' },
     { id: 'LOG-905', operator: 'Amit Sharma (Vendor)', action: 'Login successful', details: 'Logged in from IP 192.168.1.45 (Device: Chrome macOS)', timestamp: '2026-06-14 09:00:00', type: 'login' },
-    { id: 'LOG-906', operator: 'Ananya Sharma (Admin)', action: 'Approved product listing', details: 'Approved Roadster T-Shirt (PROD-001) listing', timestamp: '2026-06-13 11:30:00', type: 'approval' }
+    { id: 'LOG-906', operator: 'Apexbee Admin', action: 'Approved product listing', details: 'Approved Roadster T-Shirt (PROD-001) listing', timestamp: '2026-06-13 11:30:00', type: 'approval' }
   ];
 
   const getFilteredLogs = () => {

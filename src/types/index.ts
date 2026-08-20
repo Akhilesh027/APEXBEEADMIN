@@ -186,7 +186,7 @@ export interface ReferralNode {
 export interface Wallet {
   id: string; // Same as ownerId (Seller ID or Franchise ID or Referral User ID)
   ownerName: string;
-  type: 'Vendor' | 'Referral' | 'Franchise';
+  type: 'Company' | 'Vendor' | 'Referral' | 'Franchise';
   pendingBalance: number;
   availableBalance: number;
   withdrawnBalance: number;

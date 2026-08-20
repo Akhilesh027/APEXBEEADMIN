@@ -47,7 +47,7 @@ export const HyperlocalOperations: React.FC = () => {
     deliveredOrders.forEach(o => {
       const placedEvent = o.timeline?.find(t => t.status === 'Placed' || t.status === 'Pending Payment' || t.status === 'Payment Verified' || t.status === 'Processing');
       const deliveredEvent = o.timeline?.find(t => t.status === 'Delivered');
-      
+
       const placedTime = placedEvent ? new Date(placedEvent.date).getTime() : new Date(o.date).getTime();
       const deliveredTime = deliveredEvent ? new Date(deliveredEvent.date).getTime() : null;
 
@@ -135,8 +135,8 @@ export const HyperlocalOperations: React.FC = () => {
   // 6. Local store scorecard populated purely from active sellers & their completed orders
   const getStoreScorecard = () => {
     return sellers.filter(s => s.type === 'Vendor').map(s => {
-      const storeOrders = orders.filter(o => 
-        (o as any).vendorId === s.id || 
+      const storeOrders = orders.filter(o =>
+        (o as any).vendorId === s.id ||
         o.items?.some(it => it.productId && it.productId.startsWith(s.id))
       );
       const completedCount = storeOrders.filter(o => o.orderStatus === 'Delivered').length;

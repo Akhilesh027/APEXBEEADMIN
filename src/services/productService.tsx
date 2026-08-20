@@ -70,6 +70,44 @@ export const productService = {
     return res.data.product;
   },
 
+  quickApproveVendorEdit: async (id: any) => {
+    const prodId = (typeof id === 'object' && id !== null) ? (id._id || id.id || String(id)) : String(id || '');
+    const cleanId = prodId.replace(/^(prod_|food_)/, '');
+    const res = await axios.patch(
+      `${API_URL}/products/${cleanId}/quick-approve-edit`,
+      {},
+      {
+        headers: authHeaders(),
+      }
+    );
+
+    return res.data;
+  },
+
+  bulkApprove: async (productIds: string[], remarks?: string) => {
+    const res = await axios.post(
+      `${API_URL}/products/admin/bulk-approve`,
+      { productIds, remarks },
+      {
+        headers: authHeaders(),
+      }
+    );
+
+    return res.data;
+  },
+
+  bulkReject: async (productIds: string[], reason?: string) => {
+    const res = await axios.post(
+      `${API_URL}/products/admin/bulk-reject`,
+      { productIds, reason },
+      {
+        headers: authHeaders(),
+      }
+    );
+
+    return res.data;
+  },
+
   // ==========================
   // SELLER
   // ==========================

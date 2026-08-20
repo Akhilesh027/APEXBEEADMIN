@@ -34,7 +34,7 @@ export const WalletManagement: React.FC = () => {
 
   // Filter & Search states
   const [ledgerSearch, setLedgerSearch] = useState('');
-  const [walletFilter, setWalletFilter] = useState<'All' | 'Vendor' | 'Referral' | 'Franchise'>('All');
+  const [walletFilter, setWalletFilter] = useState<'All' | 'Company' | 'Vendor' | 'Referral' | 'Franchise'>('All');
   const [balanceFilter, setBalanceFilter] = useState<'All' | 'With Balance' | 'Zero Balance'>('All');
 
   const [payoutSearch, setPayoutSearch] = useState('');
@@ -236,7 +236,7 @@ export const WalletManagement: React.FC = () => {
 
             {/* Quick Ledger Filter Buttons */}
             <div className="flex gap-1.5 flex-wrap">
-              {(['All', 'Vendor', 'Referral', 'Franchise'] as const).map(type => (
+              {(['All', 'Company', 'Vendor', 'Referral', 'Franchise'] as const).map(type => (
                 <button
                   key={type}
                   onClick={() => setWalletFilter(type)}
@@ -298,11 +298,13 @@ export const WalletManagement: React.FC = () => {
                       <span className="text-[8px] text-muted-foreground block mt-0.5 font-mono truncate max-w-[140px]">{w.id}</span>
                     </td>
                     <td className="p-2.5">
-                      <span className={`px-2 py-0.5 text-[8px] font-bold rounded-lg ${w.type === 'Vendor'
-                        ? 'bg-amber-500/10 text-amber-500'
-                        : w.type === 'Franchise'
-                          ? 'bg-indigo-500/10 text-indigo-500'
-                          : 'bg-cyan-500/10 text-cyan-500'
+                      <span className={`px-2 py-0.5 text-[8px] font-bold rounded-lg ${w.type === 'Company'
+                        ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                        : w.type === 'Vendor'
+                          ? 'bg-amber-500/10 text-amber-500'
+                          : w.type === 'Franchise'
+                            ? 'bg-indigo-500/10 text-indigo-500'
+                            : 'bg-cyan-500/10 text-cyan-500'
                         }`}>{w.type}</span>
                     </td>
                     <td className="p-2.5 text-right font-mono text-muted-foreground">₹{w.pendingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
