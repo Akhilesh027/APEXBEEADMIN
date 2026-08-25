@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Bell, ChevronDown, Clock, LogOut, Settings, User, Menu } from 'lucide-react';
 import { ActiveTab } from './Sidebar';
 import { useAdminState } from '../context/AdminStateContext';
@@ -74,18 +74,61 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const notificationAlerts = [
-    { id: 'not-1', type: 'kyc', title: 'KYC Verification Needed', desc: `${badgeCounts.kyc} sellers are waiting for document review`, active: badgeCounts.kyc > 0 },
-    { id: 'not-2', type: 'product', title: 'Product Listing Approval', desc: `${badgeCounts.products} items submitted for review`, active: badgeCounts.products > 0 },
-    { id: 'not-3', type: 'payment', title: 'UPI Manual Payout Verification', desc: `${badgeCounts.payments} payments need screenshot audits`, active: badgeCounts.payments > 0 },
-    { id: 'not-4', type: 'withdrawal', title: 'Pending Withdrawals', desc: `${badgeCounts.withdrawals} vendor/franchise requests pending`, active: badgeCounts.withdrawals > 0 }
+  const [backendNotifications, setBackendNotifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+        if (!token) return;
+        const res = await fetch('https://server.apexbee.in/api/notifications?limit=10', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.notifications)) {
+            setBackendNotifications(data.notifications);
+          }
+        }
+      } catch {
+        /* fallback */
+      }
+    };
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  interface NotificationAlert {
+    id: string;
+    type: string;
+    title: string;
+    desc: string;
+    active: boolean;
+    time?: string;
+  }
+
+  const notificationAlerts: NotificationAlert[] = [
+    ...backendNotifications.map((n: any) => ({
+      id: String(n._id || n.id),
+      type: 'live',
+      title: n.title || 'System Notification',
+      desc: n.message || '',
+      active: n.status === 'unread' || true,
+      time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+    })),
+    { id: 'not-1', type: 'kyc', title: 'KYC Verification Needed', desc: `${badgeCounts.kyc} sellers waiting for review`, active: badgeCounts.kyc > 0, time: '' },
+    { id: 'not-2', type: 'product', title: 'Product Listing Approval', desc: `${badgeCounts.products} items in review queue`, active: badgeCounts.products > 0, time: '' },
+    { id: 'not-3', type: 'payment', title: 'UPI Manual Payout Verification', desc: `${badgeCounts.payments} payments need audit`, active: badgeCounts.payments > 0, time: '' },
+    { id: 'not-4', type: 'withdrawal', title: 'Pending Withdrawals', desc: `${badgeCounts.withdrawals} vendor requests pending`, active: badgeCounts.withdrawals > 0, time: '' }
   ];
 
   const totalNotifications = notificationAlerts.filter(n => n.active).length;
 
   return (
     <header className="h-16 sticky top-0 z-30 bg-card/80 backdrop-blur-md border-b border-border flex items-center justify-between px-6 transition-colors duration-300">
-      
+
       {/* Left section: Breadcrumb / Mobile spacing */}
       <div className="flex items-center gap-4 pl-10 md:pl-0">
         <button
@@ -126,21 +169,21 @@ export const Header: React.FC<HeaderProps> = ({
               setShowNotifications(!showNotifications);
               setShowProfileDropdown(false);
             }}
-            className="p-2 bg-secondary/50 text-muted-foreground hover:text-foreground rounded-xl transition-all border border-border/30 hover:border-border select-none relative"
+            className="p-2 bg-secondary/50 text-muted-foreground hover:text-foreground rounded-xl transition-all border border-border/30 hover:border-border select-none relative cursor-pointer"
           >
             <Bell size={18} />
             {totalNotifications > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full animate-pulse" />
             )}
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-3 w-80 bg-card border border-border shadow-xl rounded-2xl p-4 overflow-hidden z-50">
+            <div className="absolute right-0 mt-3 w-84 bg-card border border-border shadow-2xl rounded-2xl p-4 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="flex items-center justify-between pb-3 border-b border-border">
                 <span className="text-xs font-bold text-foreground">Admin Notifications</span>
-                <span className="text-[10px] text-muted-foreground">{totalNotifications} Active Alerts</span>
+                <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">{totalNotifications} Active Alerts</span>
               </div>
-              <div className="py-2 divide-y divide-border/60 max-h-64 overflow-y-auto no-scrollbar">
+              <div className="py-2 divide-y divide-border/60 max-h-72 overflow-y-auto no-scrollbar">
                 {totalNotifications === 0 ? (
                   <div className="py-6 text-center text-xs text-muted-foreground">
                     All tasks completed. No notifications!
@@ -149,11 +192,16 @@ export const Header: React.FC<HeaderProps> = ({
                   notificationAlerts.map(alert => {
                     if (!alert.active) return null;
                     return (
-                      <div key={alert.id} className="py-3 flex gap-3 select-none hover:bg-secondary/20 px-2 rounded-lg transition-colors cursor-pointer">
-                        <Clock size={16} className="text-primary mt-0.5 shrink-0" />
-                        <div>
-                          <p className="text-xs font-semibold text-foreground">{alert.title}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">{alert.desc}</p>
+                      <div key={alert.id} className="py-2.5 flex gap-3 select-none hover:bg-secondary/40 px-2 rounded-xl transition-colors cursor-pointer">
+                        <div className="p-1.5 bg-primary/10 rounded-lg text-primary shrink-0 self-start mt-0.5">
+                          <Clock size={14} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold text-foreground truncate">{alert.title}</p>
+                            {alert.time && <span className="text-[9px] text-muted-foreground font-mono">{alert.time}</span>}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">{alert.desc}</p>
                         </div>
                       </div>
                     );
