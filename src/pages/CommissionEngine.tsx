@@ -1,19 +1,22 @@
-import React, { useState } from 'react';
-import { AlertTriangle, Share2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AlertTriangle, Share2, Save, CheckCircle2, RefreshCw, IndianRupee, Store, Wrench, Package, Factory, UserCheck, ShieldCheck, MapPin, Building, Globe } from 'lucide-react';
+import axios from 'axios';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'https://server.apexbee.in';
 
 export const CommissionEngine: React.FC = () => {
   // Calculator inputs
   const [vendorPrice, setVendorPrice] = useState<number>(1000);
   const [platComm, setPlatComm] = useState<number>(100);
   const [platCommType, setPlatCommType] = useState<'fixed' | 'percentage'>('fixed');
-  
+
   const [shipping, setShipping] = useState<number>(50);
   const [packing, setPacking] = useState<number>(30);
-  
+
   // Splits
   const [wishLink, setWishLink] = useState<number>(10);
   const [firstPurchase, setFirstPurchase] = useState<number>(10);
-  
+
   const [l1Referral, setL1Referral] = useState<number>(20);
   const [l2Referral, setL2Referral] = useState<number>(15);
   const [l3Referral, setL3Referral] = useState<number>(10);
@@ -22,9 +25,74 @@ export const CommissionEngine: React.FC = () => {
   const [distFran, setDistFran] = useState<number>(5);
   const [mandalFran, setMandalFran] = useState<number>(10);
 
+  // Dynamic Backend Partner & Vendor Onboarding Referral Rewards
+  const [onboardingRewards, setOnboardingRewards] = useState({
+    vendor: 0,
+    service_provider: 0,
+    wholesaler: 0,
+    manufacturer: 0,
+    entrepreneur: 0,
+    mandal_franchise: 0,
+    district_franchise: 0,
+    state_franchise: 0
+  });
+  const [isLoadingOnboarding, setIsLoadingOnboarding] = useState(false);
+  const [isSavingOnboarding, setIsSavingOnboarding] = useState(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
+
+  const fetchOnboardingRewards = async () => {
+    setIsLoadingOnboarding(true);
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken') || sessionStorage.getItem('token');
+      const res = await axios.get(`${API_BASE}/api/referrals/admin/settings`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success && res.data.settings?.onboardingRewards) {
+        setOnboardingRewards({
+          vendor: res.data.settings.onboardingRewards.vendor ?? 0,
+          service_provider: res.data.settings.onboardingRewards.service_provider ?? 0,
+          wholesaler: res.data.settings.onboardingRewards.wholesaler ?? 0,
+          manufacturer: res.data.settings.onboardingRewards.manufacturer ?? 0,
+          entrepreneur: res.data.settings.onboardingRewards.entrepreneur ?? 0,
+          mandal_franchise: res.data.settings.onboardingRewards.mandal_franchise ?? 0,
+          district_franchise: res.data.settings.onboardingRewards.district_franchise ?? 0,
+          state_franchise: res.data.settings.onboardingRewards.state_franchise ?? 0
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load referral onboarding settings:', err);
+    } finally {
+      setIsLoadingOnboarding(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOnboardingRewards();
+  }, []);
+
+  const handleSaveOnboardingRewards = async () => {
+    setIsSavingOnboarding(true);
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken') || sessionStorage.getItem('token');
+      const res = await axios.put(`${API_BASE}/api/referrals/admin/settings`, {
+        onboardingRewards
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setSaveSuccessMsg('Onboarding referral rewards saved successfully!');
+        setTimeout(() => setSaveSuccessMsg(''), 4000);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to save settings');
+    } finally {
+      setIsSavingOnboarding(false);
+    }
+  };
+
   // Live Calculations
   let platCommAbsolute = 0;
-  
+
   if (platCommType === 'percentage') {
     platCommAbsolute = (platComm / 100) * vendorPrice;
   } else {
@@ -47,7 +115,7 @@ export const CommissionEngine: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      
+
       {/* Intro Header */}
       <div className="bg-card border border-border/80 rounded-2xl p-4 shadow-sm flex items-center gap-3">
         <Share2 className="text-primary shrink-0" size={24} />
@@ -58,7 +126,7 @@ export const CommissionEngine: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
+
         {/* Parameters Form - 5 columns */}
         <div className="lg:col-span-5 bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
           <h3 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border pb-3">Calculator Inputs</h3>
@@ -216,7 +284,7 @@ export const CommissionEngine: React.FC = () => {
 
         {/* Live Outputs & Visual Breakdown - 7 columns */}
         <div className="lg:col-span-7 space-y-6">
-          
+
           {/* Main summary values */}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-card border border-border/80 rounded-2xl p-4 shadow-sm text-center">
@@ -240,7 +308,7 @@ export const CommissionEngine: React.FC = () => {
             <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Revenue Allocation Breakdown</h3>
 
             <div className="space-y-3.5 text-xs">
-              
+
               {/* Seller block */}
               <div className="space-y-1.5">
                 <div className="flex justify-between font-semibold">
@@ -337,7 +405,7 @@ export const CommissionEngine: React.FC = () => {
           {/* Visual tree map diagram */}
           <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
             <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Simulated Cash Distribution Path</h3>
-            
+
             <div className="border border-border/60 rounded-xl p-4 bg-secondary/15 flex flex-col items-center justify-center space-y-3 font-mono text-[10px] text-foreground">
               {/* Customer */}
               <div className="px-4 py-1.5 bg-indigo-500 text-white rounded-lg font-bold border border-indigo-600">
@@ -384,6 +452,233 @@ export const CommissionEngine: React.FC = () => {
 
         </div>
 
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════
+          PARTNER & VENDOR ONBOARDING REFERRAL REWARDS (BACKEND CONFIGURATION)
+          ═══════════════════════════════════════════════════════ */}
+      <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold">
+              <IndianRupee size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-foreground uppercase tracking-wider">
+                Partner & Vendor Onboarding Referral Rewards (₹)
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Configure one-time cash rewards credited to referrers upon new partner registration & verification. Set to <b>₹0</b> to disable registration bonuses.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={fetchOnboardingRewards}
+              disabled={isLoadingOnboarding}
+              className="px-3 py-2 bg-secondary hover:bg-secondary/80 text-foreground text-xs font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer border border-border"
+              title="Refresh settings from database"
+            >
+              <RefreshCw size={14} className={isLoadingOnboarding ? "animate-spin" : ""} />
+              <span>Refresh</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSaveOnboardingRewards}
+              disabled={isSavingOnboarding}
+              className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 text-xs font-black rounded-xl flex items-center gap-1.5 shadow-md hover:shadow-lg transition cursor-pointer border-none disabled:opacity-50"
+            >
+              <Save size={14} className={isSavingOnboarding ? "animate-spin" : ""} />
+              <span>{isSavingOnboarding ? "Saving..." : "Save Configuration"}</span>
+            </button>
+          </div>
+        </div>
+
+        {saveSuccessMsg && (
+          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 rounded-xl text-xs font-bold flex items-center gap-2">
+            <CheckCircle2 size={16} />
+            <span>{saveSuccessMsg}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {/* Vendor */}
+          <div className="bg-secondary/15 border border-border/80 rounded-xl p-3.5 space-y-2 hover:border-amber-500/40 transition">
+            <div className="flex items-center gap-2 text-foreground font-bold text-xs">
+              <Store size={16} className="text-amber-500 shrink-0" />
+              <span>Vendor / Local Shop</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Reward when referred Vendor KYC is approved</p>
+            <div className="flex items-center gap-1.5 bg-card border border-border rounded-lg px-2.5 py-1.5">
+              <span className="text-xs font-bold text-muted-foreground">₹</span>
+              <input
+                type="number"
+                min="0"
+                value={onboardingRewards.vendor}
+                onChange={(e) => setOnboardingRewards(prev => ({ ...prev, vendor: Number(e.target.value) }))}
+                className="w-full bg-transparent font-mono font-black text-foreground text-xs outline-none"
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          {/* Service Provider */}
+          <div className="bg-secondary/15 border border-border/80 rounded-xl p-3.5 space-y-2 hover:border-amber-500/40 transition">
+            <div className="flex items-center gap-2 text-foreground font-bold text-xs">
+              <Wrench size={16} className="text-blue-500 shrink-0" />
+              <span>Service Provider</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Reward when Service Provider KYC is approved</p>
+            <div className="flex items-center gap-1.5 bg-card border border-border rounded-lg px-2.5 py-1.5">
+              <span className="text-xs font-bold text-muted-foreground">₹</span>
+              <input
+                type="number"
+                min="0"
+                value={onboardingRewards.service_provider}
+                onChange={(e) => setOnboardingRewards(prev => ({ ...prev, service_provider: Number(e.target.value) }))}
+                className="w-full bg-transparent font-mono font-black text-foreground text-xs outline-none"
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          {/* Wholesaler */}
+          <div className="bg-secondary/15 border border-border/80 rounded-xl p-3.5 space-y-2 hover:border-amber-500/40 transition">
+            <div className="flex items-center gap-2 text-foreground font-bold text-xs">
+              <Package size={16} className="text-indigo-500 shrink-0" />
+              <span>Wholesaler</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Reward when Wholesaler KYC is approved</p>
+            <div className="flex items-center gap-1.5 bg-card border border-border rounded-lg px-2.5 py-1.5">
+              <span className="text-xs font-bold text-muted-foreground">₹</span>
+              <input
+                type="number"
+                min="0"
+                value={onboardingRewards.wholesaler}
+                onChange={(e) => setOnboardingRewards(prev => ({ ...prev, wholesaler: Number(e.target.value) }))}
+                className="w-full bg-transparent font-mono font-black text-foreground text-xs outline-none"
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          {/* Manufacturer */}
+          <div className="bg-secondary/15 border border-border/80 rounded-xl p-3.5 space-y-2 hover:border-amber-500/40 transition">
+            <div className="flex items-center gap-2 text-foreground font-bold text-xs">
+              <Factory size={16} className="text-purple-500 shrink-0" />
+              <span>Manufacturer</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Reward when Manufacturer KYC is approved</p>
+            <div className="flex items-center gap-1.5 bg-card border border-border rounded-lg px-2.5 py-1.5">
+              <span className="text-xs font-bold text-muted-foreground">₹</span>
+              <input
+                type="number"
+                min="0"
+                value={onboardingRewards.manufacturer}
+                onChange={(e) => setOnboardingRewards(prev => ({ ...prev, manufacturer: Number(e.target.value) }))}
+                className="w-full bg-transparent font-mono font-black text-foreground text-xs outline-none"
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          {/* Entrepreneur */}
+          <div className="bg-secondary/15 border border-border/80 rounded-xl p-3.5 space-y-2 hover:border-amber-500/40 transition">
+            <div className="flex items-center gap-2 text-foreground font-bold text-xs">
+              <UserCheck size={16} className="text-emerald-500 shrink-0" />
+              <span>Entrepreneur / Agent</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Reward when Entrepreneur KYC is approved</p>
+            <div className="flex items-center gap-1.5 bg-card border border-border rounded-lg px-2.5 py-1.5">
+              <span className="text-xs font-bold text-muted-foreground">₹</span>
+              <input
+                type="number"
+                min="0"
+                value={onboardingRewards.entrepreneur}
+                onChange={(e) => setOnboardingRewards(prev => ({ ...prev, entrepreneur: Number(e.target.value) }))}
+                className="w-full bg-transparent font-mono font-black text-foreground text-xs outline-none"
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          {/* Mandal Franchise */}
+          <div className="bg-secondary/15 border border-border/80 rounded-xl p-3.5 space-y-2 hover:border-amber-500/40 transition">
+            <div className="flex items-center gap-2 text-foreground font-bold text-xs">
+              <MapPin size={16} className="text-rose-500 shrink-0" />
+              <span>Mandal Franchise</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Reward when Mandal Franchise is approved</p>
+            <div className="flex items-center gap-1.5 bg-card border border-border rounded-lg px-2.5 py-1.5">
+              <span className="text-xs font-bold text-muted-foreground">₹</span>
+              <input
+                type="number"
+                min="0"
+                value={onboardingRewards.mandal_franchise}
+                onChange={(e) => setOnboardingRewards(prev => ({ ...prev, mandal_franchise: Number(e.target.value) }))}
+                className="w-full bg-transparent font-mono font-black text-foreground text-xs outline-none"
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          {/* District Franchise */}
+          <div className="bg-secondary/15 border border-border/80 rounded-xl p-3.5 space-y-2 hover:border-amber-500/40 transition">
+            <div className="flex items-center gap-2 text-foreground font-bold text-xs">
+              <Building size={16} className="text-orange-500 shrink-0" />
+              <span>District Franchise</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Reward when District Franchise is approved</p>
+            <div className="flex items-center gap-1.5 bg-card border border-border rounded-lg px-2.5 py-1.5">
+              <span className="text-xs font-bold text-muted-foreground">₹</span>
+              <input
+                type="number"
+                min="0"
+                value={onboardingRewards.district_franchise}
+                onChange={(e) => setOnboardingRewards(prev => ({ ...prev, district_franchise: Number(e.target.value) }))}
+                className="w-full bg-transparent font-mono font-black text-foreground text-xs outline-none"
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          {/* State Franchise */}
+          <div className="bg-secondary/15 border border-border/80 rounded-xl p-3.5 space-y-2 hover:border-amber-500/40 transition">
+            <div className="flex items-center gap-2 text-foreground font-bold text-xs">
+              <Globe size={16} className="text-cyan-500 shrink-0" />
+              <span>State Franchise</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Reward when State Franchise is approved</p>
+            <div className="flex items-center gap-1.5 bg-card border border-border rounded-lg px-2.5 py-1.5">
+              <span className="text-xs font-bold text-muted-foreground">₹</span>
+              <input
+                type="number"
+                min="0"
+                value={onboardingRewards.state_franchise}
+                onChange={(e) => setOnboardingRewards(prev => ({ ...prev, state_franchise: Number(e.target.value) }))}
+                className="w-full bg-transparent font-mono font-black text-foreground text-xs outline-none"
+                placeholder="0"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="p-3 bg-secondary/30 rounded-xl border border-border/60 text-[11px] text-muted-foreground flex items-center justify-between">
+          <span>* All rewards are set to <b>₹0 by default</b>. Changing any amount here immediately updates the live backend referral settlement engine.</span>
+          <button
+            type="button"
+            onClick={() => setOnboardingRewards({
+              vendor: 0, service_provider: 0, wholesaler: 0, manufacturer: 0,
+              entrepreneur: 0, mandal_franchise: 0, district_franchise: 0, state_franchise: 0
+            })}
+            className="text-rose-500 hover:text-rose-600 font-bold underline text-[11px] cursor-pointer bg-transparent border-0"
+          >
+            Reset All to ₹0
+          </button>
+        </div>
       </div>
 
     </div>

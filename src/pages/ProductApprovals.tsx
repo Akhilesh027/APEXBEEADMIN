@@ -29,7 +29,8 @@ import {
   List,
   AlertCircle,
   ShoppingBag,
-  Utensils
+  Utensils,
+  Coins
 } from 'lucide-react';
 import { productService } from '../services/productService';
 
@@ -102,9 +103,10 @@ const SummaryCard = ({ title, value, icon: Icon, color = 'text-foreground' }: an
 );
 
 const CommissionCard = ({ title, share, index, updateShare, distributionPool }: any) => {
-  const amount = share.amount !== undefined 
-    ? Number(share.amount || 0) 
-    : ((distributionPool || 0) * Number(share.percent || 0)) / 100;
+  const roundMoney = (val: number) => Math.round((val + Number.EPSILON) * 100) / 100;
+  const amount = share.amount !== undefined && share.amount !== null && !isNaN(Number(share.amount)) && Number(share.amount) > 0
+    ? Number(share.amount)
+    : roundMoney(((distributionPool || 0) * Number(share.percent || 0)) / 100);
 
   return (
     <div className="rounded-xl border border-border bg-card p-2.5">
@@ -116,7 +118,7 @@ const CommissionCard = ({ title, share, index, updateShare, distributionPool }: 
         <div className="flex items-center gap-1.5">
           <input
             type="number"
-            value={share.percent === undefined ? '' : share.percent}
+            value={share.percent === undefined || share.percent === null ? '' : share.percent}
             onChange={(e) => updateShare(index, 'percent', e.target.value)}
             className="w-full p-1.5 rounded-lg border border-border bg-background text-center text-xs font-semibold outline-none focus:border-primary"
             placeholder="%"
@@ -161,6 +163,7 @@ export const AdminProductApproval = () => {
     platformFeePercent: '',
     vendorCommissionPercent: '',
     distributedFrom: 'platform_fee',
+    customEstimatedEarning: '',
     shippingCharge: '',
     packingCharge: '',
     remarks: '',
@@ -343,17 +346,32 @@ export const AdminProductApproval = () => {
 
     const existingShares = product.adminPricing?.commissionShares?.length
       ? product.adminPricing.commissionShares.filter(
-          (share: any) => share.type !== 'referrer'
+          (share: any) => share && share.type !== 'referrer'
         )
       : defaultShares;
 
+    const pf = product.adminPricing?.platformFeePercent !== undefined && product.adminPricing?.platformFeePercent !== null && product.adminPricing?.platformFeePercent !== ''
+      ? String(product.adminPricing.platformFeePercent)
+      : (product.platformCommissionPercent !== undefined && product.platformCommissionPercent !== null && product.platformCommissionPercent !== ''
+        ? String(product.platformCommissionPercent)
+        : (product.platformFeePercent !== undefined && product.platformFeePercent !== null && product.platformFeePercent !== '' ? String(product.platformFeePercent) : '25'));
+
+    const vc = product.adminPricing?.vendorCommissionPercent !== undefined && product.adminPricing?.vendorCommissionPercent !== null && product.adminPricing?.vendorCommissionPercent !== ''
+      ? String(product.adminPricing.vendorCommissionPercent)
+      : (product.vendorCommissionPercent !== undefined && product.vendorCommissionPercent !== null && product.vendorCommissionPercent !== '' ? String(product.vendorCommissionPercent) : '0');
+
+    const estEarn = product.adminPricing?.estimatedEarning !== undefined && product.adminPricing?.estimatedEarning !== null
+      ? String(product.adminPricing.estimatedEarning)
+      : (product.adminPricing?.averageReferralEarning !== undefined && product.adminPricing?.averageReferralEarning !== null ? String(product.adminPricing.averageReferralEarning) : '');
+
     setPricing({
-      mrp: product.adminPricing?.mrp || product.baseMrp || '',
+      mrp: product.adminPricing?.mrp !== undefined && product.adminPricing?.mrp !== '' ? String(product.adminPricing.mrp) : (product.baseMrp ? String(product.baseMrp) : ''),
       sellingPrice:
-        product.adminPricing?.sellingPrice || product.baseSellingPrice || '',
-      platformFeePercent: product.adminPricing?.platformFeePercent || '',
-      vendorCommissionPercent: product.adminPricing?.vendorCommissionPercent || product.vendorCommissionPercent || '',
+        product.adminPricing?.sellingPrice !== undefined && product.adminPricing?.sellingPrice !== '' ? String(product.adminPricing.sellingPrice) : (product.baseSellingPrice ? String(product.baseSellingPrice) : ''),
+      platformFeePercent: pf,
+      vendorCommissionPercent: vc,
       distributedFrom: product.adminPricing?.distributedFrom || 'platform_fee',
+      customEstimatedEarning: estEarn,
       shippingCharge: product.adminPricing?.shippingCharge !== undefined && product.adminPricing?.shippingCharge !== null
         ? product.adminPricing.shippingCharge.toString()
         : '0',
@@ -423,6 +441,21 @@ export const AdminProductApproval = () => {
     (platformFeeAmount + vendorCommissionAmount) - totalCommissionAmount
   );
 
+  const l1Share = calculatedShares.find((s) => s.type === 'level1');
+  const l2Share = calculatedShares.find((s) => s.type === 'level2');
+  const l3Share = calculatedShares.find((s) => s.type === 'level3');
+
+  const l1EarnAmt = l1Share?.amount !== undefined ? Number(l1Share.amount || 0) : roundMoney((distributionPool * Number(l1Share?.percent || 0)) / 100);
+  const l2EarnAmt = l2Share?.amount !== undefined ? Number(l2Share.amount || 0) : roundMoney((distributionPool * Number(l2Share?.percent || 0)) / 100);
+  const l3EarnAmt = l3Share?.amount !== undefined ? Number(l3Share.amount || 0) : roundMoney((distributionPool * Number(l3Share?.percent || 0)) / 100);
+
+  const avgReferralEarn = roundMoney((l1EarnAmt + l2EarnAmt + l3EarnAmt) / 3);
+  const totalReferralEarn = roundMoney(l1EarnAmt + l2EarnAmt + l3EarnAmt);
+
+  const activeEstimatedEarn = pricing.customEstimatedEarning !== undefined && pricing.customEstimatedEarning !== '' && !isNaN(Number(pricing.customEstimatedEarning))
+    ? Number(pricing.customEstimatedEarning)
+    : avgReferralEarn;
+
   const updateShare = (index: number, key: string, value: any) => {
     const updated = [...pricing.commissionShares] as any[];
     const item = { ...updated[index] };
@@ -480,6 +513,15 @@ export const AdminProductApproval = () => {
         totalCommissionAmount,
         finalSellerAmount,
         platformNetProfit,
+        referralEarnings: {
+          level1: l1EarnAmt,
+          level2: l2EarnAmt,
+          level3: l3EarnAmt,
+          average: activeEstimatedEarn,
+          total: totalReferralEarn,
+        },
+        averageReferralEarning: activeEstimatedEarn,
+        estimatedEarning: activeEstimatedEarn,
         remarks: pricing.remarks,
       });
 
@@ -1371,14 +1413,25 @@ export const AdminProductApproval = () => {
                       </div>
                     </td>
 
-                    {/* Admin Configured Price */}
+                    {/* Admin Configured Price & Est. Referral Earn */}
                     <td className="p-3">
                       {product.adminPricing ? (
-                        <div>
-                          <p className="font-bold text-foreground">₹{product.adminPricing.sellingPrice}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            Seller payout: ₹{Number(product.adminPricing.finalSellerAmount || 0).toFixed(2)}
-                          </p>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-foreground">₹{product.adminPricing.sellingPrice}</span>
+                            <span className="bg-primary/10 text-primary text-[9.5px] font-bold px-1.5 py-0.2 rounded">
+                              Fee: {product.adminPricing.platformFeePercent ?? 0}%
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-wrap text-[9.5px]">
+                            <span className="text-muted-foreground">
+                              Payout: <b className="text-emerald-600">₹{Number(product.adminPricing.finalSellerAmount || 0).toFixed(2)}</b>
+                            </span>
+                            <span className="bg-amber-500/15 text-amber-800 dark:text-amber-300 font-extrabold px-1 rounded flex items-center gap-0.5">
+                              <Coins size={9} className="text-amber-600" />
+                              <span>Est. Earn: ₹{Number(product.adminPricing.estimatedEarning ?? product.adminPricing.averageReferralEarning ?? product.adminPricing.referralEarnings?.average ?? 0).toFixed(2)}</span>
+                            </span>
+                          </div>
                         </div>
                       ) : (
                         <span className="text-muted-foreground italic text-[11px]">Auto / Default Split</span>
@@ -1611,10 +1664,43 @@ export const AdminProductApproval = () => {
                         })
                       }
                     />
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                          Est. Earn (₹)
+                        </label>
+                        {pricing.customEstimatedEarning && (
+                          <button
+                            type="button"
+                            onClick={() => setPricing({ ...pricing, customEstimatedEarning: '' })}
+                            className="text-[9px] text-primary hover:underline font-bold cursor-pointer"
+                            title="Reset to auto-calculated 3-level average"
+                          >
+                            Auto
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          placeholder={`Auto ₹${avgReferralEarn.toFixed(2)}`}
+                          value={pricing.customEstimatedEarning || ''}
+                          onChange={(e: any) =>
+                            setPricing({
+                              ...pricing,
+                              customEstimatedEarning: e.target.value,
+                            })
+                          }
+                          className="w-full p-2.5 rounded-xl border border-border bg-background text-xs font-semibold outline-none focus:border-primary pr-8"
+                        />
+                        <Coins size={13} className="absolute right-2.5 top-3 text-amber-500 pointer-events-none" />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
                   <SummaryCard
                     title="ApexBee Comm"
                     value={`₹${vendorCommissionAmount.toFixed(2)}`}
@@ -1624,7 +1710,7 @@ export const AdminProductApproval = () => {
 
                   <SummaryCard
                     title="Platform Fee"
-                    value={`₹${platformFeeAmount.toFixed(2)}`}
+                    value={`₹${platformFeeAmount.toFixed(2)} (${pricing.platformFeePercent || 0}%)`}
                     icon={IndianRupee}
                   />
 
@@ -1633,6 +1719,13 @@ export const AdminProductApproval = () => {
                     value={`₹${distributionPool.toFixed(2)}`}
                     icon={Network}
                     color="text-indigo-500"
+                  />
+
+                  <SummaryCard
+                    title="Est. Earning"
+                    value={`₹${activeEstimatedEarn.toFixed(2)}`}
+                    icon={Coins}
+                    color="text-emerald-500"
                   />
 
                   <SummaryCard
@@ -1686,11 +1779,18 @@ export const AdminProductApproval = () => {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-border bg-secondary/10 p-3">
-                  <h3 className="text-[11px] font-bold uppercase text-foreground mb-2 flex items-center gap-1">
-                    <Network size={13} />
-                    Referral Network Commission
-                  </h3>
+                <div className="rounded-2xl border border-border bg-secondary/10 p-3 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-2">
+                    <h3 className="text-[11px] font-bold uppercase text-foreground flex items-center gap-1">
+                      <Network size={13} className="text-indigo-500" />
+                      Referral Network Commission
+                    </h3>
+                    <span className="bg-emerald-500/15 border border-emerald-500/30 text-emerald-900 dark:text-emerald-300 text-[10px] font-bold px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
+                      <Coins size={12} className="text-amber-600" />
+                      <span>Active Est. Earn:</span>
+                      <b className="text-emerald-600 dark:text-emerald-400 text-xs">₹{activeEstimatedEarn.toFixed(2)}</b>
+                    </span>
+                  </div>
 
                   <div className="grid grid-cols-3 gap-2">
                     {referralShares.map((share) => {
@@ -1709,6 +1809,44 @@ export const AdminProductApproval = () => {
                         />
                       );
                     })}
+                  </div>
+
+                  {/* Single Unified Live Estimation Ribbon with Direct Edit */}
+                  <div className="p-2.5 rounded-xl bg-card border border-border/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <Coins size={14} className="text-amber-500 shrink-0" />
+                      <div>
+                        <p className="text-[11px] font-bold text-foreground">
+                          Estimated Referral Earning
+                        </p>
+                        <p className="text-[9.5px] text-muted-foreground">
+                          Auto 3-tier average: ₹{avgReferralEarn.toFixed(2)} {pricing.customEstimatedEarning ? `(Custom overridden to ₹${Number(pricing.customEstimatedEarning).toFixed(2)})` : '(Auto calculated)'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase">Override Amount:</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold text-muted-foreground">₹</span>
+                        <input
+                          type="number"
+                          placeholder={avgReferralEarn.toFixed(2)}
+                          value={pricing.customEstimatedEarning || ''}
+                          onChange={(e) => setPricing({ ...pricing, customEstimatedEarning: e.target.value })}
+                          className="w-24 p-1.5 rounded-lg border border-border bg-background text-xs font-black text-emerald-600 outline-none focus:border-primary text-center"
+                        />
+                        {pricing.customEstimatedEarning && (
+                          <button
+                            type="button"
+                            onClick={() => setPricing({ ...pricing, customEstimatedEarning: '' })}
+                            className="px-2 py-1 text-[10px] font-bold rounded-lg bg-secondary text-muted-foreground hover:text-foreground cursor-pointer"
+                          >
+                            Reset Auto
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 

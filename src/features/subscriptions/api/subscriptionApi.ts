@@ -1,9 +1,5 @@
 const getApiBaseUrl = () => {
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname || 'localhost';
-    return `http://${host}:5500/api`;
-  }
-  return 'https://server.apexbee.in/api';
+  return import.meta.env.VITE_API_URL || 'https://server.apexbee.in/api';
 };
 
 const getHeaders = () => {
