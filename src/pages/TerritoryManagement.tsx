@@ -59,6 +59,11 @@ interface Territory {
   status: Status;
   density: Density;
   targetCoverage: string;
+  annualFranchiseFee?: number;
+  franchiseFeePerYear?: number;
+  advanceBookingType?: "percentage" | "fixed";
+  advanceBookingValue?: number;
+  minBookingAdvance?: number;
 }
 
 const API = "https://server.apexbee.in/api/admin";
@@ -93,6 +98,9 @@ export const TerritoryManagement: React.FC = () => {
   const [addDensity, setAddDensity] = useState<Density>("Medium");
   const [addTargetCoverage, setAddTargetCoverage] = useState("100%");
   const [addStatus, setAddStatus] = useState<Status>("Active");
+  const [addAnnualFee, setAddAnnualFee] = useState<number | string>("");
+  const [addAdvanceType, setAddAdvanceType] = useState<"percentage" | "fixed">("percentage");
+  const [addAdvanceValue, setAddAdvanceValue] = useState<number | string>(20);
 
   // Edit Territory Modal States
   const [editingTerritory, setEditingTerritory] = useState<Territory | null>(null);
@@ -109,6 +117,9 @@ export const TerritoryManagement: React.FC = () => {
   const [editDensity, setEditDensity] = useState<Density>("Medium");
   const [editTargetCoverage, setEditTargetCoverage] = useState("100%");
   const [editFranchiseId, setEditFranchiseId] = useState("");
+  const [editAnnualFee, setEditAnnualFee] = useState<number | string>("");
+  const [editAdvanceType, setEditAdvanceType] = useState<"percentage" | "fixed">("percentage");
+  const [editAdvanceValue, setEditAdvanceValue] = useState<number | string>(20);
 
   // Assign Franchise Form States
   const [selectedTerritoryId, setSelectedTerritoryId] = useState("");
@@ -354,6 +365,63 @@ export const TerritoryManagement: React.FC = () => {
       }));
   }, [mandals, addState, addDistrict]);
 
+  // Calculate Next Available Territory Code Number (001 -> 002 -> 003...)
+  const getNextAvailableCode = (
+    targetLevel: string,
+    stateName?: string,
+    districtName?: string,
+    mandalName?: string
+  ): string => {
+    const siblings = territories.filter((t) => {
+      if (t.level !== targetLevel) return false;
+      if (targetLevel === "State") return true;
+      if (targetLevel === "District") {
+        return (t.state || "").trim().toLowerCase() === (stateName || "").trim().toLowerCase();
+      }
+      if (targetLevel === "Mandal") {
+        return (
+          (t.state || "").trim().toLowerCase() === (stateName || "").trim().toLowerCase() &&
+          (t.district || "").trim().toLowerCase() === (districtName || "").trim().toLowerCase()
+        );
+      }
+      if (targetLevel === "Village" || targetLevel === "Pincode") {
+        return (
+          (t.state || "").trim().toLowerCase() === (stateName || "").trim().toLowerCase() &&
+          (t.district || "").trim().toLowerCase() === (districtName || "").trim().toLowerCase() &&
+          (t.mandal || "").trim().toLowerCase() === (mandalName || "").trim().toLowerCase()
+        );
+      }
+      return false;
+    });
+
+    const usedNumbers = new Set<number>();
+    siblings.forEach((t) => {
+      if (t.codeNumber) {
+        const num = parseInt(String(t.codeNumber).replace(/[^0-9]/g, ""), 10);
+        if (!isNaN(num) && num > 0) usedNumbers.add(num);
+      }
+      if (t.ftid) {
+        const match = t.ftid.match(/-(?:DF|MF|VF|PIN|SF)?(\d{1,4})$/i) || t.ftid.match(/-(\d{1,4})$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > 0) usedNumbers.add(num);
+        }
+      }
+    });
+
+    let nextNum = 1;
+    while (usedNumbers.has(nextNum)) {
+      nextNum++;
+    }
+
+    return String(nextNum).padStart(3, "0");
+  };
+
+  useEffect(() => {
+    const nextCode = getNextAvailableCode(level, addState, addDistrict, addMandal);
+    setAddCodeNumber(nextCode);
+  }, [level, addState, addDistrict, addMandal, territories]);
+
   // Live Auto FTID Computation for Add Form
   const previewAddFtid = useMemo(() => {
     const pad = String(addCodeNumber || "1").padStart(3, "0");
@@ -505,11 +573,14 @@ export const TerritoryManagement: React.FC = () => {
     setAddMandal("");
     setAddVillage("");
     setAddPincode("");
-    setAddCodeNumber("001");
+    setAddCodeNumber(getNextAvailableCode(level, "", "", ""));
     setAddCustomFtid("");
     setAddDensity("Medium");
     setAddTargetCoverage("100%");
     setAddStatus("Active");
+    setAddAnnualFee("");
+    setAddAdvanceType("percentage");
+    setAddAdvanceValue(20);
   };
 
   // Open Edit Modal
@@ -527,6 +598,9 @@ export const TerritoryManagement: React.FC = () => {
     setEditFranchiseStatus(item.franchiseStatus || (item.franchiseId ? "ACTIVE" : "VACANT"));
     setEditDensity(item.density || "Medium");
     setEditTargetCoverage(item.targetCoverage || "100%");
+    setEditAnnualFee(item.annualFranchiseFee ?? item.franchiseFeePerYear ?? 0);
+    setEditAdvanceType(item.advanceBookingType || "percentage");
+    setEditAdvanceValue(item.advanceBookingValue !== undefined ? item.advanceBookingValue : 20);
 
     let fId = "";
     if (item.franchiseId) {
@@ -564,6 +638,13 @@ export const TerritoryManagement: React.FC = () => {
         density: editDensity,
         targetCoverage: editTargetCoverage.trim() || "100%",
         franchiseId: editFranchiseId || null,
+        annualFranchiseFee: Number(editAnnualFee || 0),
+        franchiseFeePerYear: Number(editAnnualFee || 0),
+        advanceBookingType: editAdvanceType,
+        advanceBookingValue: Number(editAdvanceValue || 0),
+        minBookingAdvance: editAdvanceType === "percentage"
+          ? Math.round((Number(editAnnualFee || 0) * Number(editAdvanceValue || 0)) / 100)
+          : Number(editAdvanceValue || 0),
       };
 
       const res = await fetch(`${API}/territories/${editingTerritory._id}`, {
@@ -636,6 +717,13 @@ export const TerritoryManagement: React.FC = () => {
       status: addStatus,
       density: addDensity,
       targetCoverage: addTargetCoverage.trim() || "100%",
+      annualFranchiseFee: Number(addAnnualFee || 0),
+      franchiseFeePerYear: Number(addAnnualFee || 0),
+      advanceBookingType: addAdvanceType,
+      advanceBookingValue: Number(addAdvanceValue || 0),
+      minBookingAdvance: addAdvanceType === "percentage"
+        ? Math.round((Number(addAnnualFee || 0) * Number(addAdvanceValue || 0)) / 100)
+        : Number(addAdvanceValue || 0),
     };
 
     const res = await fetch(`${API}/territories`, {
@@ -714,6 +802,7 @@ export const TerritoryManagement: React.FC = () => {
               <th className="p-3">Territory Name</th>
               <th className="p-3">Hierarchy Jurisdiction</th>
               <th className="p-3">Franchisee / Operator</th>
+              <th className="p-3 text-center">Annual Fee</th>
               <th className="p-3 text-center">Franchise Status</th>
               <th className="p-3 text-center">Status</th>
               <th className="p-3 text-center">Actions</th>
@@ -759,6 +848,19 @@ export const TerritoryManagement: React.FC = () => {
                 <td className="p-3">
                   <div className="font-semibold text-foreground">
                     {getFranchiseName(item.franchiseId, item)}
+                  </div>
+                </td>
+
+                {/* Annual Fee & Advance Required Badge */}
+                <td className="p-3 text-center">
+                  <div className="space-y-0.5">
+                    <div className="inline-flex items-center gap-0.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 px-2 py-0.5 rounded-lg text-[10px] font-black whitespace-nowrap">
+                      <span>₹{Number(item.annualFranchiseFee ?? item.franchiseFeePerYear ?? 0).toLocaleString("en-IN")}</span>
+                      <span className="text-[8px] font-bold text-muted-foreground">/yr</span>
+                    </div>
+                    <div className="text-[9px] font-bold text-blue-600 dark:text-blue-400">
+                      Min Adv: ₹{Number(item.minBookingAdvance || (item.advanceBookingType === 'fixed' ? item.advanceBookingValue : Math.round((Number(item.annualFranchiseFee || 0) * Number(item.advanceBookingValue || 20)) / 100)) || 0).toLocaleString("en-IN")}
+                    </div>
                   </div>
                 </td>
 
@@ -827,7 +929,7 @@ export const TerritoryManagement: React.FC = () => {
 
             {items.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                <td colSpan={8} className="p-8 text-center text-muted-foreground">
                   No matching backend territory records found
                 </td>
               </tr>
@@ -1185,6 +1287,69 @@ export const TerritoryManagement: React.FC = () => {
               </div>
             )}
 
+            {/* Annual Franchise Fee & Advance Configuration */}
+            <div className="bg-secondary/20 p-4 rounded-xl border border-border/70 space-y-3">
+              <div>
+                <label className="block text-[11px] font-bold text-foreground mb-1">
+                  Annual Franchise Fee (₹ / Year) *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground text-xs">₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={addAnnualFee}
+                    onChange={(e) => setAddAnnualFee(e.target.value)}
+                    placeholder={
+                      level === "State" ? "500000 (₹5 Lakhs/yr)" :
+                        level === "District" ? "150000 (₹1.5 Lakhs/yr)" :
+                          level === "Mandal" ? "25000 (₹25,000/yr)" :
+                            level === "Village" ? "5000 (₹5,000/yr)" : "10000 (₹10,000/yr)"
+                    }
+                    className="w-full pl-7 pr-3 py-2.5 border border-border rounded-xl bg-background focus:outline-none focus:border-primary transition-colors text-xs font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                    Advance Booking Type
+                  </label>
+                  <select
+                    value={addAdvanceType}
+                    onChange={(e) => setAddAdvanceType(e.target.value as any)}
+                    className="w-full p-2.5 border border-border rounded-xl bg-background focus:outline-none focus:border-primary transition-colors text-xs font-bold"
+                  >
+                    <option value="percentage">Percentage (%) of Annual Fee</option>
+                    <option value="fixed">Fixed Amount (₹)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                    Advance {addAdvanceType === "percentage" ? "Percentage (%)" : "Amount (₹)"}
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={addAdvanceValue}
+                    onChange={(e) => setAddAdvanceValue(e.target.value)}
+                    placeholder={addAdvanceType === "percentage" ? "e.g. 20 (for 20%)" : "e.g. 5000"}
+                    className="w-full p-2.5 border border-border rounded-xl bg-background focus:outline-none focus:border-primary transition-colors text-xs font-semibold"
+                  />
+                </div>
+              </div>
+
+              {/* Calculated Advance Preview */}
+              <div className="bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-lg flex items-center justify-between text-xs">
+                <span className="font-semibold text-emerald-800 dark:text-emerald-300">Min. Advance to Lock Territory:</span>
+                <span className="font-black text-emerald-600 dark:text-emerald-400">
+                  ₹{Number(addAdvanceType === "percentage" ? Math.round((Number(addAnnualFee || 0) * Number(addAdvanceValue || 0)) / 100) : Number(addAdvanceValue || 0)).toLocaleString("en-IN")}
+                </span>
+              </div>
+            </div>
+
             {/* Live Computed FTID Review & Custom Override */}
             <div className="bg-secondary/30 p-3.5 rounded-xl border border-border/80 space-y-1.5">
               <div className="flex justify-between items-center">
@@ -1406,6 +1571,63 @@ export const TerritoryManagement: React.FC = () => {
                   />
                 </div>
               )}
+
+              {/* Annual Franchise Fee & Advance Configuration */}
+              <div className="bg-secondary/20 p-3.5 rounded-xl border border-border/70 space-y-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                    Annual Franchise Fee (₹ / Year)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground text-xs">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editAnnualFee}
+                      onChange={(e) => setEditAnnualFee(e.target.value)}
+                      placeholder="Enter annual franchise fee in ₹"
+                      className="w-full pl-7 pr-3 py-2.5 border border-border rounded-xl bg-background focus:outline-none focus:border-primary transition-colors text-xs font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                      Advance Booking Type
+                    </label>
+                    <select
+                      value={editAdvanceType}
+                      onChange={(e) => setEditAdvanceType(e.target.value as any)}
+                      className="w-full p-2.5 border border-border rounded-xl bg-background focus:outline-none focus:border-primary transition-colors text-xs font-bold"
+                    >
+                      <option value="percentage">Percentage (%)</option>
+                      <option value="fixed">Fixed Amount (₹)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                      Advance {editAdvanceType === "percentage" ? "Percentage (%)" : "Amount (₹)"}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editAdvanceValue}
+                      onChange={(e) => setEditAdvanceValue(e.target.value)}
+                      placeholder={editAdvanceType === "percentage" ? "e.g. 20" : "e.g. 5000"}
+                      className="w-full p-2.5 border border-border rounded-xl bg-background focus:outline-none focus:border-primary transition-colors text-xs font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-emerald-500/10 border border-emerald-500/20 p-2 rounded-lg flex items-center justify-between text-[11px]">
+                  <span className="font-semibold text-emerald-800 dark:text-emerald-300">Min. Advance to Lock:</span>
+                  <span className="font-black text-emerald-600 dark:text-emerald-400">
+                    ₹{Number(editAdvanceType === "percentage" ? Math.round((Number(editAnnualFee || 0) * Number(editAdvanceValue || 0)) / 100) : Number(editAdvanceValue || 0)).toLocaleString("en-IN")}
+                  </span>
+                </div>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
