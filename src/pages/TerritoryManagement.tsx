@@ -402,7 +402,7 @@ export const TerritoryManagement: React.FC = () => {
       }
       if (t.ftid) {
         const match = t.ftid.match(/-(?:DF|MF|VF|PIN|SF)?(\d{1,4})$/i) || t.ftid.match(/-(\d{1,4})$/);
-        if (match) {
+        if (match && match[1]) {
           const num = parseInt(match[1], 10);
           if (!isNaN(num) && num > 0) usedNumbers.add(num);
         }
