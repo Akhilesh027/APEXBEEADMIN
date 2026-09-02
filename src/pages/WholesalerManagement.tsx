@@ -43,6 +43,7 @@ export const WholesalerManagement: React.FC = () => {
             name: w.businessName,
             contact: w.ownerName,
             location: `${w.mandal || ''}, ${w.district || ''}, ${w.state || ''}`.replace(/^,\s*/, '').trim() || 'N/A',
+            pincode: w.pincode || '',
             productsCount: w.productsCount || 0,
             revenue: availableBalance + withdrawnBalance,
             availableBalance: availableBalance,
@@ -497,6 +498,10 @@ export const WholesalerManagement: React.FC = () => {
                 <div>
                   <span className="text-muted-foreground block text-[9px] font-bold">LOCATION</span>
                   <span className="font-semibold block mt-0.5">{selectedWholesaler.location}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[9px] font-bold">PINCODE</span>
+                  <span className="font-mono font-bold block mt-0.5 text-primary">{selectedWholesaler.pincode || 'N/A'}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-[9px] font-bold">PARTNER ID</span>

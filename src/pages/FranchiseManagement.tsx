@@ -475,8 +475,8 @@ export const FranchiseManagement: React.FC = () => {
         <button
           onClick={() => setActiveMainTab("franchises")}
           className={`px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-2 ${activeMainTab === "franchises"
-              ? "bg-primary text-primary-foreground shadow-xs"
-              : "bg-card text-muted-foreground hover:text-foreground border border-border"
+            ? "bg-primary text-primary-foreground shadow-xs"
+            : "bg-card text-muted-foreground hover:text-foreground border border-border"
             }`}
         >
           <Building2 size={14} />
@@ -486,8 +486,8 @@ export const FranchiseManagement: React.FC = () => {
         <button
           onClick={() => setActiveMainTab("waitlist")}
           className={`px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-2 ${activeMainTab === "waitlist"
-              ? "bg-amber-500 text-slate-950 font-black shadow-xs ring-2 ring-amber-400/40"
-              : "bg-card text-muted-foreground hover:text-foreground border border-border"
+            ? "bg-amber-500 text-slate-950 font-black shadow-xs ring-2 ring-amber-400/40"
+            : "bg-card text-muted-foreground hover:text-foreground border border-border"
             }`}
         >
           <Clock size={14} className={activeMainTab === "waitlist" ? "text-slate-950" : "text-amber-500"} />
@@ -701,10 +701,10 @@ export const FranchiseManagement: React.FC = () => {
                     {/* Franchise Level */}
                     <td className="p-3.5">
                       <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border inline-block ${app.franchiseLevel === "state"
-                          ? "bg-purple-500/10 text-purple-600 border-purple-500/20"
-                          : app.franchiseLevel === "district"
-                            ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                            : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                        ? "bg-purple-500/10 text-purple-600 border-purple-500/20"
+                        : app.franchiseLevel === "district"
+                          ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                          : "bg-amber-500/10 text-amber-600 border-amber-500/20"
                         }`}>
                         {app.franchiseLevel || "Mandal"}
                       </span>

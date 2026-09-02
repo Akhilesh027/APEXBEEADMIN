@@ -484,7 +484,7 @@ export const FoodAndDiningManagement: React.FC = () => {
                     </td>
                     <td className="p-4 text-slate-400">
                       <div>{app.location || app.address}</div>
-                      <div className="text-[10px] text-slate-500">{app.mandal}, {app.district}, {app.state}</div>
+                      <div className="text-[10px] text-slate-500">{[app.mandal, app.district, app.state].filter(Boolean).join(", ")}{app.pincode ? ` • PIN: ${app.pincode}` : ''}</div>
                     </td>
                     <td className="p-4 text-center">
                       <span
@@ -636,6 +636,9 @@ export const FoodAndDiningManagement: React.FC = () => {
               <div>
                 <span className="text-slate-400 font-semibold block">Location / Address:</span>
                 <span className="font-semibold text-slate-200">{selectedApp.address || selectedApp.location}</span>
+                <span className="text-xs text-slate-400 block mt-0.5 font-mono">
+                  {[selectedApp.mandal, selectedApp.district, selectedApp.state].filter(Boolean).join(', ')} • PIN: <strong className="text-amber-400">{selectedApp.pincode || 'Not provided'}</strong>
+                </span>
               </div>
             </div>
 

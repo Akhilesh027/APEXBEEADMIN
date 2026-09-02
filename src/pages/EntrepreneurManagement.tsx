@@ -48,6 +48,7 @@ export const EntrepreneurManagement: React.FC = () => {
             rating: '4.8',
             status: getStatusLabel(e.status),
             zone: `${e.mandal || ''}, ${e.district || ''}, ${e.state || ''}`.replace(/^,\s*/, '').trim() || 'N/A',
+            pincode: e.pincode || '',
             gstNumber: e.gstNumber,
             panNumber: e.panNumber,
             rawStatus: e.status || 'active'
@@ -492,6 +493,10 @@ export const EntrepreneurManagement: React.FC = () => {
                 <div>
                   <span className="text-muted-foreground block text-[9px] font-bold">ZONE</span>
                   <span className="font-semibold block mt-0.5 truncate">{selectedEntrepreneur.zone}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[9px] font-bold">PINCODE</span>
+                  <span className="font-mono font-bold block mt-0.5 text-primary">{selectedEntrepreneur.pincode || 'N/A'}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-[9px] font-bold">CERTIFICATION</span>

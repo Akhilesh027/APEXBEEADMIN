@@ -1064,6 +1064,12 @@ export const ApprovalCenter: React.FC = () => {
 
                       <div className="text-[10px] text-muted-foreground font-mono space-y-0.5">
                         <p>ID: {item.id} • Registered: {item.date}</p>
+                        <p className="flex items-center gap-2 mt-0.5 text-foreground font-sans text-[11px]">
+                          <span>📍 Location: <strong>{[item.address, item.mandal, item.district, item.state].filter(Boolean).join(", ") || "N/A"}</strong></span>
+                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20 font-mono font-bold text-[10px]">
+                            PIN: {item.pincode || "Not provided"}
+                          </span>
+                        </p>
 
                         {(activeSubTab === "vendors" || item.isVendor || item.roleId === "vendor" || item.applicationType === "vendor") && (item.primaryCategory || item.category) && (
                           <div className="flex flex-wrap items-center gap-1 mt-1 font-sans text-xs">
