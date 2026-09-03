@@ -1,6 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useAdminState } from '../context/AdminStateContext';
-import { Store, ShieldAlert, Award, Star, Activity, Search, ShieldCheck, TrendingUp, X } from 'lucide-react';
+import {
+  Store,
+  ShieldAlert,
+  Award,
+  Star,
+  Activity,
+  Search,
+  ShieldCheck,
+  TrendingUp,
+  X,
+  Edit3,
+  MapPin,
+  Phone,
+  Mail,
+  FileText,
+  Check,
+  Building,
+  Globe,
+  Truck,
+  Clock,
+  Save
+} from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
 export const VendorManagement: React.FC = () => {
@@ -16,6 +37,11 @@ export const VendorManagement: React.FC = () => {
   const [selectedVendor, setSelectedVendor] = useState<any | null>(null);
   const [showRemarksInput, setShowRemarksInput] = useState(false);
   const [remarks, setRemarks] = useState('');
+
+  // Edit Vendor Profile Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingVendorData, setEditingVendorData] = useState<any | null>(null);
+  const [editTab, setEditTab] = useState<'basic' | 'location' | 'operations' | 'policies' | 'governance'>('basic');
 
   // Category & Subcategories Governance state
   const [dbCategories, setDbCategories] = useState<any[]>([]);
@@ -58,7 +84,9 @@ export const VendorManagement: React.FC = () => {
 
   const getStatusLabel = (status?: string) => {
     if (status === 'active') return 'Active';
-    if (status === 'pending_verification') return 'Pending Approval';
+    if (status === 'pending_verification' || status === 'pending') return 'Pending Approval';
+    if (status === 'suspended') return 'Suspended';
+    if (status === 'blocked') return 'Blocked';
     return 'Rejected';
   };
 
@@ -100,17 +128,26 @@ export const VendorManagement: React.FC = () => {
           return {
             id: v._id,
             userId: v.userId,
-            name: v.businessName,
-            contact: v.ownerName,
-            rating: '4.8',
+            name: v.businessName || 'Unnamed Store',
+            contact: v.ownerName || 'Unknown Owner',
+            mobile: v.mobile || '',
+            email: v.email || '',
+            whatsappNumber: v.whatsappNumber || '',
+            address: v.address || '',
+            pincode: v.pincode || '',
+            state: v.state || '',
+            district: v.district || '',
+            mandal: v.mandal || '',
+            village: v.village || '',
+            rating: v.rating?.average ? String(v.rating.average) : '4.8',
             performance: '100% Fulfillment',
             revenue: availableBalance,
             status: getStatusLabel(v.status),
             category: v.category || v.primaryCategory || 'Retail Store',
             subCategory: parsedSubs[0] || v.subCategory || '',
             approvedSubcategories: parsedSubs,
-            gstNumber: v.gstNumber,
-            panNumber: v.panNumber,
+            gstNumber: v.gstNumber || '',
+            panNumber: v.panNumber || '',
             rawStatus: v.status || 'active',
             marketplaceStatus: v.marketplaceStatus || 'Draft',
             verifiedBadge: !!v.verifiedBadge,
@@ -122,7 +159,14 @@ export const VendorManagement: React.FC = () => {
             gallery: v.gallery || [],
             refundPolicy: v.refundPolicy || '',
             replacementPolicy: v.replacementPolicy || '',
-            storeDesign: v.storeDesign || {}
+            storeDesign: v.storeDesign || {},
+            storeType: v.storeType || 'grocery',
+            deliveryMode: v.deliveryMode || 'platform_delivery',
+            deliveryRadiusKm: v.deliveryRadiusKm || 5,
+            minOrder: v.minOrder || 100,
+            deliveryCharge: v.deliveryCharge || 20,
+            estimatedDeliveryMinutes: v.estimatedDeliveryMinutes || 30,
+            liveStatus: v.liveStatus || 'open',
           };
         });
         setVendorsList(mapped);
@@ -310,6 +354,161 @@ export const VendorManagement: React.FC = () => {
     }
   };
 
+  // Open Edit Vendor Modal
+  const handleOpenEditModal = (vendor: any) => {
+    setEditingVendorData({
+      userId: vendor.userId,
+      id: vendor.id,
+      businessName: vendor.name || '',
+      ownerName: vendor.contact || '',
+      mobile: vendor.mobile || '',
+      email: vendor.email || '',
+      whatsappNumber: vendor.whatsappNumber || '',
+      address: vendor.address || '',
+      pincode: vendor.pincode || '',
+      state: vendor.state || '',
+      district: vendor.district || '',
+      mandal: vendor.mandal || '',
+      village: vendor.village || '',
+      gstNumber: vendor.gstNumber || '',
+      panNumber: vendor.panNumber || '',
+      fssaiNumber: vendor.fssaiNumber || '',
+      category: vendor.category || 'Retail Store',
+      subCategory: vendor.subCategory || '',
+      storeType: vendor.storeType || 'grocery',
+      deliveryMode: vendor.deliveryMode || 'platform_delivery',
+      deliveryRadiusKm: vendor.deliveryRadiusKm || 5,
+      minOrder: vendor.minOrder || 100,
+      deliveryCharge: vendor.deliveryCharge || 20,
+      estimatedDeliveryMinutes: vendor.estimatedDeliveryMinutes || 30,
+      liveStatus: vendor.liveStatus || 'open',
+      status: vendor.rawStatus || 'active',
+      marketplaceStatus: vendor.marketplaceStatus || 'Draft',
+      verifiedBadge: !!vendor.verifiedBadge,
+      description: vendor.storeDesign?.description || '',
+      refundPolicy: vendor.refundPolicy || vendor.storeDesign?.refundPolicy || '',
+      replacementPolicy: vendor.replacementPolicy || vendor.storeDesign?.replacementPolicy || '',
+      deliveryPolicy: vendor.storeDesign?.deliveryPolicy || '',
+      latitude: vendor.location?.coordinates ? vendor.location.coordinates[1] : '',
+      longitude: vendor.location?.coordinates ? vendor.location.coordinates[0] : '',
+    });
+    setEditTab('basic');
+    setIsEditModalOpen(true);
+  };
+
+  // Save Full Vendor Profile by Admin
+  const handleSaveVendorProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingVendorData?.userId) return;
+
+    try {
+      setActionLoading(true);
+      setErrorMsg('');
+      setSuccessMsg('');
+      const token = localStorage.getItem('adminToken');
+
+      const payload = {
+        businessName: editingVendorData.businessName,
+        ownerName: editingVendorData.ownerName,
+        mobile: editingVendorData.mobile,
+        email: editingVendorData.email,
+        whatsappNumber: editingVendorData.whatsappNumber,
+        address: editingVendorData.address,
+        pincode: String(editingVendorData.pincode).trim(),
+        state: editingVendorData.state,
+        district: editingVendorData.district,
+        mandal: editingVendorData.mandal,
+        village: editingVendorData.village,
+        gstNumber: editingVendorData.gstNumber,
+        panNumber: editingVendorData.panNumber,
+        fssaiNumber: editingVendorData.fssaiNumber,
+        category: editingVendorData.category,
+        primaryCategory: editingVendorData.category,
+        subCategory: editingVendorData.subCategory,
+        storeType: editingVendorData.storeType,
+        deliveryMode: editingVendorData.deliveryMode,
+        deliveryRadiusKm: Number(editingVendorData.deliveryRadiusKm) || 5,
+        minOrder: Number(editingVendorData.minOrder) || 100,
+        deliveryCharge: Number(editingVendorData.deliveryCharge) || 20,
+        estimatedDeliveryMinutes: Number(editingVendorData.estimatedDeliveryMinutes) || 30,
+        liveStatus: editingVendorData.liveStatus,
+        status: editingVendorData.status,
+        marketplaceStatus: editingVendorData.marketplaceStatus,
+        verifiedBadge: Boolean(editingVendorData.verifiedBadge),
+        description: editingVendorData.description,
+        refundPolicy: editingVendorData.refundPolicy,
+        replacementPolicy: editingVendorData.replacementPolicy,
+        deliveryPolicy: editingVendorData.deliveryPolicy,
+        ...(editingVendorData.latitude && editingVendorData.longitude
+          ? {
+            location: {
+              type: 'Point',
+              coordinates: [parseFloat(editingVendorData.longitude), parseFloat(editingVendorData.latitude)]
+            }
+          }
+          : {})
+      };
+
+      const res = await fetch(`https://server.apexbee.in/api/admin/vendors/${editingVendorData.userId}/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSuccessMsg(`Vendor profile for "${editingVendorData.businessName}" updated successfully!`);
+        setIsEditModalOpen(false);
+
+        // Update selectedVendor if open
+        if (selectedVendor && selectedVendor.userId === editingVendorData.userId) {
+          setSelectedVendor((prev: any) => ({
+            ...prev,
+            name: editingVendorData.businessName,
+            contact: editingVendorData.ownerName,
+            mobile: editingVendorData.mobile,
+            email: editingVendorData.email,
+            whatsappNumber: editingVendorData.whatsappNumber,
+            address: editingVendorData.address,
+            pincode: editingVendorData.pincode,
+            state: editingVendorData.state,
+            district: editingVendorData.district,
+            mandal: editingVendorData.mandal,
+            village: editingVendorData.village,
+            gstNumber: editingVendorData.gstNumber,
+            panNumber: editingVendorData.panNumber,
+            fssaiNumber: editingVendorData.fssaiNumber,
+            category: editingVendorData.category,
+            subCategory: editingVendorData.subCategory,
+            status: getStatusLabel(editingVendorData.status),
+            rawStatus: editingVendorData.status,
+            marketplaceStatus: editingVendorData.marketplaceStatus,
+            verifiedBadge: editingVendorData.verifiedBadge,
+            refundPolicy: editingVendorData.refundPolicy,
+            replacementPolicy: editingVendorData.replacementPolicy,
+            storeDesign: {
+              ...(prev?.storeDesign || {}),
+              description: editingVendorData.description,
+              deliveryPolicy: editingVendorData.deliveryPolicy
+            }
+          }));
+        }
+
+        await fetchVendors();
+      } else {
+        setErrorMsg(data.message || 'Failed to update vendor profile');
+      }
+    } catch (err: any) {
+      console.error('Error saving vendor profile:', err);
+      setErrorMsg(err.message || 'Error communicating with server');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const getFilteredVendors = () => {
     switch (activeSubTab) {
       case 'pending':
@@ -324,9 +523,14 @@ export const VendorManagement: React.FC = () => {
   };
 
   const currentVendors = getFilteredVendors().filter(v =>
-    v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    v.contact.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    v.id.toLowerCase().includes(searchQuery.toLowerCase())
+    (v.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (v.contact || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (v.id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (v.pincode || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (v.district || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (v.state || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (v.mobile || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (v.email || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Group real completed orders per vendor store
@@ -361,15 +565,26 @@ export const VendorManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       {successMsg && (
-        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-xl flex items-center gap-2 text-xs font-semibold">
-          <ShieldCheck size={16} />
-          {successMsg}
+        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-xl flex items-center justify-between text-xs font-semibold">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={16} />
+            {successMsg}
+          </div>
+          <button onClick={() => setSuccessMsg('')} className="p-1 hover:text-emerald-300">
+            <X size={14} />
+          </button>
         </div>
       )}
 
       {errorMsg && (
-        <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-xs font-semibold">
-          {errorMsg}
+        <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl flex items-center justify-between text-xs font-semibold">
+          <div className="flex items-center gap-2">
+            <ShieldAlert size={16} />
+            {errorMsg}
+          </div>
+          <button onClick={() => setErrorMsg('')} className="p-1 hover:text-red-300">
+            <X size={14} />
+          </button>
         </div>
       )}
 
@@ -457,10 +672,10 @@ export const VendorManagement: React.FC = () => {
                 <Search className="absolute left-3 top-2.5 text-muted-foreground" size={14} />
                 <input
                   type="text"
-                  placeholder="Search store or owner..."
+                  placeholder="Search store, owner, pincode, city..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-4 py-1.5 bg-secondary/50 border border-border/80 focus:border-primary rounded-xl text-xs outline-none w-full sm:w-48 font-medium"
+                  className="pl-8 pr-4 py-1.5 bg-secondary/50 border border-border/80 focus:border-primary rounded-xl text-xs outline-none w-full sm:w-60 font-medium"
                 />
               </div>
             </div>
@@ -478,16 +693,29 @@ export const VendorManagement: React.FC = () => {
                   <tr>
                     <th className="p-3 font-semibold text-muted-foreground">ID</th>
                     <th className="p-3 font-semibold text-muted-foreground">Business Name</th>
+                    <th className="p-3 font-semibold text-muted-foreground">Location & Pincode</th>
                     <th className="p-3 font-semibold text-muted-foreground">GST Document</th>
                     <th className="p-3 font-semibold text-muted-foreground">PAN details</th>
                     <th className="p-3 font-semibold text-muted-foreground text-center">KYC Audit</th>
+                    <th className="p-3 font-semibold text-muted-foreground text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
                   {vendorsList.map(v => (
                     <tr key={v.id} className="hover:bg-secondary/10 transition-colors">
                       <td className="p-3 font-mono font-semibold text-primary">{v.id}</td>
-                      <td className="p-3 font-medium text-foreground">{v.name}</td>
+                      <td className="p-3">
+                        <span className="font-medium text-foreground block">{v.name}</span>
+                        <span className="text-[10px] text-muted-foreground block">Rep: {v.contact}</span>
+                      </td>
+                      <td className="p-3">
+                        <span className="inline-flex items-center gap-1 font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded text-[11px]">
+                          <MapPin size={11} className="text-primary" /> {v.pincode || 'PIN N/A'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block mt-0.5 truncate max-w-[140px]" title={v.address}>
+                          {[v.mandal, v.district, v.state].filter(Boolean).join(', ') || v.address || 'Address pending'}
+                        </span>
+                      </td>
                       <td className="p-3 font-mono text-muted-foreground">{v.gstNumber || 'GST-PENDING'}</td>
                       <td className="p-3 font-mono text-muted-foreground">{v.panNumber || 'PAN-PENDING'}</td>
                       <td className="p-3 text-center">
@@ -496,11 +724,19 @@ export const VendorManagement: React.FC = () => {
                           {v.status === 'Active' ? 'Verified' : 'Pending Verification'}
                         </span>
                       </td>
+                      <td className="p-3 text-center">
+                        <button
+                          onClick={() => handleOpenEditModal(v)}
+                          className="px-2.5 py-1 bg-primary/10 hover:bg-primary hover:text-white text-primary rounded-lg text-[10px] font-bold transition flex items-center gap-1 mx-auto"
+                        >
+                          <Edit3 size={11} /> Edit
+                        </button>
+                      </td>
                     </tr>
                   ))}
                   {vendorsList.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-xs text-muted-foreground">No records.</td>
+                      <td colSpan={7} className="p-8 text-center text-xs text-muted-foreground">No records.</td>
                     </tr>
                   )}
                 </tbody>
@@ -514,6 +750,7 @@ export const VendorManagement: React.FC = () => {
                   <tr>
                     <th className="p-3 font-semibold text-muted-foreground">Store ID</th>
                     <th className="p-3 font-semibold text-muted-foreground">Business Name</th>
+                    <th className="p-3 font-semibold text-muted-foreground">Pincode</th>
                     <th className="p-3 font-semibold text-muted-foreground">Accumulated Revenue</th>
                     <th className="p-3 font-semibold text-muted-foreground">Payout Status</th>
                     <th className="p-3 font-semibold text-muted-foreground text-center">Action</th>
@@ -524,6 +761,7 @@ export const VendorManagement: React.FC = () => {
                     <tr key={v.id} className="hover:bg-secondary/10 transition-colors">
                       <td className="p-3 font-mono font-semibold text-primary">{v.id}</td>
                       <td className="p-3 font-medium text-foreground">{v.name}</td>
+                      <td className="p-3 font-mono font-semibold text-primary">📮 {v.pincode || 'N/A'}</td>
                       <td className="p-3 font-mono font-bold text-foreground">₹{v.revenue.toLocaleString('en-IN')}</td>
                       <td className="p-3">
                         <span className="px-2 py-0.5 rounded text-[8px] font-bold bg-emerald-500/10 text-emerald-500">Settled</span>
@@ -541,7 +779,7 @@ export const VendorManagement: React.FC = () => {
                   ))}
                   {vendorsList.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-xs text-muted-foreground">No records.</td>
+                      <td colSpan={6} className="p-8 text-center text-xs text-muted-foreground">No records.</td>
                     </tr>
                   )}
                 </tbody>
@@ -554,25 +792,39 @@ export const VendorManagement: React.FC = () => {
                 <thead className="bg-secondary/40 select-none border-b border-border/60">
                   <tr>
                     <th className="p-3 font-semibold text-muted-foreground">Business Name</th>
+                    <th className="p-3 font-semibold text-muted-foreground">Pincode & City</th>
                     <th className="p-3 font-semibold text-muted-foreground">Categories</th>
                     <th className="p-3 font-semibold text-muted-foreground">Rating Score</th>
+                    <th className="p-3 font-semibold text-muted-foreground text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
                   {vendorsList.map(v => (
                     <tr key={v.id} className="hover:bg-secondary/10 transition-colors">
                       <td className="p-3 font-medium text-foreground">{v.name}</td>
+                      <td className="p-3">
+                        <span className="font-mono text-primary font-bold text-[11px]">📮 {v.pincode || 'N/A'}</span>
+                        <span className="text-[10px] text-muted-foreground block">{v.district || v.state || ''}</span>
+                      </td>
                       <td className="p-3 text-muted-foreground">{v.category}</td>
                       <td className="p-3">
                         <span className="flex items-center gap-1 font-semibold text-amber-500 font-mono">
                           <Star size={12} fill="#f59e0b" /> {v.rating}
                         </span>
                       </td>
+                      <td className="p-3 text-center">
+                        <button
+                          onClick={() => handleOpenEditModal(v)}
+                          className="px-2.5 py-1 bg-secondary hover:bg-secondary/80 text-foreground border border-border rounded-lg text-[10px] font-bold transition flex items-center gap-1 mx-auto"
+                        >
+                          <Edit3 size={11} /> Edit
+                        </button>
+                      </td>
                     </tr>
                   ))}
                   {vendorsList.length === 0 && (
                     <tr>
-                      <td colSpan={3} className="p-8 text-center text-xs text-muted-foreground">No records.</td>
+                      <td colSpan={5} className="p-8 text-center text-xs text-muted-foreground">No records.</td>
                     </tr>
                   )}
                 </tbody>
@@ -585,40 +837,68 @@ export const VendorManagement: React.FC = () => {
                 <thead className="bg-secondary/40 select-none border-b border-border/60">
                   <tr>
                     <th className="p-3 font-semibold text-muted-foreground">Vendor Store</th>
-                    <th className="p-3 font-semibold text-muted-foreground">Store ID</th>
+                    <th className="p-3 font-semibold text-muted-foreground">Pincode & Location</th>
                     <th className="p-3 font-semibold text-muted-foreground">Contact</th>
                     <th className="p-3 font-semibold text-muted-foreground">Category Segment</th>
-                    <th className="p-3 font-semibold text-muted-foreground text-center">Action</th>
+                    <th className="p-3 font-semibold text-muted-foreground text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
                   {currentVendors.map(v => (
                     <tr key={v.id} className="hover:bg-secondary/10 transition-colors">
                       <td className="p-3">
-                        <span className="font-semibold text-foreground block">{v.name}</span>
-                        <span className="text-[10px] text-muted-foreground block">Representative: {v.contact}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-foreground block">{v.name}</span>
+                          {v.verifiedBadge && (
+                            <span className="text-[9px] bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 px-1 rounded font-bold">Verified</span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground font-mono block">ID: {v.id} • Rep: {v.contact}</span>
                       </td>
-                      <td className="p-3 font-mono text-muted-foreground">{v.id}</td>
-                      <td className="p-3 text-muted-foreground">{v.contact}</td>
-                      <td className="p-3 text-muted-foreground">{v.category}</td>
+                      <td className="p-3">
+                        <span className="inline-flex items-center gap-1 font-mono font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-lg text-[11px]">
+                          <MapPin size={11} className="text-primary shrink-0" />
+                          {v.pincode || 'PIN NOT SET'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block mt-0.5 truncate max-w-[160px]" title={v.address}>
+                          {[v.mandal, v.district, v.state].filter(Boolean).join(', ') || v.address || 'Location pending'}
+                        </span>
+                      </td>
+                      <td className="p-3 text-muted-foreground">
+                        <span className="block">{v.mobile || v.contact}</span>
+                        {v.email && <span className="text-[10px] text-muted-foreground/80 block truncate max-w-[120px]">{v.email}</span>}
+                      </td>
+                      <td className="p-3 text-muted-foreground">
+                        <span className="font-medium text-foreground block">{v.category}</span>
+                        {v.subCategory && <span className="text-[10px] text-muted-foreground block">{v.subCategory}</span>}
+                      </td>
                       <td className="p-3 text-center">
-                        <button
-                          onClick={() => {
-                            setSelectedVendor(v);
-                            setRemarks('');
-                            setShowRemarksInput(false);
-                          }}
-                          className="px-2.5 py-1 bg-secondary hover:bg-secondary/80 border border-border text-foreground rounded-lg text-[10px] font-bold transition-all cursor-pointer"
-                        >
-                          Manage
-                        </button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => {
+                              setSelectedVendor(v);
+                              setRemarks('');
+                              setShowRemarksInput(false);
+                            }}
+                            className="px-2.5 py-1 bg-secondary hover:bg-secondary/80 border border-border text-foreground rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                          >
+                            Manage
+                          </button>
+                          <button
+                            onClick={() => handleOpenEditModal(v)}
+                            className="px-2.5 py-1 bg-primary/10 hover:bg-primary text-primary hover:text-white border border-primary/20 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                            title="Edit Vendor Profile"
+                          >
+                            <Edit3 size={11} /> Edit Profile
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                   {currentVendors.length === 0 && (
                     <tr>
                       <td colSpan={5} className="p-12 text-center text-xs text-muted-foreground border-t">
-                        No stores found matching this category.
+                        No stores found matching this category or filter.
                       </td>
                     </tr>
                   )}
@@ -682,7 +962,7 @@ export const VendorManagement: React.FC = () => {
 
       </div>
 
-      {/* Vendor Details Modal */}
+      {/* Vendor Details Audit Modal */}
       {selectedVendor && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-card border border-border max-w-5xl w-full max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col text-xs text-foreground">
@@ -697,13 +977,22 @@ export const VendorManagement: React.FC = () => {
                   <h3 className="text-base font-black text-foreground uppercase tracking-wide">
                     Vendor Storefront Audit & Governance Deck
                   </h3>
-                  <p className="text-xs text-muted-foreground">
-                    {selectedVendor.name} • Representative: {selectedVendor.contact}
+                  <p className="text-xs text-muted-foreground flex items-center gap-2">
+                    <span>{selectedVendor.name} • Representative: {selectedVendor.contact}</span>
+                    <span className="inline-flex items-center gap-1 font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded text-[10px]">
+                      <MapPin size={10} /> PIN: {selectedVendor.pincode || 'Not Set'}
+                    </span>
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleOpenEditModal(selectedVendor)}
+                  className="px-3 py-1.5 bg-primary text-primary-foreground font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm hover:bg-primary/90 transition cursor-pointer"
+                >
+                  <Edit3 size={13} /> Edit Profile
+                </button>
                 <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase ${selectedVendor.status === 'Active'
                   ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
                   : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
@@ -725,7 +1014,8 @@ export const VendorManagement: React.FC = () => {
 
             {/* Modal Body */}
             <div className="p-6 space-y-5 overflow-y-auto flex-1 text-left">
-              <div className="grid grid-cols-2 gap-3 bg-secondary/15 p-4 rounded-xl border border-border/40">
+              {/* Summary Identity Card */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-secondary/15 p-4 rounded-xl border border-border/40">
                 <div>
                   <span className="text-muted-foreground block text-[9px] font-bold">BUSINESS NAME</span>
                   <span className="font-semibold block mt-0.5">{selectedVendor.name}</span>
@@ -743,6 +1033,14 @@ export const VendorManagement: React.FC = () => {
                   <span className="font-mono font-semibold block mt-0.5">{selectedVendor.id}</span>
                 </div>
                 <div>
+                  <span className="text-muted-foreground block text-[9px] font-bold">PHONE / MOBILE</span>
+                  <span className="font-mono font-semibold block mt-0.5">{selectedVendor.mobile || 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[9px] font-bold">EMAIL</span>
+                  <span className="font-semibold block mt-0.5 truncate">{selectedVendor.email || 'N/A'}</span>
+                </div>
+                <div>
                   <span className="text-muted-foreground block text-[9px] font-bold">GSTIN</span>
                   <span className="font-mono font-semibold block mt-0.5">{selectedVendor.gstNumber || 'N/A'}</span>
                 </div>
@@ -750,20 +1048,42 @@ export const VendorManagement: React.FC = () => {
                   <span className="text-muted-foreground block text-[9px] font-bold">PAN</span>
                   <span className="font-mono font-semibold block mt-0.5">{selectedVendor.panNumber || 'N/A'}</span>
                 </div>
-                <div>
-                  <span className="text-muted-foreground block text-[9px] font-bold">KYC STATUS</span>
-                  <span className="font-semibold block mt-0.5">{selectedVendor.status}</span>
+              </div>
+
+              {/* Geographic Location & Pincode Card */}
+              <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-2">
+                <div className="flex items-center justify-between border-b border-primary/15 pb-2">
+                  <h4 className="font-bold text-primary flex items-center gap-1.5 text-xs">
+                    <MapPin size={14} /> Geographical Territory & Pincode
+                  </h4>
+                  <span className="font-mono font-black text-sm text-primary bg-primary/10 border border-primary/30 px-2.5 py-0.5 rounded-lg">
+                    PINCODE: {selectedVendor.pincode || 'NOT CONFIGURED'}
+                  </span>
                 </div>
-                <div>
-                  <span className="text-muted-foreground block text-[9px] font-bold">ACCOUNT STATUS</span>
-                  <span className="font-semibold block mt-0.5 capitalize">{selectedVendor.rawStatus}</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                  <div className="sm:col-span-2">
+                    <span className="text-muted-foreground block text-[9px] font-bold">FULL ADDRESS</span>
+                    <span className="font-medium text-foreground block mt-0.5 leading-relaxed">
+                      {selectedVendor.address || 'No street address provided.'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[9px] font-bold">MANDAL / LOCALITY</span>
+                    <span className="font-semibold block mt-0.5">{selectedVendor.mandal || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[9px] font-bold">DISTRICT & STATE</span>
+                    <span className="font-semibold block mt-0.5">
+                      {[selectedVendor.district, selectedVendor.state].filter(Boolean).join(', ') || 'N/A'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               {/* Hyperlocal Store Parameters */}
               <div className="space-y-2 bg-secondary/10 p-4 rounded-xl border border-border/40">
                 <h4 className="font-bold text-foreground">Hyperlocal Store Parameters</h4>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
                     <span className="text-muted-foreground block text-[9px]">FSSAI License</span>
                     <span className="font-semibold block mt-0.5">{selectedVendor.fssaiNumber || 'N/A'}</span>
@@ -788,6 +1108,22 @@ export const VendorManagement: React.FC = () => {
                     <span className="font-semibold block mt-0.5">
                       {selectedVendor.verifiedBadge ? '✅ Granted (Verified Badge)' : '❌ Not Granted'}
                     </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[9px]">Delivery Mode</span>
+                    <span className="font-semibold block mt-0.5 capitalize">{selectedVendor.deliveryMode || 'platform_delivery'}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[9px]">Delivery Radius</span>
+                    <span className="font-semibold font-mono block mt-0.5">{selectedVendor.deliveryRadiusKm || 5} km</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[9px]">Min Order / Charge</span>
+                    <span className="font-semibold font-mono block mt-0.5">₹{selectedVendor.minOrder || 100} (Fee: ₹{selectedVendor.deliveryCharge || 20})</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[9px]">Live Status</span>
+                    <span className="font-semibold block mt-0.5 capitalize text-emerald-500 font-mono">🟢 {selectedVendor.liveStatus || 'open'}</span>
                   </div>
                 </div>
               </div>
@@ -1139,6 +1475,548 @@ export const VendorManagement: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Vendor Profile Modal */}
+      {isEditModalOpen && editingVendorData && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-card border border-border max-w-4xl w-full max-h-[92vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col text-xs text-foreground">
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-border bg-muted/30">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-primary/10 rounded-xl text-primary font-bold">
+                  <Edit3 size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-foreground uppercase tracking-wide flex items-center gap-2">
+                    Edit Vendor Profile <span className="text-xs font-mono font-normal text-muted-foreground">({editingVendorData.businessName})</span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Admin Profile Master Editor • Update PIN, Address, Identity & Store Parameters
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-2 bg-secondary hover:bg-secondary/80 text-foreground font-bold rounded-xl border border-border/40 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Subtabs within Edit Modal */}
+            <div className="flex border-b border-border bg-secondary/20 px-5 gap-2 overflow-x-auto select-none">
+              {[
+                { id: 'basic', label: '1. Store Identity & Rep', icon: Building },
+                { id: 'location', label: '2. Pincode & Address', icon: MapPin },
+                { id: 'operations', label: '3. Delivery & Operations', icon: Truck },
+                { id: 'policies', label: '4. Policies & Description', icon: FileText },
+                { id: 'governance', label: '5. Status & Governance', icon: ShieldCheck },
+              ].map(t => {
+                const IconComponent = t.icon;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setEditTab(t.id as any)}
+                    className={`py-3 px-3.5 border-b-2 text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer ${editTab === t.id
+                      ? 'border-primary text-primary bg-primary/5'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                      }`}
+                  >
+                    <IconComponent size={14} />
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Edit Form */}
+            <form onSubmit={handleSaveVendorProfile} className="flex-1 overflow-y-auto p-6 space-y-6">
+
+              {/* Tab 1: Basic Identity */}
+              {editTab === 'basic' && (
+                <div className="space-y-4">
+                  <div className="bg-primary/5 border border-primary/20 p-3 rounded-xl">
+                    <span className="text-xs font-bold text-primary block">Business & Representative Details</span>
+                    <span className="text-[10px] text-muted-foreground block">Update vendor company name, owner name, and contact details.</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Store / Business Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={editingVendorData.businessName}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, businessName: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary font-semibold text-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Owner / Representative Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={editingVendorData.ownerName}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, ownerName: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary font-semibold text-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Contact Mobile / Phone *</label>
+                      <div className="relative">
+                        <Phone size={14} className="absolute left-3 top-3 text-muted-foreground" />
+                        <input
+                          type="text"
+                          required
+                          value={editingVendorData.mobile}
+                          onChange={(e) => setEditingVendorData({ ...editingVendorData, mobile: e.target.value })}
+                          className="w-full pl-9 pr-3 py-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary font-mono font-semibold text-foreground"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">WhatsApp Number</label>
+                      <div className="relative">
+                        <Phone size={14} className="absolute left-3 top-3 text-muted-foreground" />
+                        <input
+                          type="text"
+                          placeholder="Optional WhatsApp contact"
+                          value={editingVendorData.whatsappNumber}
+                          onChange={(e) => setEditingVendorData({ ...editingVendorData, whatsappNumber: e.target.value })}
+                          className="w-full pl-9 pr-3 py-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary font-mono text-foreground"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Official Email Address *</label>
+                      <div className="relative">
+                        <Mail size={14} className="absolute left-3 top-3 text-muted-foreground" />
+                        <input
+                          type="email"
+                          required
+                          value={editingVendorData.email}
+                          onChange={(e) => setEditingVendorData({ ...editingVendorData, email: e.target.value })}
+                          className="w-full pl-9 pr-3 py-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Store Type</label>
+                      <select
+                        value={editingVendorData.storeType}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, storeType: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      >
+                        <option value="grocery">Grocery & Essentials</option>
+                        <option value="retail">Retail & General</option>
+                        <option value="restaurant">Restaurant & Food</option>
+                        <option value="devotional">Devotional & Pooja</option>
+                        <option value="service">Service & Repair</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">GSTIN (GST Number)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 36AABCU9603R1ZM"
+                        value={editingVendorData.gstNumber}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, gstNumber: e.target.value.toUpperCase() })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary font-mono text-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">PAN Card Number</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. ABCDE1234F"
+                        value={editingVendorData.panNumber}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, panNumber: e.target.value.toUpperCase() })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary font-mono text-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-2">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">FSSAI License Number</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 10020042000001"
+                        value={editingVendorData.fssaiNumber}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, fssaiNumber: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary font-mono text-foreground"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 2: Pincode & Location */}
+              {editTab === 'location' && (
+                <div className="space-y-4">
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl flex items-center gap-2">
+                    <MapPin className="text-emerald-500 shrink-0" size={18} />
+                    <div>
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block">
+                        Geographical Address & Hyperlocal Pincode
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block">
+                        Configure the exact PIN code and address coordinates used for customer proximity matching.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1 sm:col-span-2">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Store / Building Address *</label>
+                      <textarea
+                        rows={2}
+                        required
+                        placeholder="Shop No, Street, Landmark, Area..."
+                        value={editingVendorData.address}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, address: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-primary uppercase flex items-center gap-1">
+                        📮 Postal PIN Code * (Hyperlocal Dispatch Key)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. 500081"
+                        maxLength={6}
+                        value={editingVendorData.pincode}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, pincode: e.target.value.trim() })}
+                        className="w-full p-2.5 bg-primary/10 border-2 border-primary/40 focus:border-primary rounded-xl text-sm font-black font-mono text-primary outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Mandal / Locality / Tehsil</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Madhapur"
+                        value={editingVendorData.mandal}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, mandal: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">District</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Hyderabad"
+                        value={editingVendorData.district}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, district: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">State</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Telangana"
+                        value={editingVendorData.state}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, state: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Village / Sub-area</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Hitec City"
+                        value={editingVendorData.village}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, village: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">GPS Latitude & Longitude</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          step="any"
+                          placeholder="Latitude"
+                          value={editingVendorData.latitude}
+                          onChange={(e) => setEditingVendorData({ ...editingVendorData, latitude: e.target.value })}
+                          className="w-full p-2 bg-secondary/30 border border-border rounded-xl text-xs font-mono outline-none text-foreground"
+                        />
+                        <input
+                          type="number"
+                          step="any"
+                          placeholder="Longitude"
+                          value={editingVendorData.longitude}
+                          onChange={(e) => setEditingVendorData({ ...editingVendorData, longitude: e.target.value })}
+                          className="w-full p-2 bg-secondary/30 border border-border rounded-xl text-xs font-mono outline-none text-foreground"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 3: Delivery & Operations */}
+              {editTab === 'operations' && (
+                <div className="space-y-4">
+                  <div className="bg-primary/5 border border-primary/20 p-3 rounded-xl">
+                    <span className="text-xs font-bold text-primary block">Hyperlocal Fulfillment & Delivery Settings</span>
+                    <span className="text-[10px] text-muted-foreground block">Set delivery radius, charges, minimum order value and store category.</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Primary Category</label>
+                      <input
+                        type="text"
+                        value={editingVendorData.category}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, category: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground font-semibold"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Subcategory</label>
+                      <input
+                        type="text"
+                        value={editingVendorData.subCategory}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, subCategory: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Delivery Mode</label>
+                      <select
+                        value={editingVendorData.deliveryMode}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, deliveryMode: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      >
+                        <option value="platform_delivery">Platform Fleet Delivery</option>
+                        <option value="self_delivery">Self Delivery by Vendor</option>
+                        <option value="pickup_only">Store Pickup Only</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Delivery Radius (km)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="50"
+                        value={editingVendorData.deliveryRadiusKm}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, deliveryRadiusKm: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs font-mono outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Min Order Amount (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editingVendorData.minOrder}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, minOrder: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs font-mono outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Delivery Charge (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editingVendorData.deliveryCharge}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, deliveryCharge: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs font-mono outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Est. Delivery Minutes</label>
+                      <input
+                        type="number"
+                        min="5"
+                        max="180"
+                        value={editingVendorData.estimatedDeliveryMinutes}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, estimatedDeliveryMinutes: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs font-mono outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Live Operational Status</label>
+                      <select
+                        value={editingVendorData.liveStatus}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, liveStatus: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground font-semibold"
+                      >
+                        <option value="open">🟢 Open (Taking Orders)</option>
+                        <option value="busy">🟡 Busy (High Demand)</option>
+                        <option value="closed">🔴 Closed</option>
+                        <option value="temporarily_closed">⏸️ Temporarily Closed</option>
+                        <option value="vacation">🏖️ Vacation</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 4: Description & Policies */}
+              {editTab === 'policies' && (
+                <div className="space-y-4">
+                  <div className="bg-primary/5 border border-primary/20 p-3 rounded-xl">
+                    <span className="text-xs font-bold text-primary block">Store Branding, Policies & Description</span>
+                    <span className="text-[10px] text-muted-foreground block">Store public bio, refund and replacement conditions.</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Store Description / Bio</label>
+                      <textarea
+                        rows={3}
+                        placeholder="Describe merchant background, specialty products, certifications..."
+                        value={editingVendorData.description}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, description: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase">Returns & Refunds Policy</label>
+                        <textarea
+                          rows={2}
+                          placeholder="Refund criteria, SLA..."
+                          value={editingVendorData.refundPolicy}
+                          onChange={(e) => setEditingVendorData({ ...editingVendorData, refundPolicy: e.target.value })}
+                          className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase">Replacement Policy</label>
+                        <textarea
+                          rows={2}
+                          placeholder="Replacement window..."
+                          value={editingVendorData.replacementPolicy}
+                          onChange={(e) => setEditingVendorData({ ...editingVendorData, replacementPolicy: e.target.value })}
+                          className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Custom Delivery Policy</label>
+                      <textarea
+                        rows={2}
+                        placeholder="Delivery hours and terms..."
+                        value={editingVendorData.deliveryPolicy}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, deliveryPolicy: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 5: Status & Governance */}
+              {editTab === 'governance' && (
+                <div className="space-y-4">
+                  <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl">
+                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400 block">Admin Account & Marketplace Controls</span>
+                    <span className="text-[10px] text-muted-foreground block">Override account status, marketplace visibility, and verified merchant badges.</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Account Status</label>
+                      <select
+                        value={editingVendorData.status}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, status: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary font-bold text-foreground"
+                      >
+                        <option value="active">Active (Verified)</option>
+                        <option value="pending_verification">Pending Verification</option>
+                        <option value="suspended">Suspended</option>
+                        <option value="blocked">Blocked</option>
+                        <option value="rejected">Rejected</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Marketplace Listing Status</label>
+                      <select
+                        value={editingVendorData.marketplaceStatus}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, marketplaceStatus: e.target.value })}
+                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary font-bold text-foreground"
+                      >
+                        <option value="Approved">Approved (Public on Marketplace)</option>
+                        <option value="Pending Review">Pending Review</option>
+                        <option value="Incomplete">Incomplete</option>
+                        <option value="Draft">Draft</option>
+                        <option value="Rejected">Rejected</option>
+                        <option value="Suspended">Suspended</option>
+                        <option value="Hidden">Hidden</option>
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-2 p-3 bg-secondary/20 rounded-xl border border-border/60 flex items-center justify-between">
+                      <div>
+                        <span className="font-bold text-foreground block">Grant Verified Merchant Badge</span>
+                        <span className="text-[10px] text-muted-foreground block">Displays verified blue badge on storefront and products.</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={editingVendorData.verifiedBadge}
+                        onChange={(e) => setEditingVendorData({ ...editingVendorData, verifiedBadge: e.target.checked })}
+                        className="w-5 h-5 accent-primary cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Modal Footer Controls */}
+              <div className="flex items-center justify-between pt-4 border-t border-border mt-6">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground font-bold rounded-xl text-xs transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={actionLoading}
+                    className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md disabled:opacity-50 transition cursor-pointer"
+                  >
+                    <Save size={14} />
+                    {actionLoading ? 'Saving Profile...' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+
+            </form>
           </div>
         </div>
       )}
