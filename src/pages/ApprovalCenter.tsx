@@ -12,10 +12,15 @@ import {
   ShieldCheck,
   Store,
   ShoppingBag,
-  Wallet,
   ArrowRight,
-  Zap,
-  RefreshCw
+  RefreshCw,
+  Edit3,
+  Save,
+  MapPin,
+  Phone,
+  Mail,
+  Building,
+  FileText
 } from "lucide-react";
 import { productService } from "../services/productService";
 
@@ -37,7 +42,7 @@ export const ApprovalCenter: React.FC = () => {
     | "withdrawals"
   >("all");
 
-  const [pendingItems, setPendingItems] = useState<Record<string, any[]>>({
+  const [, setPendingItems] = useState<Record<string, any[]>>({
     vendors: [],
     wholesalers: [],
     entrepreneurs: [],
@@ -59,12 +64,65 @@ export const ApprovalCenter: React.FC = () => {
   const [dbCategories, setDbCategories] = useState<any[]>([]);
   const [selectedParentCatId, setSelectedParentCatId] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [notificationMsg, setNotificationMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Selected Detail Modal & Edit State
   const [selectedDetailItem, setSelectedDetailItem] = useState<any | null>(null);
+  const [isEditMode, setIsEditMode] = useState<boolean>(true);
+  const [editFormData, setEditFormData] = useState<any>({});
   const [editingSubcategories, setEditingSubcategories] = useState<string[]>([]);
   const [newSubCategoryName, setNewSubCategoryName] = useState<string>("");
 
+  const parseSubcategories = (item: any): string[] => {
+    if (!item) return [];
+    const subs = item.approvedSubcategories || item.subCategories || item.subcategories;
+    if (Array.isArray(subs) && subs.length > 0) {
+      return subs.flatMap((s: any) => typeof s === 'string' && s.includes(',') ? s.split(',').map(x => x.trim()) : String(s).trim()).filter(Boolean);
+    }
+    const single = item.subCategory || item.subcategory;
+    if (typeof single === 'string' && single.trim()) {
+      const trimmed = single.trim();
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          const p = JSON.parse(trimmed);
+          if (Array.isArray(p)) return p.map((x: any) => String(x).trim()).filter(Boolean);
+        } catch (e) { }
+      }
+      if (trimmed.includes(',')) return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+      return [trimmed];
+    }
+    return [];
+  };
+
   const openDetailModal = (item: any) => {
     setSelectedDetailItem(item);
+    setIsEditMode(true);
+
+    setEditFormData({
+      businessName: item.name || '',
+      ownerName: item.contact || item.name || '',
+      mobile: item.mobile || '',
+      email: item.email || '',
+      address: item.address || '',
+      pincode: item.pincode || '',
+      state: item.state || '',
+      district: item.district || '',
+      mandal: item.mandal || '',
+      village: item.village || '',
+      gstNumber: item.gstNumber || '',
+      panNumber: item.panNumber || '',
+      aadhaarNumber: item.aadhaarNumber || '',
+      fssaiNumber: item.fssaiNumber || '',
+      experience: item.experience || '',
+      investmentCapacity: item.investmentCapacity || '',
+      franchiseLevel: item.franchiseLevel || '',
+      serviceType: item.serviceType || '',
+      restaurantName: item.restaurantName || '',
+      foodBusinessType: item.foodBusinessType || '',
+      adminRemarks: item.adminRemarks || '',
+    });
+
     if (item.primaryCategory || item.category) {
       const match = parentCategories.find((c: any) => c.name === item.primaryCategory || c.name === item.category);
       if (match) setSelectedParentCatId(match._id);
@@ -91,7 +149,6 @@ export const ApprovalCenter: React.FC = () => {
       const token = localStorage.getItem("adminToken");
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
-      // Phase 1: Fast initial load for primary tabs
       const [appRes, categoryRes, vendorRes] = await Promise.all([
         fetch("https://server.apexbee.in/api/admin/applications", { headers }).catch(() => null),
         fetch("https://server.apexbee.in/api/categories", { headers }).catch(() => null),
@@ -112,10 +169,8 @@ export const ApprovalCenter: React.FC = () => {
         if (data.vendors) setDbVendors(data.vendors);
       }
 
-      // Unblock UI immediately for instant rendering
       setLoading(false);
 
-      // Phase 2: Asynchronously load heavy secondary tab data in background
       Promise.all([
         fetch("https://server.apexbee.in/api/admin/wallets", { headers }).catch(() => null),
         productService.getAll().catch(() => []),
@@ -212,27 +267,6 @@ export const ApprovalCenter: React.FC = () => {
     }
   };
 
-  const parseSubcategories = (item: any): string[] => {
-    if (!item) return [];
-    const subs = item.approvedSubcategories || item.subCategories || item.subcategories;
-    if (Array.isArray(subs) && subs.length > 0) {
-      return subs.flatMap((s: any) => typeof s === 'string' && s.includes(',') ? s.split(',').map(x => x.trim()) : String(s).trim()).filter(Boolean);
-    }
-    const single = item.subCategory || item.subcategory;
-    if (typeof single === 'string' && single.trim()) {
-      const trimmed = single.trim();
-      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-        try {
-          const p = JSON.parse(trimmed);
-          if (Array.isArray(p)) return p.map((x: any) => String(x).trim()).filter(Boolean);
-        } catch (e) { }
-      }
-      if (trimmed.includes(',')) return trimmed.split(',').map(s => s.trim()).filter(Boolean);
-      return [trimmed];
-    }
-    return [];
-  };
-
   const mapApplicationToItem = (app: any) => {
     const parsedSubs = parseSubcategories(app);
     return {
@@ -252,12 +286,15 @@ export const ApprovalCenter: React.FC = () => {
       gstNumber: app.gstNumber,
       panNumber: app.panNumber,
       aadhaarNumber: app.aadhaarNumber,
+      fssaiNumber: app.fssaiNumber,
       franchiseLevel: app.franchiseLevel,
       investmentCapacity: app.investmentCapacity,
       serviceType: app.serviceType,
       sampleVideoLink: app.sampleVideoLink,
       vehicleType: app.vehicleType,
       licenseNumber: app.licenseNumber,
+      restaurantName: app.restaurantName,
+      foodBusinessType: app.foodBusinessType,
       primaryCategory: app.primaryCategory || app.category,
       category: app.primaryCategory || app.category,
       subCategory: parsedSubs[0] || app.subCategory || "",
@@ -270,6 +307,7 @@ export const ApprovalCenter: React.FC = () => {
       village: app.village,
       documents: app.documents,
       dependencies: app.dependencies,
+      adminRemarks: app.adminRemarks,
       isDbVendor: false,
     };
   };
@@ -363,11 +401,13 @@ export const ApprovalCenter: React.FC = () => {
             : (vendor.subCategory ? [vendor.subCategory] : []),
           gstNumber: vendor.gstNumber,
           panNumber: vendor.panNumber,
+          fssaiNumber: vendor.fssaiNumber,
           address: vendor.address,
           pincode: vendor.pincode,
           state: vendor.state,
           district: vendor.district,
           mandal: vendor.mandal,
+          village: vendor.village,
           bankAccounts: vendor.bankAccounts || [],
           documents: vendor.documents || [],
           isDbVendor: true,
@@ -384,7 +424,6 @@ export const ApprovalCenter: React.FC = () => {
         const isFood = p.isFoodItem || p.itemType === 'FOOD' || p.productMode === 'FOOD' || Boolean(p.foodMenuItemId) || Boolean(p.restaurantId);
         const key = p.foodMenuItemId ? `food_${p.foodMenuItemId}` : `prod_${p._id || p.id || p.sku}`;
 
-        // Avoid adding duplicate by checking key or name
         let alreadyExists = uniqueProdsMap.has(key);
         if (!alreadyExists) {
           for (const existing of uniqueProdsMap.values()) {
@@ -503,42 +542,6 @@ export const ApprovalCenter: React.FC = () => {
         { id: 'fish_market', label: 'Fish & Seafood Market' },
       ];
     }
-    if (slug.includes('shopping') || slug.includes('fashion') || slug.includes('home') || slug.includes('agri')) {
-      return [
-        { id: 'mens_fashion_store', label: "Men's Fashion Store" },
-        { id: 'womens_fashion_store', label: "Women's Fashion Store" },
-        { id: 'kids_wear_store', label: 'Kids Wear Store' },
-        { id: 'boutique', label: 'Boutique' },
-        { id: 'tailor_custom_stitching', label: 'Tailor & Custom Stitching' },
-        { id: 'footwear_store', label: 'Footwear Store' },
-        { id: 'furniture_store', label: 'Furniture Store' },
-        { id: 'home_decor_store', label: 'Home Decor Store' },
-        { id: 'kitchenware_store', label: 'Kitchenware Store' },
-        { id: 'seed_dealer', label: 'Seed Dealer' },
-        { id: 'fertilizer_dealer', label: 'Fertilizer Dealer' },
-        { id: 'plant_nursery', label: 'Plant Nursery' },
-      ];
-    }
-    if (slug.includes('service') || slug.includes('repair') || slug.includes('clean') || slug.includes('salon') || slug.includes('laundry')) {
-      return [
-        { id: 'ac_technician', label: 'AC Technician' },
-        { id: 'refrigerator_technician', label: 'Refrigerator Technician' },
-        { id: 'washing_machine_technician', label: 'Washing Machine Technician' },
-        { id: 'ro_purifier_technician', label: 'RO Water Purifier Technician' },
-        { id: 'electrician', label: 'Electrician' },
-        { id: 'multi_appliance_technician', label: 'Multi-Appliance Service Center' },
-        { id: 'deep_cleaning_specialist', label: 'Deep Cleaning Specialist' },
-        { id: 'sofa_carpet_cleaner', label: 'Sofa & Carpet Cleaning Specialist' },
-        { id: 'cleaning_agency', label: 'Cleaning Agency / Housekeeping' },
-        { id: 'mens_salon', label: "Men's Salon" },
-        { id: 'womens_salon', label: "Women's Salon & Beauty Parlour" },
-        { id: 'spa_center', label: 'Spa & Wellness Center' },
-        { id: 'bridal_studio', label: 'Bridal & Makeup Studio' },
-        { id: 'laundry_shop', label: 'Laundry Shop' },
-        { id: 'dry_cleaning_center', label: 'Dry Cleaning Center' },
-        { id: 'corporate_laundry_provider', label: 'Corporate & Institutional Laundry' },
-      ];
-    }
     return [
       { id: 'retail_store', label: 'Retail Store' },
       { id: 'wholesaler', label: 'Wholesaler' },
@@ -548,96 +551,53 @@ export const ApprovalCenter: React.FC = () => {
 
   const activeCategoryCapabilities = getCapabilitiesForCategory(activeParentCat);
 
-  const _handleUpdateDocStatus = async (
-    vendorId: string,
-    docId: string,
-    status: "Approved" | "Rejected"
-  ) => {
+  // Save Edits directly without approving immediately
+  const handleSaveDetailsOnly = async () => {
+    if (!selectedDetailItem?.id) return;
     try {
+      setActionLoading(true);
+      setNotificationMsg(null);
       const token = localStorage.getItem("adminToken");
+      const assignedCatName = activeParentCat?.name || selectedDetailItem.primaryCategory || selectedDetailItem.category;
 
-      const res = await fetch(
-        `https://server.apexbee.in/api/admin/vendors/${vendorId}/documents/${docId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ status }),
-        }
-      );
+      const payload = {
+        ...editFormData,
+        primaryCategory: assignedCatName,
+        category: assignedCatName,
+        subCategory: editingSubcategories[0] || editFormData.subCategory || "",
+        approvedSubcategories: editingSubcategories,
+      };
 
-      if (res.ok) {
-        const data = await res.json();
+      const res = await fetch(`https://server.apexbee.in/api/admin/applications/${selectedDetailItem.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
 
-        if (data.success && data.vendor) {
-          setSelectedDetailItem((prev: any) => {
-            if (prev && prev.id === vendorId) {
-              return {
-                ...prev,
-                documents: data.vendor.documents,
-              };
-            }
-
-            return prev;
-          });
-
-          fetchEcosystemData();
-
-          addActivityLog(
-            "Document Audited",
-            `Document status updated to ${status} for Vendor ${data.vendor.businessName}`,
-            "kyc"
-          );
-        }
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setNotificationMsg({ type: 'success', text: "Applicant details updated successfully!" });
+        setSelectedDetailItem((prev: any) => ({
+          ...prev,
+          ...payload,
+          name: editFormData.businessName,
+          contact: editFormData.ownerName,
+        }));
+        await fetchEcosystemData();
       } else {
-        const errData = await res.json();
-        alert(errData.message || "Failed to update document status");
+        setNotificationMsg({ type: 'error', text: data.message || "Failed to update details" });
       }
-    } catch (err) {
-      console.error("Error updating document status:", err);
+    } catch (err: any) {
+      setNotificationMsg({ type: 'error', text: err.message || "Network error saving details" });
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const _handleRequestDoc = async (vendorId: string, docName: string) => {
-    try {
-      const token = localStorage.getItem("adminToken");
-
-      const res = await fetch(
-        `https://server.apexbee.in/api/admin/vendors/${vendorId}/request-document`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ name: docName }),
-        }
-      );
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.vendor) {
-          addActivityLog(
-            "Document Requested",
-            `Additional document "${docName}" requested from Vendor ${data.vendor.businessName}`,
-            "kyc"
-          );
-          alert("Document requested successfully.");
-        }
-      } else {
-        const errData = await res.json();
-        alert(errData.message || "Failed to request document");
-      }
-    } catch (err) {
-      console.error("Error requesting document:", err);
-    }
-  };
-
-  void _handleUpdateDocStatus;
-  void _handleRequestDoc;
-
+  // Main Action: Approve or Reject (with edited details passed along)
   const handleAction = async (id: string, action: "Approved" | "Rejected") => {
     const isRealApp = applications.some(app => app._id === id);
 
@@ -701,6 +661,7 @@ export const ApprovalCenter: React.FC = () => {
     }
 
     try {
+      setActionLoading(true);
       const token = localStorage.getItem("adminToken");
       const currentApp = applications.find(app => app._id === id);
 
@@ -714,11 +675,26 @@ export const ApprovalCenter: React.FC = () => {
         endpoint = `https://server.apexbee.in/api/admin/applications/${id}/verify-kyc`;
       }
 
-      const assignedCatName = activeParentCat?.name || currentApp?.primaryCategory || currentApp?.category || "Food & Restaurant";
+      const assignedCatName = activeParentCat?.name || editFormData.primaryCategory || currentApp?.primaryCategory || currentApp?.category || "Food & Restaurant";
       const assignedParentId = activeParentCat?._id;
 
       const checkedCaps = Array.from(document.querySelectorAll('.cat-cap-cb:checked')).map(el => (el as HTMLInputElement).value);
       const checkedSubCatIds = Array.from(document.querySelectorAll('.cat-subcat-cb:checked')).map(el => (el as HTMLInputElement).value);
+
+      const payload = {
+        // Send all edited application fields
+        ...editFormData,
+        primaryCategory: assignedCatName,
+        category: assignedCatName,
+        subCategory: editingSubcategories[0] || editFormData.subCategory || "",
+        approvedSubcategories: editingSubcategories,
+        requestedCapabilities: checkedCaps,
+        adminRemarks:
+          editFormData.adminRemarks ||
+          (activeSubTab === "kyc" || currentApp?.status === "under_review" || currentApp?.status === "kyc_submitted"
+            ? "KYC verified and approved by admin with edited parameters."
+            : `Pre-approved by admin under category ${assignedCatName}.`),
+      };
 
       const res = await fetch(endpoint, {
         method: "PATCH",
@@ -726,22 +702,13 @@ export const ApprovalCenter: React.FC = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          primaryCategory: assignedCatName,
-          category: assignedCatName,
-          subCategory: editingSubcategories[0] || "",
-          approvedSubcategories: editingSubcategories,
-          requestedCapabilities: checkedCaps,
-          adminRemarks:
-            activeSubTab === "kyc" || currentApp?.status === "under_review" || currentApp?.status === "kyc_submitted"
-              ? "KYC verified and approved by admin."
-              : `Pre-approved by admin under category ${assignedCatName}.`,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
         const errorData = await res.json();
         alert(errorData?.message || `Failed to set status to ${action}`);
+        setActionLoading(false);
         return;
       }
 
@@ -808,6 +775,8 @@ export const ApprovalCenter: React.FC = () => {
       setSelectedDetailItem(null);
     } catch (err) {
       console.error(`Error setting application status to ${action}:`, err);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -828,14 +797,14 @@ export const ApprovalCenter: React.FC = () => {
           </div>
 
           <p className="text-xs text-muted-foreground mt-1">
-            Centralized moderation hub across Vendors, Wholesalers, Franchises, Products, KYC verifications, and Wallet Payouts.
+            Centralized moderation hub with full in-line editing for applicant details, pincodes, categories, and territories during approval.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={() => fetchEcosystemData()}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/80 hover:bg-secondary text-xs font-semibold text-foreground border border-border cursor-pointer transition-all"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-secondary hover:bg-secondary/80 text-xs font-semibold text-foreground border border-border cursor-pointer transition-all"
             title="Refresh list"
           >
             <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
@@ -844,9 +813,9 @@ export const ApprovalCenter: React.FC = () => {
         </div>
       </div>
 
-      {/* UPPER 30%: Overview KPI Cards Deck */}
+      {/* KPI Cards Deck */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: 🌐 Omni-Queue Total */}
+        {/* Card 1 */}
         <div
           onClick={() => setActiveSubTab("all")}
           className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group ${activeSubTab === "all"
@@ -878,7 +847,7 @@ export const ApprovalCenter: React.FC = () => {
           </div>
         </div>
 
-        {/* Card 2: 🏬 Partner & Merchant Onboarding */}
+        {/* Card 2 */}
         <div
           onClick={() => setActiveSubTab("vendors")}
           className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group ${["vendors", "wholesalers", "franchises", "manufacturers", "entrepreneurs", "service_providers", "course_providers", "delivery_partners"].includes(activeSubTab)
@@ -913,7 +882,7 @@ export const ApprovalCenter: React.FC = () => {
           </div>
         </div>
 
-        {/* Card 3: 🛒 Products & Daily Price Edits */}
+        {/* Card 3 */}
         <div
           onClick={() => setActiveSubTab("products")}
           className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group ${activeSubTab === "products"
@@ -923,7 +892,7 @@ export const ApprovalCenter: React.FC = () => {
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-              Products & Daily Prices
+              Products & Catalog
             </span>
             <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600">
               <ShoppingBag size={18} />
@@ -934,7 +903,7 @@ export const ApprovalCenter: React.FC = () => {
               {getPendingItemsForTab("products").length}
             </h3>
             <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
-              Store catalogues & vegetable price edits
+              Store catalogues & inventory audits
             </p>
           </div>
           <div className="mt-3 pt-2.5 border-t border-border/60 flex items-center justify-between text-[10px] font-bold">
@@ -945,7 +914,7 @@ export const ApprovalCenter: React.FC = () => {
           </div>
         </div>
 
-        {/* Card 4: 🛡️ KYC & Payouts */}
+        {/* Card 4 */}
         <div
           onClick={() => setActiveSubTab("kyc")}
           className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group ${["kyc", "withdrawals"].includes(activeSubTab)
@@ -955,7 +924,7 @@ export const ApprovalCenter: React.FC = () => {
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-              KYC & Withdrawals
+              KYC & Settlements
             </span>
             <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600">
               <ShieldCheck size={18} />
@@ -1019,6 +988,7 @@ export const ApprovalCenter: React.FC = () => {
         })}
       </div>
 
+      {/* Main Grid: Queue & Logs */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
@@ -1038,13 +1008,13 @@ export const ApprovalCenter: React.FC = () => {
             <div className="space-y-3.5">
               {loading ? (
                 <div className="py-12 text-center text-xs text-muted-foreground">
-                  Loading approvals...
+                  Loading approvals queue...
                 </div>
               ) : (
                 currentItems.map((item: any) => (
                   <div
                     key={item.id}
-                    className="bg-secondary/15 p-4 rounded-xl border border-border/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 transition-all"
+                    className="bg-secondary/15 p-4 rounded-xl border border-border/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 transition-all hover:bg-secondary/25"
                   >
                     <div className="space-y-1 text-xs">
                       <div className="flex items-center gap-2">
@@ -1063,13 +1033,14 @@ export const ApprovalCenter: React.FC = () => {
                       </div>
 
                       <div className="text-[10px] text-muted-foreground font-mono space-y-0.5">
-                        <p>ID: {item.id} • Registered: {item.date}</p>
-                        <p className="flex items-center gap-2 mt-0.5 text-foreground font-sans text-[11px]">
-                          <span>📍 Location: <strong>{[item.address, item.mandal, item.district, item.state].filter(Boolean).join(", ") || "N/A"}</strong></span>
+                        <p>ID: {item.id} • Registered: {item.date} • Rep: <strong>{item.contact || "N/A"}</strong></p>
+                        <div className="flex flex-wrap items-center gap-2 mt-0.5 text-foreground font-sans text-[11px]">
+                          <span>📍 Location: <strong>{[item.mandal, item.district, item.state].filter(Boolean).join(", ") || item.address || "N/A"}</strong></span>
                           <span className="bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20 font-mono font-bold text-[10px]">
-                            PIN: {item.pincode || "Not provided"}
+                            PIN: {item.pincode || "Not Set"}
                           </span>
-                        </p>
+                          {item.mobile && <span>📞 {item.mobile}</span>}
+                        </div>
 
                         {(activeSubTab === "vendors" || item.isVendor || item.roleId === "vendor" || item.applicationType === "vendor") && (item.primaryCategory || item.category) && (
                           <div className="flex flex-wrap items-center gap-1 mt-1 font-sans text-xs">
@@ -1080,54 +1051,15 @@ export const ApprovalCenter: React.FC = () => {
                             {item.approvedSubcategories && item.approvedSubcategories.length > 0 && (
                               <>
                                 <span className="font-bold text-foreground ml-1">Subcategories ({item.approvedSubcategories.length}):</span>
-                                {item.approvedSubcategories.map((sub: string, idx: number) => (
+                                {item.approvedSubcategories.slice(0, 3).map((sub: string, idx: number) => (
                                   <span key={idx} className="bg-emerald-500/10 text-emerald-600 font-bold px-2 py-0.5 rounded-md text-[10px] border border-emerald-500/20">
                                     {sub}
                                   </span>
                                 ))}
+                                {item.approvedSubcategories.length > 3 && (
+                                  <span className="text-[9px] text-muted-foreground font-semibold">+{item.approvedSubcategories.length - 3} more</span>
+                                )}
                               </>
-                            )}
-                          </div>
-                        )}
-
-                        {activeSubTab === "franchises" && (
-                          <p>
-                            Level: {item.franchiseLevel || "N/A"} • State: {item.state || "N/A"} • District:{" "}
-                            {item.district || "N/A"} • Mandal: {item.mandal || "N/A"}
-                          </p>
-                        )}
-
-                        {activeSubTab === "kyc" && (
-                          <p>
-                            Uploaded Documents:{" "}
-                            {Array.isArray(item.documents)
-                              ? item.documents
-                                .filter((d: any) => d.url)
-                                .map((d: any) => d.name)
-                                .join(", ")
-                              : Object.keys(item.documents || {})
-                                .filter(k => !!item.documents[k])
-                                .map(k => k.toUpperCase())
-                                .join(", ")}
-                          </p>
-                        )}
-
-                        {item.dependencies && (
-                          <div className="flex flex-wrap gap-1 mt-1.5 select-none font-sans">
-                            {item.dependencies.stateFranchise && (
-                              <span className="bg-primary/5 text-primary/80 px-2 py-0.5 rounded text-[9px] font-semibold border border-primary/10 flex items-center gap-1">
-                                🏛️ State: {item.dependencies.stateFranchise.businessName}
-                              </span>
-                            )}
-                            {item.dependencies.districtFranchise && (
-                              <span className="bg-primary/5 text-primary/80 px-2 py-0.5 rounded text-[9px] font-semibold border border-primary/10 flex items-center gap-1">
-                                🏢 Dist: {item.dependencies.districtFranchise.businessName}
-                              </span>
-                            )}
-                            {item.dependencies.mandalFranchise && (
-                              <span className="bg-primary/5 text-primary/80 px-2 py-0.5 rounded text-[9px] font-semibold border border-primary/10 flex items-center gap-1">
-                                🏘️ Mandal: {item.dependencies.mandalFranchise.businessName}
-                              </span>
                             )}
                           </div>
                         )}
@@ -1137,28 +1069,28 @@ export const ApprovalCenter: React.FC = () => {
                     <div className="flex items-center gap-2 w-full md:w-auto shrink-0 select-none border-t md:border-t-0 border-border/40 pt-3 md:pt-0">
                       <button
                         onClick={() => openDetailModal(item)}
-                        className="flex-1 md:flex-none px-3.5 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs rounded-xl flex items-center justify-center gap-1 transition-all border border-primary/15"
+                        className="flex-1 md:flex-none px-3.5 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all border border-primary/20 cursor-pointer"
+                        title="Edit details and review application"
                       >
-                        <Eye size={14} /> View
+                        <Edit3 size={13} /> Edit & Review
                       </button>
 
                       {!item.isDbVendor && (
                         <>
                           <button
                             onClick={() => handleAction(item.id, "Rejected")}
-                            className="flex-1 md:flex-none px-3.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold text-xs rounded-xl flex items-center justify-center gap-1 transition-all border border-rose-500/15"
+                            disabled={actionLoading}
+                            className="flex-1 md:flex-none px-3.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold text-xs rounded-xl flex items-center justify-center gap-1 transition-all border border-rose-500/15 cursor-pointer disabled:opacity-50"
                           >
-                            <X size={14} /> {activeSubTab === "kyc" ? "Reject KYC" : "Reject"}
+                            <X size={14} /> Reject
                           </button>
 
                           <button
-                            onClick={() => handleAction(item.id, "Approved")}
-                            className="flex-1 md:flex-none px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1 transition-all shadow-md shadow-emerald-500/10"
+                            onClick={() => openDetailModal(item)}
+                            disabled={actionLoading}
+                            className="flex-1 md:flex-none px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
                           >
-                            <Check size={14} />{" "}
-                            {activeSubTab === "kyc" || item.status === "under_review"
-                              ? "Verify KYC"
-                              : "Approve"}
+                            <Check size={14} /> Approve
                           </button>
                         </>
                       )}
@@ -1177,6 +1109,7 @@ export const ApprovalCenter: React.FC = () => {
           </div>
         </div>
 
+        {/* Right Column: History Log */}
         <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
           <div className="border-b border-border pb-3 flex items-center justify-between select-none">
             <h3 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
@@ -1205,31 +1138,50 @@ export const ApprovalCenter: React.FC = () => {
                 </span>
               </div>
             ))}
+            {historyItems.length === 0 && (
+              <p className="text-center text-xs text-muted-foreground py-8 select-none">
+                No recent actions in this session.
+              </p>
+            )}
           </div>
         </div>
       </div>
 
+      {/* Comprehensive Audit & Edit Modal */}
       {selectedDetailItem && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-card border border-border max-w-5xl w-full max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col text-xs text-foreground">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-card border border-border max-w-5xl w-full max-h-[92vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col text-xs text-foreground">
 
             {/* Modal Header */}
             <div className="flex items-center justify-between p-5 border-b border-border bg-muted/30">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-primary/10 rounded-xl text-primary font-bold">
-                  <Eye size={22} />
+                  <Edit3 size={20} />
                 </div>
                 <div className="text-left">
-                  <h3 className="text-base font-black text-foreground uppercase tracking-wide">
-                    Application Audit & Governance Portal
+                  <h3 className="text-base font-black text-foreground uppercase tracking-wide flex items-center gap-2">
+                    <span>Audit & Edit Details Before Approval</span>
+                    <span className="text-xs font-mono font-normal text-muted-foreground">({selectedDetailItem.name})</span>
                   </h3>
-                  <p className="text-xs text-muted-foreground">
-                    {selectedDetailItem.name} • {selectedDetailItem.type || selectedDetailItem.roleId || "Opportunity Partner"}
+                  <p className="text-xs text-muted-foreground flex items-center gap-2">
+                    <span>Role: <strong>{selectedDetailItem.type || selectedDetailItem.roleId}</strong></span>
+                    <span>•</span>
+                    <span className="font-mono text-primary font-bold">📮 PIN: {editFormData.pincode || selectedDetailItem.pincode || "Not Set"}</span>
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditMode(!isEditMode)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${isEditMode
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-secondary text-foreground border-border"
+                    }`}
+                >
+                  <Edit3 size={13} /> {isEditMode ? "Editing Enabled" : "Enable Edit Mode"}
+                </button>
                 <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase ${selectedDetailItem.status === "approved" || selectedDetailItem.status === "pre_approved"
                   ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
                   : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
@@ -1245,114 +1197,259 @@ export const ApprovalCenter: React.FC = () => {
               </div>
             </div>
 
+            {/* Notification alert */}
+            {notificationMsg && (
+              <div className={`mx-6 mt-4 p-3 rounded-xl text-xs font-bold flex items-center justify-between border ${notificationMsg.type === 'success'
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
+                : 'bg-rose-500/10 border-rose-500/20 text-rose-500'
+                }`}>
+                <span>{notificationMsg.text}</span>
+                <button onClick={() => setNotificationMsg(null)} className="p-1">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+
             {/* Modal Body */}
             <div className="p-6 space-y-5 overflow-y-auto flex-1 text-left">
 
-              {/* Top Grid (2 Columns) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                {/* Card 1: Applicant Profile */}
-                <div className="bg-secondary/15 p-4 rounded-xl border border-border/40 space-y-3">
+              {/* Section 1: Business & Identity Details (Editable) */}
+              <div className="bg-secondary/15 p-4 rounded-xl border border-border/40 space-y-3">
+                <div className="flex items-center justify-between border-b border-border/40 pb-2">
                   <h4 className="font-extrabold text-primary text-xs uppercase tracking-wide flex items-center gap-1.5">
-                    👤 Applicant Profile & Role
+                    <Building size={14} /> 1. Store / Business & Representative Details
                   </h4>
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <span className="text-muted-foreground block text-[11px]">Full Name</span>
-                      <span className="font-bold text-foreground block mt-0.5">{selectedDetailItem.contact || selectedDetailItem.name}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[11px]">Opportunity Role</span>
-                      <span className="font-extrabold text-primary block mt-0.5">{selectedDetailItem.type || selectedDetailItem.roleId || "N/A"}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[11px]">Email Address</span>
-                      <span className="font-semibold text-foreground block mt-0.5">{selectedDetailItem.email || "N/A"}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[11px]">Mobile Number</span>
-                      <span className="font-semibold text-foreground block mt-0.5">{selectedDetailItem.mobile || "N/A"}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[11px]">Applied Date</span>
-                      <span className="font-semibold text-foreground block mt-0.5">{selectedDetailItem.date || "N/A"}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[11px]">Relevant Experience</span>
-                      <span className="font-semibold text-foreground block mt-0.5">{selectedDetailItem.experience || "N/A"}</span>
-                    </div>
-                  </div>
+                  <span className="text-[10px] text-muted-foreground font-semibold">Admin Editable</span>
                 </div>
 
-                {/* Card 2: Business Identification */}
-                <div className="bg-secondary/15 p-4 rounded-xl border border-border/40 space-y-3">
-                  <h4 className="font-extrabold text-primary text-xs uppercase tracking-wide flex items-center gap-1.5">
-                    💼 Business Identification & Details
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <span className="text-muted-foreground block text-[11px]">Business Name</span>
-                      <span className="font-bold text-foreground block mt-0.5">{selectedDetailItem.name || "N/A"}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[11px]">GST Number</span>
-                      <span className="font-mono font-bold text-foreground block mt-0.5">{selectedDetailItem.gstNumber || "Optional / None"}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[11px]">PAN Number</span>
-                      <span className="font-mono font-bold text-foreground block mt-0.5">{selectedDetailItem.panNumber || "N/A"}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[11px]">Aadhaar Number</span>
-                      <span className="font-mono font-bold text-foreground block mt-0.5">{selectedDetailItem.aadhaarNumber || "N/A"}</span>
-                    </div>
-                    {selectedDetailItem.investmentCapacity && (
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">Investment Capacity</span>
-                        <span className="font-semibold text-foreground block mt-0.5">{selectedDetailItem.investmentCapacity} Lakhs</span>
-                      </div>
-                    )}
-                    {selectedDetailItem.franchiseLevel && (
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">Franchise Tier</span>
-                        <span className="font-semibold text-foreground block mt-0.5 capitalize">{selectedDetailItem.franchiseLevel} Level</span>
-                      </div>
-                    )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Store / Business Name *</label>
+                    <input
+                      type="text"
+                      value={editFormData.businessName}
+                      onChange={(e) => setEditFormData({ ...editFormData, businessName: e.target.value })}
+                      className="w-full p-2 bg-secondary/40 border border-border rounded-xl text-xs font-bold outline-none focus:border-primary text-foreground"
+                    />
                   </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Owner / Representative Name *</label>
+                    <input
+                      type="text"
+                      value={editFormData.ownerName}
+                      onChange={(e) => setEditFormData({ ...editFormData, ownerName: e.target.value })}
+                      className="w-full p-2 bg-secondary/40 border border-border rounded-xl text-xs font-bold outline-none focus:border-primary text-foreground"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Mobile / Phone *</label>
+                    <div className="relative">
+                      <Phone size={12} className="absolute left-2.5 top-2.5 text-muted-foreground" />
+                      <input
+                        type="text"
+                        value={editFormData.mobile}
+                        onChange={(e) => setEditFormData({ ...editFormData, mobile: e.target.value })}
+                        className="w-full pl-7 pr-2 py-2 bg-secondary/40 border border-border rounded-xl text-xs font-mono font-bold outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Email Address</label>
+                    <div className="relative">
+                      <Mail size={12} className="absolute left-2.5 top-2.5 text-muted-foreground" />
+                      <input
+                        type="email"
+                        value={editFormData.email}
+                        onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                        className="w-full pl-7 pr-2 py-2 bg-secondary/40 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">GST Number (GSTIN)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 36AABCU9603R1ZM"
+                      value={editFormData.gstNumber}
+                      onChange={(e) => setEditFormData({ ...editFormData, gstNumber: e.target.value.toUpperCase() })}
+                      className="w-full p-2 bg-secondary/40 border border-border rounded-xl text-xs font-mono outline-none focus:border-primary text-foreground"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">PAN Card Number</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. ABCDE1234F"
+                      value={editFormData.panNumber}
+                      onChange={(e) => setEditFormData({ ...editFormData, panNumber: e.target.value.toUpperCase() })}
+                      className="w-full p-2 bg-secondary/40 border border-border rounded-xl text-xs font-mono outline-none focus:border-primary text-foreground"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Aadhaar Number</label>
+                    <input
+                      type="text"
+                      placeholder="12-digit Aadhaar"
+                      value={editFormData.aadhaarNumber}
+                      onChange={(e) => setEditFormData({ ...editFormData, aadhaarNumber: e.target.value })}
+                      className="w-full p-2 bg-secondary/40 border border-border rounded-xl text-xs font-mono outline-none focus:border-primary text-foreground"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">FSSAI License Number</label>
+                    <input
+                      type="text"
+                      placeholder="14-digit FSSAI"
+                      value={editFormData.fssaiNumber}
+                      onChange={(e) => setEditFormData({ ...editFormData, fssaiNumber: e.target.value })}
+                      className="w-full p-2 bg-secondary/40 border border-border rounded-xl text-xs font-mono outline-none focus:border-primary text-foreground"
+                    />
+                  </div>
+
+                  {selectedDetailItem.franchiseLevel && (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Franchise Tier</label>
+                      <select
+                        value={editFormData.franchiseLevel}
+                        onChange={(e) => setEditFormData({ ...editFormData, franchiseLevel: e.target.value })}
+                        className="w-full p-2 bg-secondary/40 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground font-semibold"
+                      >
+                        <option value="state">State Level</option>
+                        <option value="district">District Level</option>
+                        <option value="mandal">Mandal Level</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {selectedDetailItem.investmentCapacity && (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Investment Capacity (Lakhs)</label>
+                      <input
+                        type="text"
+                        value={editFormData.investmentCapacity}
+                        onChange={(e) => setEditFormData({ ...editFormData, investmentCapacity: e.target.value })}
+                        className="w-full p-2 bg-secondary/40 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+                  )}
+
+                  {selectedDetailItem.serviceType && (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Service Specialization</label>
+                      <input
+                        type="text"
+                        value={editFormData.serviceType}
+                        onChange={(e) => setEditFormData({ ...editFormData, serviceType: e.target.value })}
+                        className="w-full p-2 bg-secondary/40 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Territory Location & Network Mapping */}
-              <div className="bg-secondary/15 p-4 rounded-xl border border-border/40 space-y-3">
-                <h4 className="font-extrabold text-primary text-xs uppercase tracking-wide flex items-center gap-1.5">
-                  🗺️ Territory Location & Regional Franchise Mapping
-                </h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                  <div>
-                    <span className="text-muted-foreground block text-[11px]">State</span>
-                    <span className="font-bold text-foreground block mt-0.5">{selectedDetailItem.state || "N/A"}</span>
+              {/* Section 2: Address & Pincode Territory (Editable) */}
+              <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
+                <div className="flex items-center justify-between border-b border-primary/15 pb-2">
+                  <h4 className="font-extrabold text-primary text-xs uppercase tracking-wide flex items-center gap-1.5">
+                    <MapPin size={14} /> 2. Address & Pincode Dispatch Parameters
+                  </h4>
+                  <span className="font-mono font-bold text-xs bg-primary/10 text-primary border border-primary/25 px-2.5 py-0.5 rounded-lg">
+                    POSTAL PINCODE: {editFormData.pincode || 'NOT SET'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Full Street / Shop Address *</label>
+                    <textarea
+                      rows={2}
+                      value={editFormData.address}
+                      onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                      className="w-full p-2 bg-card border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      placeholder="Street, Landmark, Building name..."
+                    />
                   </div>
-                  <div>
-                    <span className="text-muted-foreground block text-[11px]">District</span>
-                    <span className="font-bold text-foreground block mt-0.5">{selectedDetailItem.district || "N/A"}</span>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-primary uppercase flex items-center gap-1">
+                      📮 PIN Code * (Dispatch Key)
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={editFormData.pincode}
+                      onChange={(e) => setEditFormData({ ...editFormData, pincode: e.target.value.trim() })}
+                      className="w-full p-2 bg-primary/10 border-2 border-primary/40 focus:border-primary rounded-xl text-xs font-mono font-black text-primary outline-none"
+                      placeholder="e.g. 500081"
+                    />
                   </div>
-                  <div>
-                    <span className="text-muted-foreground block text-[11px]">Mandal / City</span>
-                    <span className="font-bold text-foreground block mt-0.5">{selectedDetailItem.mandal || "N/A"}</span>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Mandal / Locality / City</label>
+                    <input
+                      type="text"
+                      value={editFormData.mandal}
+                      onChange={(e) => setEditFormData({ ...editFormData, mandal: e.target.value })}
+                      className="w-full p-2 bg-card border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      placeholder="e.g. Madhapur"
+                    />
                   </div>
-                  <div>
-                    <span className="text-muted-foreground block text-[11px]">Pincode</span>
-                    <span className="font-bold text-foreground block mt-0.5">{selectedDetailItem.pincode || "N/A"}</span>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">District</label>
+                    <input
+                      type="text"
+                      value={editFormData.district}
+                      onChange={(e) => setEditFormData({ ...editFormData, district: e.target.value })}
+                      className="w-full p-2 bg-card border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      placeholder="e.g. Hyderabad"
+                    />
                   </div>
-                  <div className="col-span-2 md:col-span-4">
-                    <span className="text-muted-foreground block text-[11px]">Full Street Address</span>
-                    <span className="font-semibold text-foreground block mt-0.5">{selectedDetailItem.address || "N/A"}</span>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">State</label>
+                    <input
+                      type="text"
+                      value={editFormData.state}
+                      onChange={(e) => setEditFormData({ ...editFormData, state: e.target.value })}
+                      className="w-full p-2 bg-card border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      placeholder="e.g. Telangana"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Village / Sub-area</label>
+                    <input
+                      type="text"
+                      value={editFormData.village}
+                      onChange={(e) => setEditFormData({ ...editFormData, village: e.target.value })}
+                      className="w-full p-2 bg-card border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      placeholder="e.g. Hitec City"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Experience / Notes</label>
+                    <input
+                      type="text"
+                      value={editFormData.experience}
+                      onChange={(e) => setEditFormData({ ...editFormData, experience: e.target.value })}
+                      className="w-full p-2 bg-card border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                      placeholder="Years of experience"
+                    />
                   </div>
                 </div>
 
                 {selectedDetailItem.dependencies && (
-                  <div className="pt-2 border-t border-border/40 flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-bold text-muted-foreground mr-1">Mapped Territory Network:</span>
+                  <div className="pt-2 border-t border-primary/15 flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-bold text-muted-foreground mr-1">Mapped Regional Hierarchy:</span>
                     {selectedDetailItem.dependencies.stateFranchise ? (
                       <span className="bg-primary/10 text-primary font-bold px-2.5 py-1 rounded-lg border border-primary/20 text-xs">
                         🏛️ State: {selectedDetailItem.dependencies.stateFranchise.businessName}
@@ -1371,36 +1468,18 @@ export const ApprovalCenter: React.FC = () => {
                   </div>
                 )}
               </div>
-              {/* Business Category & Subcategories Governance - Shown ONLY for Vendor Role */}
+
+              {/* Section 3: Business Category & Subcategories Governance */}
               {(activeSubTab === "vendors" || selectedDetailItem.isVendor || selectedDetailItem.roleId === "vendor" || selectedDetailItem.applicationType === "vendor" || selectedDetailItem.isDbVendor) && (
                 <div className="bg-primary/5 p-5 rounded-2xl border border-primary/20 space-y-4">
                   <div className="flex items-center justify-between border-b border-primary/15 pb-2">
                     <h4 className="font-extrabold text-primary text-sm uppercase tracking-wide flex items-center gap-2">
-                      🏷️ Business Category & Subcategories Governance
+                      🏷️ 3. Business Category & Subcategories Governance
                     </h4>
                     <span className="text-[10px] font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">
                       Admin Managed
                     </span>
                   </div>
-
-                  {/* Display Subcategories requested by Applicant */}
-                  {selectedDetailItem.approvedSubcategories && selectedDetailItem.approvedSubcategories.length > 0 && (
-                    <div className="p-3 bg-card border border-emerald-500/30 rounded-xl space-y-1.5 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-extrabold text-emerald-600 uppercase tracking-wide flex items-center gap-1.5">
-                          <span>📋</span> Subcategories Selected by Applicant ({selectedDetailItem.approvedSubcategories.length}):
-                        </span>
-                        <span className="text-[10px] text-muted-foreground font-semibold">User Selection</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {selectedDetailItem.approvedSubcategories.map((sub: string, idx: number) => (
-                          <span key={idx} className="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 font-extrabold text-xs rounded-lg border border-emerald-500/20">
-                            ✓ {sub}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
                   <div className="space-y-4">
                     {/* Primary Category Selector Tabs */}
@@ -1500,7 +1579,7 @@ export const ApprovalCenter: React.FC = () => {
                   <div className="space-y-2 pt-2 border-t border-primary/15">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-extrabold text-foreground">
-                        Selected Subcategories to Save ({editingSubcategories.length}):
+                        Approved Subcategories to Save ({editingSubcategories.length}):
                       </span>
                       {editingSubcategories.length > 0 && (
                         <button
@@ -1541,11 +1620,25 @@ export const ApprovalCenter: React.FC = () => {
                 </div>
               )}
 
+              {/* Section 4: Admin Remarks & Decision Reason */}
+              <div className="bg-secondary/15 p-4 rounded-xl border border-border/40 space-y-2">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+                  Admin Verification Remarks / Conditions
+                </label>
+                <textarea
+                  rows={2}
+                  value={editFormData.adminRemarks}
+                  onChange={(e) => setEditFormData({ ...editFormData, adminRemarks: e.target.value })}
+                  className="w-full p-2.5 bg-card border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                  placeholder="Optional internal remarks or instructions included in approval notification..."
+                />
+              </div>
+
               {/* Section 5: Verification Documents */}
               {selectedDetailItem.documents && (
                 <div className="bg-secondary/15 p-4 rounded-xl border border-border/40 space-y-3">
-                  <h4 className="font-extrabold text-primary text-xs uppercase tracking-wide">
-                    📁 Verification Documents & Audit Links
+                  <h4 className="font-extrabold text-primary text-xs uppercase tracking-wide flex items-center gap-1.5">
+                    <FileText size={14} /> 4. Uploaded Verification Documents
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
                     {Object.entries(selectedDetailItem.documents).map(([docKey, docVal]: [string, any]) => {
@@ -1576,31 +1669,47 @@ export const ApprovalCenter: React.FC = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 border-t border-border bg-muted/20 flex items-center justify-between gap-3">
-              <button
-                onClick={() => setSelectedDetailItem(null)}
-                className="px-5 py-2.5 bg-secondary hover:bg-secondary/80 text-foreground font-bold text-xs rounded-xl border border-border/40 transition-all cursor-pointer"
-              >
-                Cancel / Close
-              </button>
+            <div className="p-4 border-t border-border bg-muted/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setSelectedDetailItem(null)}
+                  className="w-full sm:w-auto px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground font-bold text-xs rounded-xl border border-border/40 transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSaveDetailsOnly}
+                  disabled={actionLoading}
+                  className="w-full sm:w-auto px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs rounded-xl border border-primary/30 transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  title="Save edited fields without changing application status"
+                >
+                  <Save size={13} />
+                  {actionLoading ? "Saving..." : "Save Edits Only"}
+                </button>
+              </div>
 
               {!selectedDetailItem.isDbVendor && (
-                <div className="flex gap-2">
+                <div className="flex gap-2 w-full sm:w-auto">
                   <button
                     onClick={() => handleAction(selectedDetailItem.id, "Rejected")}
-                    className="px-5 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold text-xs rounded-xl border border-rose-500/20 transition-all cursor-pointer"
+                    disabled={actionLoading}
+                    className="flex-1 sm:flex-none px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold text-xs rounded-xl border border-rose-500/20 transition-all cursor-pointer disabled:opacity-50"
                   >
                     Reject Application
                   </button>
 
                   <button
                     onClick={() => handleAction(selectedDetailItem.id, "Approved")}
-                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                    disabled={actionLoading}
+                    className="flex-1 sm:flex-none px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
                   >
-                    <Check size={16} />
+                    <Check size={15} />
                     {activeSubTab === "kyc" || selectedDetailItem.status === "under_review" || selectedDetailItem.status === "kyc_submitted"
                       ? "Verify KYC & Approve"
-                      : "Pre-Approve & Save Subcategories"}
+                      : "Save Edits & Pre-Approve"}
                   </button>
                 </div>
               )}
