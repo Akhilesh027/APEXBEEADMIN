@@ -51,6 +51,7 @@ import { SupportCenter } from './pages/SupportCenter';
 import { SecuritySettings } from './pages/SecuritySettings';
 import { FoodAndDiningManagement } from './pages/FoodAndDiningManagement';
 import { BannerManagement } from './pages/BannerManagement';
+import { FeePricingManagement } from './pages/FeePricingManagement';
 
 const App: React.FC = () => {
   const { sellers, products, orders, withdrawals, isAuthenticated } = useAdminState();
@@ -103,6 +104,8 @@ const App: React.FC = () => {
         return <AdminProductApproval />;
       case 'commissions':
         return <CommissionEngine />;
+      case 'fee_pricing':
+        return <FeePricingManagement />;
       case 'payments':
         return <PaymentVerification />;
       case 'franchise':

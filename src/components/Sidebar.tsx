@@ -48,7 +48,8 @@ import {
   Calendar,
   Repeat,
   Navigation,
-  Utensils
+  Utensils,
+  Tag
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -58,6 +59,7 @@ export type ActiveTab =
   | 'categories'
   | 'products'
   | 'commissions'
+  | 'fee_pricing'
   | 'payments'
   | 'franchise'
   | 'referrals'
@@ -199,6 +201,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: 'Finance & Settlements',
       items: [
+        { id: 'fee_pricing', label: 'Fee & Pricing Manager', icon: Tag },
         { id: 'financial_center', label: 'Master Treasury', icon: Coins },
         { id: 'wallets', label: 'Wallets & Payouts', icon: Wallet, badge: badgeCounts.withdrawals },
         { id: 'settlement_center', label: 'Settlement Center', icon: Landmark },
