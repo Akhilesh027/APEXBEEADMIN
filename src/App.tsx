@@ -52,6 +52,7 @@ import { SecuritySettings } from './pages/SecuritySettings';
 import { FoodAndDiningManagement } from './pages/FoodAndDiningManagement';
 import { BannerManagement } from './pages/BannerManagement';
 import { FeePricingManagement } from './pages/FeePricingManagement';
+import { TransactionManagement } from './pages/TransactionManagement';
 
 const App: React.FC = () => {
   const { sellers, products, orders, withdrawals, isAuthenticated } = useAdminState();
@@ -122,6 +123,8 @@ const App: React.FC = () => {
         return <DeliveryBoyTracking />;
       case 'wallets':
         return <WalletManagement />;
+      case 'transactions':
+        return <TransactionManagement />;
       case 'reports':
         return <ReportsAnalytics />;
       case 'subscriptions':
