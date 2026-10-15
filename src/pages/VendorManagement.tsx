@@ -228,7 +228,7 @@ export const VendorManagement: React.FC = () => {
       }
 
       setSelectedCategoryIds(matchedIds);
-      setSelectedParentCatId(matchedIds[0]);
+      setSelectedParentCatId(matchedIds[0] || (parentCats[0]?._id ? String(parentCats[0]._id) : ''));
       setPrimaryCatId(matchedIds[0] || (parentCats[0]?._id ? String(parentCats[0]._id) : ''));
       setActiveViewingCatId(matchedIds[0] || (parentCats[0]?._id ? String(parentCats[0]._id) : ''));
       setEditingSubcategories(parseSubcategories(selectedVendor));

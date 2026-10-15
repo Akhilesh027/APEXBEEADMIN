@@ -778,7 +778,7 @@ export const ApprovalCenter: React.FC = () => {
                   Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
-                  parentCategoryId: assignedParentId,
+                  parentCategoryId: selectedParentCatId || activeParentCat?._id,
                   approvedCapabilities: checkedCaps.length > 0 ? checkedCaps : activeCategoryCapabilities.map(c => c.id),
                   approvedSubcategoryIds: checkedSubCatIds,
                   status: action === "Approved" ? "approved" : "rejected",
