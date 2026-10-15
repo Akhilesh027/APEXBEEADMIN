@@ -46,6 +46,9 @@ export const VendorManagement: React.FC = () => {
   // Category & Subcategories Governance state
   const [dbCategories, setDbCategories] = useState<any[]>([]);
   const [selectedParentCatId, setSelectedParentCatId] = useState<string>('');
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [primaryCatId, setPrimaryCatId] = useState<string>('');
+  const [activeViewingCatId, setActiveViewingCatId] = useState<string>('');
   const [editingSubcategories, setEditingSubcategories] = useState<string[]>([]);
   const [newSubCategoryName, setNewSubCategoryName] = useState<string>('');
 
@@ -144,6 +147,9 @@ export const VendorManagement: React.FC = () => {
             revenue: availableBalance,
             status: getStatusLabel(v.status),
             category: v.category || v.primaryCategory || 'Retail Store',
+            categories: Array.isArray(v.categories) && v.categories.length > 0
+              ? v.categories
+              : (v.category ? String(v.category).split(',').map((s: string) => s.trim()).filter(Boolean) : (v.primaryCategory ? [v.primaryCategory] : [])),
             subCategory: parsedSubs[0] || v.subCategory || '',
             approvedSubcategories: parsedSubs,
             gstNumber: v.gstNumber || '',
@@ -187,25 +193,83 @@ export const VendorManagement: React.FC = () => {
 
   useEffect(() => {
     if (selectedVendor && dbCategories.length > 0) {
-      const vendorCatStr = selectedVendor.category || '';
-      const matchedParent = dbCategories.find(c =>
-        (c.level === 1 || !c.parentId) &&
-        (c.name.toLowerCase() === vendorCatStr.toLowerCase() || vendorCatStr.toLowerCase().includes(c.name.toLowerCase()))
-      );
-      if (matchedParent) {
-        setSelectedParentCatId(matchedParent._id);
+      const parentCats = dbCategories.filter((c: any) => c.level === 1 || !c.parentId);
+
+      // Extract existing vendor categories
+      const rawVendorCats: string[] = Array.isArray(selectedVendor.categories) && selectedVendor.categories.length > 0
+        ? selectedVendor.categories
+        : (selectedVendor.category ? String(selectedVendor.category).split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+
+      const matchedIds: string[] = [];
+      parentCats.forEach((pCat: any) => {
+        const pName = pCat.name.toLowerCase().trim();
+        const pIdStr = String(pCat._id);
+        const isMatched = rawVendorCats.some(vc => {
+          const vcLower = String(vc).toLowerCase().trim();
+          return vcLower === pName || vcLower.includes(pName) || pName.includes(vcLower) || String(vc) === pIdStr;
+        });
+        if (isMatched && !matchedIds.includes(pIdStr)) {
+          matchedIds.push(pIdStr);
+        }
+      });
+
+      // Also check allowedCategories if present
+      if (Array.isArray(selectedVendor.allowedCategories)) {
+        selectedVendor.allowedCategories.forEach((ac: any) => {
+          const acId = String(typeof ac === 'object' ? (ac._id || ac) : ac);
+          if (parentCats.some((p: any) => String(p._id) === acId) && !matchedIds.includes(acId)) {
+            matchedIds.push(acId);
+          }
+        });
       }
+
+      if (matchedIds.length === 0 && parentCats.length > 0) {
+        matchedIds.push(String(parentCats[0]._id));
+      }
+
+      setSelectedCategoryIds(matchedIds);
+      setSelectedParentCatId(matchedIds[0]);
+      setPrimaryCatId(matchedIds[0] || (parentCats[0]?._id ? String(parentCats[0]._id) : ''));
+      setActiveViewingCatId(matchedIds[0] || (parentCats[0]?._id ? String(parentCats[0]._id) : ''));
       setEditingSubcategories(parseSubcategories(selectedVendor));
     }
   }, [selectedVendor, dbCategories]);
 
   const parentCategories = dbCategories.filter((c: any) => c.level === 1 || !c.parentId);
-  const activeParentCat = parentCategories.find((c: any) => String(c._id) === String(selectedParentCatId)) || parentCategories[0];
+  const activeViewingCat = parentCategories.find((c: any) => String(c._id) === String(activeViewingCatId)) ||
+    parentCategories.find((c: any) => selectedCategoryIds.includes(String(c._id))) ||
+    parentCategories[0];
+  const activeParentCat = activeViewingCat;
+
   const currentSubCategories = dbCategories.filter((c: any) => {
     if (c.level !== 2) return false;
     const parentIdStr = typeof c.parentId === 'object' ? c.parentId?._id : c.parentId;
-    return String(parentIdStr) === String(activeParentCat?._id);
+    return String(parentIdStr) === String(activeViewingCat?._id);
   });
+
+  const handleToggleCategory = (catId: string) => {
+    setSelectedCategoryIds(prev => {
+      let next: string[];
+      if (prev.includes(catId)) {
+        // Don't allow deselecting the only category
+        if (prev.length <= 1) return prev;
+        next = prev.filter(id => id !== catId);
+        if (primaryCatId === catId) {
+          setPrimaryCatId(next[0] || '');
+        }
+        if (activeViewingCatId === catId) {
+          setActiveViewingCatId(next[0] || '');
+        }
+      } else {
+        next = [...prev, catId];
+        if (!primaryCatId) {
+          setPrimaryCatId(catId);
+        }
+        setActiveViewingCatId(catId);
+      }
+      return next;
+    });
+  };
 
   const handleAddSubcategory = (name: string) => {
     if (!name.trim()) return;
@@ -227,7 +291,13 @@ export const VendorManagement: React.FC = () => {
       setErrorMsg('');
       setSuccessMsg('');
       const token = localStorage.getItem('adminToken');
-      const primaryCategoryName = activeParentCat?.name || selectedVendor.category;
+
+      const selectedCatNames = selectedCategoryIds
+        .map(id => parentCategories.find((c: any) => String(c._id) === String(id))?.name)
+        .filter(Boolean);
+
+      const primaryCatDoc = parentCategories.find((c: any) => String(c._id) === String(primaryCatId));
+      const primaryCategoryName = primaryCatDoc?.name || selectedCatNames[0] || selectedVendor.category;
 
       const res = await fetch(`https://server.apexbee.in/api/admin/vendors/${selectedVendor.userId}/category-governance`, {
         method: 'PUT',
@@ -236,15 +306,25 @@ export const VendorManagement: React.FC = () => {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
+          categories: selectedCatNames,
+          allowedCategories: selectedCategoryIds,
           primaryCategory: primaryCategoryName,
+          category: selectedCatNames.join(', '),
           subCategory: editingSubcategories[0] || '',
           approvedSubcategories: editingSubcategories
         })
       });
       const data = await res.json();
       if (data.success) {
-        setSuccessMsg(`Category governance updated for ${selectedVendor.name}!`);
-        setSelectedVendor((prev: any) => prev ? { ...prev, category: primaryCategoryName, approvedSubcategories: editingSubcategories } : null);
+        setSuccessMsg(`Category governance updated for ${selectedVendor.name}! (${selectedCatNames.length} categories permitted)`);
+        setSelectedVendor((prev: any) => prev ? {
+          ...prev,
+          category: selectedCatNames.join(', ') || primaryCategoryName,
+          categories: selectedCatNames,
+          allowedCategories: selectedCategoryIds,
+          primaryCategory: primaryCategoryName,
+          approvedSubcategories: editingSubcategories
+        } : null);
         fetchVendors();
       } else {
         setErrorMsg(data.message || 'Failed to save category governance');
@@ -373,7 +453,11 @@ export const VendorManagement: React.FC = () => {
       gstNumber: vendor.gstNumber || '',
       panNumber: vendor.panNumber || '',
       fssaiNumber: vendor.fssaiNumber || '',
-      category: vendor.category || 'Retail Store',
+      category: (Array.isArray(vendor.categories) && vendor.categories.length > 0) ? vendor.categories.join(', ') : (vendor.category || 'Retail Store'),
+      categories: Array.isArray(vendor.categories) && vendor.categories.length > 0
+        ? vendor.categories
+        : (vendor.category ? String(vendor.category).split(',').map((s: string) => s.trim()).filter(Boolean) : []),
+      primaryCategory: vendor.primaryCategory || (Array.isArray(vendor.categories) ? vendor.categories[0] : '') || vendor.category || 'Retail Store',
       subCategory: vendor.subCategory || '',
       storeType: vendor.storeType || 'grocery',
       deliveryMode: vendor.deliveryMode || 'platform_delivery',
@@ -407,6 +491,10 @@ export const VendorManagement: React.FC = () => {
       setSuccessMsg('');
       const token = localStorage.getItem('adminToken');
 
+      const modalCats = Array.isArray(editingVendorData.categories) && editingVendorData.categories.length > 0
+        ? editingVendorData.categories
+        : (editingVendorData.category ? String(editingVendorData.category).split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+
       const payload = {
         businessName: editingVendorData.businessName,
         ownerName: editingVendorData.ownerName,
@@ -422,8 +510,9 @@ export const VendorManagement: React.FC = () => {
         gstNumber: editingVendorData.gstNumber,
         panNumber: editingVendorData.panNumber,
         fssaiNumber: editingVendorData.fssaiNumber,
-        category: editingVendorData.category,
-        primaryCategory: editingVendorData.category,
+        category: modalCats.join(', ') || editingVendorData.category,
+        categories: modalCats,
+        primaryCategory: editingVendorData.primaryCategory || modalCats[0] || editingVendorData.category,
         subCategory: editingVendorData.subCategory,
         storeType: editingVendorData.storeType,
         deliveryMode: editingVendorData.deliveryMode,
@@ -481,7 +570,9 @@ export const VendorManagement: React.FC = () => {
             gstNumber: editingVendorData.gstNumber,
             panNumber: editingVendorData.panNumber,
             fssaiNumber: editingVendorData.fssaiNumber,
-            category: editingVendorData.category,
+            category: modalCats.join(', ') || editingVendorData.category,
+            categories: modalCats,
+            primaryCategory: editingVendorData.primaryCategory || modalCats[0] || editingVendorData.category,
             subCategory: editingVendorData.subCategory,
             status: getStatusLabel(editingVendorData.status),
             rawStatus: editingVendorData.status,
@@ -869,8 +960,14 @@ export const VendorManagement: React.FC = () => {
                         {v.email && <span className="text-[10px] text-muted-foreground/80 block truncate max-w-[120px]">{v.email}</span>}
                       </td>
                       <td className="p-3 text-muted-foreground">
-                        <span className="font-medium text-foreground block">{v.category}</span>
-                        {v.subCategory && <span className="text-[10px] text-muted-foreground block">{v.subCategory}</span>}
+                        <div className="flex flex-wrap gap-1">
+                          {(v.categories && v.categories.length > 0 ? v.categories : String(v.category || '').split(',').map((s: string) => s.trim()).filter(Boolean)).map((c: string, idx: number) => (
+                            <span key={idx} className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px] font-bold border border-primary/20">
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                        {v.subCategory && <span className="text-[10px] text-muted-foreground block mt-0.5">{v.subCategory}</span>}
                       </td>
                       <td className="p-3 text-center">
                         <div className="flex items-center justify-center gap-1.5">
@@ -1128,53 +1225,109 @@ export const VendorManagement: React.FC = () => {
                 </div>
               </div>
 
-              {/* Dynamic Category & Subcategories Management (Interactive Admin Governance) */}
+              {/* Dynamic Category & Subcategories Management (Interactive Admin Multi-Category Governance) */}
               <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
                 <div className="flex items-center justify-between border-b border-primary/15 pb-2">
-                  <h4 className="font-extrabold text-primary text-xs uppercase tracking-wide flex items-center gap-1.5">
-                    🏷️ Category & Permitted Subcategories Governance
-                  </h4>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-extrabold text-primary text-xs uppercase tracking-wide flex items-center gap-1.5">
+                      🏷️ Permitted Store Categories ({selectedCategoryIds.length})
+                    </h4>
+                    <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-mono font-bold text-[9px] rounded-full">
+                      {selectedCategoryIds.length} Permitted
+                    </span>
+                  </div>
                   <button
                     type="button"
                     onClick={handleSaveCategoryGovernance}
                     disabled={actionLoading}
-                    className="px-3 py-1 bg-primary hover:bg-primary/90 text-white font-bold text-[10px] rounded-lg shadow-sm disabled:opacity-50 transition cursor-pointer"
+                    className="px-3.5 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs rounded-lg shadow-sm disabled:opacity-50 transition cursor-pointer"
                   >
                     {actionLoading ? 'Saving...' : 'Save Category Governance'}
                   </button>
                 </div>
 
                 <div className="space-y-3">
-                  {/* Primary Category Selector Tabs */}
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase block">
-                      Primary Business Category (Click to change)
-                    </span>
+                  {/* Multi-Category Selector Checkboxes / Chips */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase block">
+                        Permitted Categories (Click chip to toggle ON / OFF):
+                      </span>
+                      <span className="text-[9px] text-muted-foreground">
+                        Vendor can ONLY add products to selected categories
+                      </span>
+                    </div>
+
                     <div className="flex flex-wrap gap-1.5">
                       {parentCategories.map((cat: any) => {
-                        const isCatSelected = (selectedParentCatId || activeParentCat?._id) === cat._id;
+                        const isCatSelected = selectedCategoryIds.includes(String(cat._id));
+                        const isPrimary = String(primaryCatId) === String(cat._id);
                         return (
-                          <button
-                            key={cat._id}
-                            type="button"
-                            onClick={() => setSelectedParentCatId(cat._id)}
-                            className={`px-2.5 py-1 rounded-lg font-bold text-[10px] transition-all border cursor-pointer ${isCatSelected
-                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                              : "bg-card text-muted-foreground border-border hover:border-primary/40"
-                              }`}
-                          >
-                            {cat.name}
-                          </button>
+                          <div key={cat._id} className="inline-flex items-center">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleCategory(String(cat._id))}
+                              className={`px-3 py-1.5 rounded-lg font-bold text-[10px] transition-all border flex items-center gap-1.5 cursor-pointer ${isCatSelected
+                                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                  : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:bg-secondary/40"
+                                }`}
+                            >
+                              <span className="font-extrabold">{isCatSelected ? "✓" : "+"}</span>
+                              <span>{cat.name}</span>
+                              {isPrimary && (
+                                <span className="bg-amber-400 text-amber-950 text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase ml-1">
+                                  Primary
+                                </span>
+                              )}
+                            </button>
+                            {isCatSelected && !isPrimary && (
+                              <button
+                                type="button"
+                                title="Set as Primary Category"
+                                onClick={() => setPrimaryCatId(String(cat._id))}
+                                className="ml-1 text-[9px] text-muted-foreground hover:text-amber-500 font-bold px-1 py-0.5"
+                              >
+                                ★ Set Primary
+                              </button>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
                   </div>
 
+                  {/* Switch Subcategory Management View between Permitted Categories */}
+                  {selectedCategoryIds.length > 1 && (
+                    <div className="space-y-1 pt-1.5 border-t border-primary/10">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase block">
+                        Manage Subcategories For Category:
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {parentCategories.filter((c: any) => selectedCategoryIds.includes(String(c._id))).map((c: any) => {
+                          const isViewing = String(c._id) === String(activeViewingCat?._id);
+                          return (
+                            <button
+                              key={c._id}
+                              type="button"
+                              onClick={() => setActiveViewingCatId(String(c._id))}
+                              className={`px-2 py-0.5 rounded-md font-bold text-[9px] border transition cursor-pointer ${isViewing
+                                  ? "bg-secondary text-foreground border-primary"
+                                  : "bg-transparent text-muted-foreground border-transparent hover:border-border"
+                                }`}
+                            >
+                              {c.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Toggle Subcategories Interactive Chip Grid */}
                   <div className="space-y-1.5 pt-2 border-t border-primary/15">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase block">
-                        Approved Subcategories for ({activeParentCat?.name || "Selected Category"}):
+                        Approved Subcategories for ({activeViewingCat?.name || "Selected Category"}):
                       </span>
                       <span className="text-[9px] text-muted-foreground">Click chip to toggle ON / OFF</span>
                     </div>
@@ -1207,7 +1360,7 @@ export const VendorManagement: React.FC = () => {
                       </div>
                     ) : (
                       <div className="p-2 bg-card border border-dashed border-primary/20 rounded-lg text-[10px] text-muted-foreground text-center">
-                        No subcategories in DB for this category. Add custom below.
+                        No default subcategories for this category in DB. Add custom below.
                       </div>
                     )}
 
@@ -1781,16 +1934,63 @@ export const VendorManagement: React.FC = () => {
                     <span className="text-[10px] text-muted-foreground block">Set delivery radius, charges, minimum order value and store category.</span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Primary Category</label>
-                      <input
-                        type="text"
-                        value={editingVendorData.category}
-                        onChange={(e) => setEditingVendorData({ ...editingVendorData, category: e.target.value })}
-                        className="w-full p-2.5 bg-secondary/30 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground font-semibold"
-                      />
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase">
+                          Permitted Main Categories (Select 1 or more)
+                        </label>
+                        <span className="text-[9px] font-bold text-primary">
+                          {((editingVendorData.categories && editingVendorData.categories.length > 0) ? editingVendorData.categories.length : 1)} Categories Permitted
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {parentCategories.map((cat: any) => {
+                          const curCats: string[] = Array.isArray(editingVendorData.categories) && editingVendorData.categories.length > 0
+                            ? editingVendorData.categories
+                            : (editingVendorData.category ? String(editingVendorData.category).split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+                          const isCatSelected = curCats.includes(cat.name);
+                          const isPrimary = (editingVendorData.primaryCategory || curCats[0]) === cat.name;
+
+                          return (
+                            <button
+                              key={cat._id}
+                              type="button"
+                              onClick={() => {
+                                let nextCats: string[];
+                                if (isCatSelected) {
+                                  if (curCats.length <= 1) return;
+                                  nextCats = curCats.filter(c => c !== cat.name);
+                                } else {
+                                  nextCats = [...curCats, cat.name];
+                                }
+                                setEditingVendorData({
+                                  ...editingVendorData,
+                                  categories: nextCats,
+                                  category: nextCats.join(', '),
+                                  primaryCategory: isPrimary ? (nextCats[0] || '') : (editingVendorData.primaryCategory || nextCats[0] || '')
+                                });
+                              }}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition cursor-pointer flex items-center gap-1.5 ${isCatSelected
+                                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                  : "bg-secondary/40 text-muted-foreground border-border hover:border-primary/40"
+                                }`}
+                            >
+                              <span>{isCatSelected ? "✓" : "+"}</span>
+                              <span>{cat.name}</span>
+                              {isPrimary && (
+                                <span className="bg-amber-400 text-amber-950 text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase ml-1">
+                                  Primary
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-muted-foreground uppercase">Subcategory</label>

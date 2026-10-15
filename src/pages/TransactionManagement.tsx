@@ -273,6 +273,34 @@ export const TransactionManagement: React.FC = () => {
     }
   };
 
+  // Delete All Transactions
+  const handleDeleteAllTransactions = async () => {
+    if (!window.confirm("⚠️ ARE YOU SURE? This will permanently delete ALL transactions, reset all wallet balances and ledger entries to ₹0, and reset commission settlements!")) {
+      return;
+    }
+    try {
+      setLoading(true);
+      setErrorMsg('');
+      const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/admin/transactions/all`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg(data.message || "All transactions successfully deleted!");
+        setTransactions([]);
+        setTimeout(() => setSuccessMsg(''), 5000);
+      } else {
+        setErrorMsg(data.message || "Failed to delete all transactions");
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Error deleting all transactions");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Export to CSV
   const exportToCSV = () => {
     if (filteredTransactions.length === 0) return;
@@ -416,6 +444,16 @@ export const TransactionManagement: React.FC = () => {
           >
             <Download size={14} />
             Export CSV
+          </button>
+
+          <button
+            onClick={handleDeleteAllTransactions}
+            disabled={loading || transactions.length === 0}
+            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 transition shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
+            title="Permanently delete all transactions and reset wallet balances"
+          >
+            <Trash2 size={14} />
+            Delete All Transactions
           </button>
         </div>
       </div>

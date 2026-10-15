@@ -22,7 +22,9 @@ import {
   Percent,
   Layers,
   ArrowRight,
-  Plus
+  Plus,
+  MapPin,
+  User as UserIcon
 } from "lucide-react";
 
 interface PricingItem {
@@ -69,9 +71,15 @@ interface FeeInvoice {
 interface UserOption {
   _id: string;
   name: string;
+  businessName?: string;
   email: string;
   phone: string;
   roles: string[];
+  territory?: {
+    state?: string;
+    district?: string;
+    mandal?: string;
+  };
 }
 
 export const FeePricingManagement: React.FC = () => {
@@ -81,6 +89,7 @@ export const FeePricingManagement: React.FC = () => {
   const [invoices, setInvoices] = useState<FeeInvoice[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [usersLoading, setUsersLoading] = useState<boolean>(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -94,6 +103,8 @@ export const FeePricingManagement: React.FC = () => {
   const [customAmount, setCustomAmount] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [isGeneratingLink, setIsGeneratingLink] = useState<boolean>(false);
+  const [recipientSearch, setRecipientSearch] = useState<string>("");
+  const [recipientRoleFilter, setRecipientRoleFilter] = useState<string>("all");
 
   // Filters for Invoices
   const [invoiceSearch, setInvoiceSearch] = useState<string>("");
@@ -102,7 +113,7 @@ export const FeePricingManagement: React.FC = () => {
   const API_BASE = "https://server.apexbee.in/api";
   const getAuthHeader = () => ({
     "Content-Type": "application/json",
-    Authorization: `Bearer ${localStorage.getItem("admin_token") || localStorage.getItem("token") || ""}`,
+    Authorization: `Bearer ${localStorage.getItem("adminToken") || localStorage.getItem("admin_token") || localStorage.getItem("token") || ""}`,
   });
 
   const showToast = (text: string, type: "success" | "error" = "success") => {
@@ -117,13 +128,18 @@ export const FeePricingManagement: React.FC = () => {
         headers: getAuthHeader(),
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && Array.isArray(data.data)) {
         setCatalog(data.data);
         const initialPrices: { [id: string]: number } = {};
         data.data.forEach((item: PricingItem) => {
           initialPrices[item._id] = item.amount;
         });
         setEditingItem(initialPrices);
+
+        if (!customAmount) {
+          const match = data.data.find((c: PricingItem) => c.serviceKey === selectedService) || data.data[0];
+          if (match) setCustomAmount(String(match.amount));
+        }
       }
     } catch (err) {
       console.error("Error fetching catalog:", err);
@@ -138,7 +154,7 @@ export const FeePricingManagement: React.FC = () => {
         headers: getAuthHeader(),
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && Array.isArray(data.data)) {
         setInvoices(data.data);
       }
     } catch (err) {
@@ -148,15 +164,74 @@ export const FeePricingManagement: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch(`${API_BASE}/admin/users?limit=200`, {
-        headers: getAuthHeader(),
+      setUsersLoading(true);
+      const [usersRes, vendorsRes] = await Promise.all([
+        fetch(`${API_BASE}/admin/users?limit=300`, { headers: getAuthHeader() }),
+        fetch(`${API_BASE}/admin/vendors`, { headers: getAuthHeader() }),
+      ]);
+      const usersData = await usersRes.json();
+      const vendorsData = await vendorsRes.json();
+
+      const userList: any[] = usersData.users || usersData.data || [];
+      const vendorList: any[] = vendorsData.vendors || vendorsData.data || [];
+
+      const combinedMap = new Map<string, UserOption>();
+
+      // 1. Map registered users
+      userList.forEach((u: any) => {
+        const id = String(u._id);
+        combinedMap.set(id, {
+          _id: id,
+          name: u.name || "Unnamed User",
+          businessName: u.sellerProfile?.businessName || u.businessName || "",
+          email: u.email || "",
+          phone: u.phone || u.mobile || "",
+          roles: Array.isArray(u.roles) ? u.roles : ["user"],
+          territory: u.territory || {},
+        });
       });
-      const data = await res.json();
-      if (data.success || Array.isArray(data.users)) {
-        setUsers(data.users || data.data || []);
-      }
+
+      // 2. Map and merge vendors from vendor directory
+      vendorList.forEach((v: any) => {
+        const userId = v.userId ? String(v.userId) : null;
+        if (userId && combinedMap.has(userId)) {
+          const existing = combinedMap.get(userId)!;
+          existing.businessName = v.businessName || existing.businessName;
+          existing.phone = existing.phone || v.mobile || v.whatsappNumber || "";
+          existing.email = existing.email || v.email || "";
+          if (!existing.roles.includes("vendor")) {
+            existing.roles.push("vendor");
+          }
+          if (v.state || v.district || v.mandal) {
+            existing.territory = {
+              state: v.state || existing.territory?.state,
+              district: v.district || existing.territory?.district,
+              mandal: v.mandal || existing.territory?.mandal,
+            };
+          }
+        } else {
+          const vId = String(v._id);
+          combinedMap.set(vId, {
+            _id: v.userId ? String(v.userId) : vId,
+            name: v.ownerName || v.businessName || "Vendor Partner",
+            businessName: v.businessName || "",
+            email: v.email || "",
+            phone: v.mobile || v.whatsappNumber || "",
+            roles: ["vendor"],
+            territory: {
+              state: v.state || "",
+              district: v.district || "",
+              mandal: v.mandal || "",
+            },
+          });
+        }
+      });
+
+      setUsers(Array.from(combinedMap.values()));
     } catch (err) {
-      console.error("Error fetching users:", err);
+      console.error("Error fetching users/vendors:", err);
+    } finally {
+      setUsersLoading(false);
     }
   };
 
@@ -215,7 +290,7 @@ export const FeePricingManagement: React.FC = () => {
 
       const data = await res.json();
       if (data.success) {
-        showToast("Payment link generated and notification dispatched!");
+        showToast("Payment link generated and sent to vendor! Visible in vendor portal. Commissions will be settled upon payment.");
         setSelectedUser("");
         setCustomAmount("");
         setNotes("");
@@ -465,6 +540,7 @@ export const FeePricingManagement: React.FC = () => {
                     <button
                       onClick={() => {
                         setSelectedService(item.serviceKey);
+                        setCustomAmount(String(item.amount));
                         setActiveTab("payment_links");
                       }}
                       className="text-amber-400 hover:text-amber-300 flex items-center gap-1 font-semibold"
@@ -494,90 +570,254 @@ export const FeePricingManagement: React.FC = () => {
               </p>
             </div>
 
-            <form onSubmit={handleGeneratePaymentLink} className="space-y-4">
-              {/* Recipient User Selector */}
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider">
-                  Select Recipient (Vendor / Franchise) *
-                </label>
-                <select
-                  value={selectedUser}
-                  onChange={(e) => setSelectedUser(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
-                  required
-                >
-                  <option value="" className="bg-neutral-900">-- Choose Partner / Applicant --</option>
-                  {users.map((u) => (
-                    <option key={u._id} value={u._id} className="bg-neutral-900">
-                      {u.name} ({u.roles?.join(", ") || "User"}) - {u.phone || u.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {(() => {
+              const targetUser = users.find((u) => u._id === selectedUser);
+              const selectedCatalogItem = catalog.find((c) => c.serviceKey === selectedService);
+              const baseAmountNumber = customAmount !== "" && !isNaN(Number(customAmount))
+                ? Number(customAmount)
+                : (selectedCatalogItem?.amount || 0);
+              const taxRate = selectedCatalogItem?.taxPercentage ?? 18;
+              const taxAmountNumber = Number(((baseAmountNumber * taxRate) / 100).toFixed(2));
+              const totalAmountNumber = Number((baseAmountNumber + taxAmountNumber).toFixed(2));
 
-              {/* Service Fee Model */}
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider">
-                  Fee / Service Model *
-                </label>
-                <select
-                  value={selectedService}
-                  onChange={(e) => {
-                    setSelectedService(e.target.value);
-                    const item = catalog.find((c) => c.serviceKey === e.target.value);
-                    if (item) setCustomAmount(String(item.amount));
-                  }}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
-                >
-                  {catalog.map((c) => (
-                    <option key={c.serviceKey} value={c.serviceKey} className="bg-neutral-900">
-                      {c.title} (Standard: ₹{c.amount})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              const filteredUsers = users.filter((u) => {
+                const q = recipientSearch.toLowerCase().trim();
+                const matchesSearch =
+                  !q ||
+                  u.name.toLowerCase().includes(q) ||
+                  (u.businessName && u.businessName.toLowerCase().includes(q)) ||
+                  (u.phone && u.phone.includes(q)) ||
+                  (u.email && u.email.toLowerCase().includes(q));
 
-              {/* Custom Fee Amount Override */}
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider">
-                  Custom Base Fee Override (₹)
-                </label>
-                <input
-                  type="number"
-                  value={customAmount}
-                  onChange={(e) => setCustomAmount(e.target.value)}
-                  placeholder="Leave empty to use catalog standard price"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
-                />
-              </div>
+                const matchesRole =
+                  recipientRoleFilter === "all" ||
+                  u.roles.includes(recipientRoleFilter) ||
+                  (recipientRoleFilter === "vendor" && (u.roles.includes("vendor") || !!u.businessName)) ||
+                  (recipientRoleFilter === "franchise" && (u.roles.includes("franchise") || u.roles.some((r) => r.includes("franchise"))));
 
-              {/* Notes */}
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider">
-                  Invoice Notes & Terms
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                  placeholder="e.g. Special promotional rate for Q4 on-boarding"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500 resize-none"
-                />
-              </div>
+                return matchesSearch && matchesRole;
+              });
 
-              <button
-                type="submit"
-                disabled={isGeneratingLink}
-                className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-bold text-sm rounded-xl shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-2"
-              >
-                {isGeneratingLink ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-                Generate & Dispatch Payment Link
-              </button>
-            </form>
+              return (
+                <form onSubmit={handleGeneratePaymentLink} className="space-y-4">
+                  {/* Recipient User Filter & Selector */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Select Recipient (Vendor / Franchise) *
+                      </label>
+                      <span className="text-[10px] text-amber-400 font-medium">
+                        {usersLoading ? "Loading partners..." : `${filteredUsers.length} available`}
+                      </span>
+                    </div>
+
+                    {/* Quick Search & Role Filter */}
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={recipientSearch}
+                          onChange={(e) => setRecipientSearch(e.target.value)}
+                          placeholder="Search name, store, mobile..."
+                          className="w-full bg-white/5 border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-muted-foreground focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+                      <select
+                        value={recipientRoleFilter}
+                        onChange={(e) => setRecipientRoleFilter(e.target.value)}
+                        className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                      >
+                        <option value="all" className="bg-neutral-900">All Roles</option>
+                        <option value="vendor" className="bg-neutral-900">Vendors Only</option>
+                        <option value="franchise" className="bg-neutral-900">Franchises Only</option>
+                      </select>
+                    </div>
+
+                    <select
+                      value={selectedUser}
+                      onChange={(e) => setSelectedUser(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                      required
+                    >
+                      <option value="" className="bg-neutral-900">
+                        {usersLoading ? "-- Loading Partners from Server... --" : "-- Choose Partner / Applicant --"}
+                      </option>
+                      {filteredUsers.map((u) => {
+                        const displayLabel = u.businessName
+                          ? `${u.businessName} (${u.name}) • ${u.roles.join(", ")} - ${u.phone || u.email}`
+                          : `${u.name} (${u.roles.join(", ")}) - ${u.phone || u.email}`;
+                        return (
+                          <option key={u._id} value={u._id} className="bg-neutral-900">
+                            {displayLabel}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {/* Selected Recipient Live Details Card */}
+                  {targetUser && (
+                    <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                          <Store className="w-3.5 h-3.5" /> Recipient Details
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
+                          {targetUser.roles.join(", ")}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase">Contact Person</p>
+                          <p className="font-semibold text-white truncate">{targetUser.name}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase">Store / Entity</p>
+                          <p className="font-semibold text-amber-300 truncate">
+                            {targetUser.businessName || "Registered Partner"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase">Mobile / Phone</p>
+                          <p className="font-semibold text-white">{targetUser.phone || "No Phone"}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase">Email</p>
+                          <p className="font-semibold text-white truncate">{targetUser.email || "No Email"}</p>
+                        </div>
+                        {(targetUser.territory?.mandal || targetUser.territory?.district || targetUser.territory?.state) && (
+                          <div className="col-span-2 pt-1.5 border-t border-amber-500/20 text-[11px] text-muted-foreground flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                            <span className="text-foreground">
+                              Territory: {[targetUser.territory.mandal, targetUser.territory.district, targetUser.territory.state].filter(Boolean).join(", ")}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Service Fee Model */}
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider">
+                      Fee / Service Model *
+                    </label>
+                    <select
+                      value={selectedService}
+                      onChange={(e) => {
+                        setSelectedService(e.target.value);
+                        const item = catalog.find((c) => c.serviceKey === e.target.value);
+                        if (item) setCustomAmount(String(item.amount));
+                      }}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                    >
+                      {catalog.map((c) => (
+                        <option key={c.serviceKey} value={c.serviceKey} className="bg-neutral-900">
+                          {c.title} (Standard: ₹{c.amount})
+                        </option>
+                      ))}
+                    </select>
+                    {selectedCatalogItem && (
+                      <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
+                        {selectedCatalogItem.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Custom Fee Amount Override */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Base Fee Amount (₹) *
+                      </label>
+                      {selectedCatalogItem && (
+                        <span className="text-[10px] text-amber-400">
+                          Catalog standard: ₹{selectedCatalogItem.amount}
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      type="number"
+                      value={customAmount}
+                      onChange={(e) => setCustomAmount(e.target.value)}
+                      placeholder={selectedCatalogItem ? String(selectedCatalogItem.amount) : "Enter amount"}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+
+                  {/* Real-time Pricing & Tax Breakdown Card */}
+                  <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-3">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+                      <span>Invoice Cost Summary</span>
+                      <span className="text-amber-400 font-bold">GST {taxRate}%</span>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Base Fee:</span>
+                        <span className="font-semibold text-white">₹{baseAmountNumber.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>GST ({taxRate}%):</span>
+                        <span className="font-semibold text-white">₹{taxAmountNumber.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="flex justify-between text-sm font-bold text-emerald-400 pt-2 border-t border-white/10">
+                        <span>Total Payable by Recipient:</span>
+                        <span>₹{totalAmountNumber.toLocaleString("en-IN")}</span>
+                      </div>
+                    </div>
+
+                    {/* Commission Split Preview */}
+                    <div className="pt-2 border-t border-white/10 space-y-1.5 text-[11px]">
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span className="font-semibold text-amber-300">Commission Distribution on Payment:</span>
+                        <span className="text-white font-mono">Base: ₹{baseAmountNumber}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-muted-foreground">
+                        <span>• L1 Referral (10%): <strong className="text-emerald-400">₹{(baseAmountNumber * 0.1).toFixed(2)}</strong></span>
+                        <span>• Mandal Fran. (10%): <strong className="text-blue-400">₹{(baseAmountNumber * 0.1).toFixed(2)}</strong></span>
+                        <span>• L2 Referral (3%): <strong className="text-emerald-400">₹{(baseAmountNumber * 0.03).toFixed(2)}</strong></span>
+                        <span>• District Fran. (5%): <strong className="text-blue-400">₹{(baseAmountNumber * 0.05).toFixed(2)}</strong></span>
+                        <span>• L3 Referral (2%): <strong className="text-emerald-400">₹{(baseAmountNumber * 0.02).toFixed(2)}</strong></span>
+                        <span>• State Fran. (3%): <strong className="text-blue-400">₹{(baseAmountNumber * 0.03).toFixed(2)}</strong></span>
+                      </div>
+                      <p className="text-[10px] text-amber-400/80 italic mt-1">
+                        Note: Commissions will be distributed only after the vendor pays this link.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider">
+                      Invoice Notes & Terms
+                    </label>
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      rows={2}
+                      placeholder="e.g. Special promotional rate for Q4 on-boarding"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500 resize-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isGeneratingLink || !selectedUser}
+                    className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold text-sm rounded-xl shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-2"
+                  >
+                    {isGeneratingLink ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                    Generate & Dispatch Payment Link
+                  </button>
+                </form>
+              );
+            })()}
           </div>
 
           {/* Right Column: Invoices & Payment Links Table */}

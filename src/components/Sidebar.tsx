@@ -315,9 +315,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         animate={isSidebarOpen ? 'open' : 'closed'}
         variants={sidebarVariants}
         transition={{ type: 'spring', damping: 20, stiffness: 150 }}
-        className={`fixed top-0 bottom-0 left-0 z-40 bg-card border-r border-border flex flex-col justify-between h-screen transition-colors duration-300 md:translate-x-0 ${
-          isSidebarOpen ? 'translate-x-0 w-[280px]' : '-translate-x-full md:translate-x-0 md:w-[80px]'
-        }`}
+        className={`fixed top-0 bottom-0 left-0 z-40 bg-card border-r border-border flex flex-col justify-between h-screen transition-colors duration-300 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0 w-[280px]' : '-translate-x-full md:translate-x-0 md:w-[80px]'
+          }`}
       >
         {/* Sidebar Header & Navigation */}
         <div className="flex flex-col h-[calc(100vh-140px)]">
@@ -326,9 +325,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="flex items-center gap-3 overflow-hidden">
               <div
                 onClick={() => !isSidebarOpen && setIsSidebarOpen(true)}
-                className={`bg-primary/10 text-primary p-2.5 rounded-xl flex items-center justify-center shrink-0 ${
-                  !isSidebarOpen ? 'cursor-pointer hover:bg-primary/20 transition-all active:scale-95' : ''
-                }`}
+                className={`bg-primary/10 text-primary p-2.5 rounded-xl flex items-center justify-center shrink-0 ${!isSidebarOpen ? 'cursor-pointer hover:bg-primary/20 transition-all active:scale-95' : ''
+                  }`}
               >
                 <Sparkles size={20} className="animate-pulse" />
               </div>
@@ -458,20 +456,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               }
                             }}
                             title={!isSidebarOpen ? item.label : undefined}
-                            className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl transition-all relative text-xs font-medium outline-none select-none group ${
-                              isActive
+                            className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl transition-all relative text-xs font-medium outline-none select-none group ${isActive
                                 ? 'text-primary-foreground bg-primary shadow-md shadow-primary/25 font-semibold'
                                 : 'text-muted-foreground hover:text-foreground hover:bg-secondary/70'
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center gap-2.5 overflow-hidden">
                               <Icon
                                 size={18}
-                                className={`shrink-0 transition-transform group-hover:scale-110 ${
-                                  isActive
+                                className={`shrink-0 transition-transform group-hover:scale-110 ${isActive
                                     ? 'text-primary-foreground'
                                     : 'text-muted-foreground group-hover:text-foreground'
-                                }`}
+                                  }`}
                               />
                               {isSidebarOpen && (
                                 <div className="flex flex-col text-left overflow-hidden">
@@ -489,11 +485,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                             {item.badge !== undefined && item.badge > 0 && (
                               <span
-                                className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
-                                  isActive
+                                className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${isActive
                                     ? 'bg-white text-primary'
                                     : 'bg-destructive/15 text-destructive border border-destructive/20'
-                                }`}
+                                  }`}
                               >
                                 {item.badge}
                               </span>

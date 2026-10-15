@@ -193,11 +193,10 @@ export const SettlementCenter: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveSubTab(tab.id as any)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 cursor-pointer ${
-                    activeSubTab === tab.id
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 cursor-pointer ${activeSubTab === tab.id
                       ? 'bg-primary text-primary-foreground border-primary shadow-md'
                       : 'bg-secondary/20 text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground'
-                  }`}
+                    }`}
                 >
                   <Icon size={14} />
                   <span>{tab.label}</span>
@@ -318,9 +317,8 @@ export const SettlementCenter: React.FC = () => {
                     </span>
                   </div>
                   <span
-                    className={`font-mono font-black text-xs ${
-                      item.status === 'Approved' ? 'text-emerald-500' : 'text-rose-500'
-                    }`}
+                    className={`font-mono font-black text-xs ${item.status === 'Approved' ? 'text-emerald-500' : 'text-rose-500'
+                      }`}
                   >
                     ₹{item.amount.toLocaleString('en-IN')}
                   </span>

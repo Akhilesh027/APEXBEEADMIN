@@ -58,6 +58,18 @@ export const ApprovalCenter: React.FC = () => {
 
   const [historyItems, setHistoryItems] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved">("all");
+
+  const isApprovedStatus = (status?: string) => {
+    const s = String(status || "").toLowerCase().trim();
+    return ["approved", "verified", "active", "pre_approved"].includes(s);
+  };
+
+  const isRejectedStatus = (status?: string) => {
+    const s = String(status || "").toLowerCase().trim();
+    return ["rejected"].includes(s);
+  };
+
   const [dbVendors, setDbVendors] = useState<any[]>([]);
   const [dbProducts, setDbProducts] = useState<any[]>([]);
   const [dbWallets, setDbWallets] = useState<any[]>([]);
@@ -73,6 +85,20 @@ export const ApprovalCenter: React.FC = () => {
   const [editFormData, setEditFormData] = useState<any>({});
   const [editingSubcategories, setEditingSubcategories] = useState<string[]>([]);
   const [newSubCategoryName, setNewSubCategoryName] = useState<string>("");
+  const [selectedCategoryNames, setSelectedCategoryNames] = useState<string[]>([]);
+
+  const parseCategories = (item: any): string[] => {
+    if (!item) return [];
+    const cats = item.categories;
+    if (Array.isArray(cats) && cats.length > 0) {
+      return cats.flatMap((s: any) => typeof s === 'string' && s.includes(',') ? s.split(',').map((x: string) => x.trim()) : String(s).trim()).filter(Boolean);
+    }
+    const single = item.category || item.primaryCategory;
+    if (typeof single === 'string' && single.trim()) {
+      return single.split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
+    return [];
+  };
 
   const parseSubcategories = (item: any): string[] => {
     if (!item) return [];
@@ -123,7 +149,12 @@ export const ApprovalCenter: React.FC = () => {
       adminRemarks: item.adminRemarks || '',
     });
 
-    if (item.primaryCategory || item.category) {
+    const initialCats = parseCategories(item);
+    setSelectedCategoryNames(initialCats);
+    if (initialCats.length > 0) {
+      const match = parentCategories.find((c: any) => initialCats.some(ic => ic.toLowerCase() === c.name.toLowerCase()));
+      if (match) setSelectedParentCatId(match._id);
+    } else if (item.primaryCategory || item.category) {
       const match = parentCategories.find((c: any) => c.name === item.primaryCategory || c.name === item.category);
       if (match) setSelectedParentCatId(match._id);
     }
@@ -195,7 +226,9 @@ export const ApprovalCenter: React.FC = () => {
 
   useEffect(() => {
     if (selectedDetailItem && dbCategories.length > 0) {
-      const appCat = selectedDetailItem.primaryCategory || selectedDetailItem.category || '';
+      const itemCats = parseCategories(selectedDetailItem);
+      setSelectedCategoryNames(itemCats);
+      const appCat = itemCats[0] || selectedDetailItem.primaryCategory || selectedDetailItem.category || '';
       const parents = dbCategories.filter((c: any) => c.level === 1 || !c.parentId);
       const matched = parents.find((c: any) =>
         c.name.toLowerCase() === appCat.toLowerCase() ||
@@ -269,6 +302,7 @@ export const ApprovalCenter: React.FC = () => {
 
   const mapApplicationToItem = (app: any) => {
     const parsedSubs = parseSubcategories(app);
+    const parsedCats = parseCategories(app);
     return {
       id: app._id,
       name: app.businessName || app.ownerName || "Business Opportunity",
@@ -295,8 +329,9 @@ export const ApprovalCenter: React.FC = () => {
       licenseNumber: app.licenseNumber,
       restaurantName: app.restaurantName,
       foodBusinessType: app.foodBusinessType,
-      primaryCategory: app.primaryCategory || app.category,
-      category: app.primaryCategory || app.category,
+      categories: parsedCats,
+      primaryCategory: parsedCats[0] || app.primaryCategory || app.category || "",
+      category: parsedCats.join(", ") || app.category || app.primaryCategory || "",
       subCategory: parsedSubs[0] || app.subCategory || "",
       approvedSubcategories: parsedSubs,
       address: app.address,
@@ -477,9 +512,7 @@ export const ApprovalCenter: React.FC = () => {
 
     return applications
       .filter(
-        app =>
-          getTabForAppType(app.roleId || app.applicationType) === tab &&
-          ["pending", "under_review", "kyc_submitted"].includes(app.status)
+        app => getTabForAppType(app.roleId || app.applicationType) === tab
       )
       .map(mapApplicationToItem);
   };
@@ -558,12 +591,15 @@ export const ApprovalCenter: React.FC = () => {
       setActionLoading(true);
       setNotificationMsg(null);
       const token = localStorage.getItem("adminToken");
-      const assignedCatName = activeParentCat?.name || selectedDetailItem.primaryCategory || selectedDetailItem.category;
+      const assignedCats = selectedCategoryNames.length > 0
+        ? selectedCategoryNames
+        : (activeParentCat?.name ? [activeParentCat.name] : (selectedDetailItem.categories && selectedDetailItem.categories.length > 0 ? selectedDetailItem.categories : [selectedDetailItem.primaryCategory || selectedDetailItem.category || "General Retail"]));
 
       const payload = {
         ...editFormData,
-        primaryCategory: assignedCatName,
-        category: assignedCatName,
+        categories: assignedCats,
+        primaryCategory: assignedCats[0],
+        category: assignedCats.join(", "),
         subCategory: editingSubcategories[0] || editFormData.subCategory || "",
         approvedSubcategories: editingSubcategories,
       };
@@ -675,8 +711,9 @@ export const ApprovalCenter: React.FC = () => {
         endpoint = `https://server.apexbee.in/api/admin/applications/${id}/verify-kyc`;
       }
 
-      const assignedCatName = activeParentCat?.name || editFormData.primaryCategory || currentApp?.primaryCategory || currentApp?.category || "Food & Restaurant";
-      const assignedParentId = activeParentCat?._id;
+      const assignedCats = selectedCategoryNames.length > 0
+        ? selectedCategoryNames
+        : (activeParentCat?.name ? [activeParentCat.name] : (currentApp?.categories && currentApp.categories.length > 0 ? currentApp.categories : [editFormData.primaryCategory || currentApp?.primaryCategory || currentApp?.category || "Food & Restaurant"]));
 
       const checkedCaps = Array.from(document.querySelectorAll('.cat-cap-cb:checked')).map(el => (el as HTMLInputElement).value);
       const checkedSubCatIds = Array.from(document.querySelectorAll('.cat-subcat-cb:checked')).map(el => (el as HTMLInputElement).value);
@@ -684,8 +721,9 @@ export const ApprovalCenter: React.FC = () => {
       const payload = {
         // Send all edited application fields
         ...editFormData,
-        primaryCategory: assignedCatName,
-        category: assignedCatName,
+        categories: assignedCats,
+        primaryCategory: assignedCats[0],
+        category: assignedCats.join(", "),
         subCategory: editingSubcategories[0] || editFormData.subCategory || "",
         approvedSubcategories: editingSubcategories,
         requestedCapabilities: checkedCaps,
@@ -693,7 +731,7 @@ export const ApprovalCenter: React.FC = () => {
           editFormData.adminRemarks ||
           (activeSubTab === "kyc" || currentApp?.status === "under_review" || currentApp?.status === "kyc_submitted"
             ? "KYC verified and approved by admin with edited parameters."
-            : `Pre-approved by admin under category ${assignedCatName}.`),
+            : `Pre-approved by admin under categories: ${assignedCats.join(', ')}.`),
       };
 
       const res = await fetch(endpoint, {
@@ -714,6 +752,14 @@ export const ApprovalCenter: React.FC = () => {
 
       const data = await res.json();
       const app = data.application || currentApp;
+      const appliedStatus = action === "Approved" ? (app?.status || "approved") : "rejected";
+
+      setApplications(prev =>
+        prev.map(a => (a._id === id ? { ...a, ...app, status: appliedStatus } : a))
+      );
+      setSelectedDetailItem((prev: any) =>
+        prev && prev.id === id ? { ...prev, ...app, status: appliedStatus } : prev
+      );
 
       // Submit category capability review if vendor exists
       if (app?.userId) {
@@ -780,7 +826,16 @@ export const ApprovalCenter: React.FC = () => {
     }
   };
 
-  const currentItems = getPendingItemsForTab(activeSubTab);
+  const allSubTabItems = getPendingItemsForTab(activeSubTab);
+  const currentItems = allSubTabItems.filter((item: any) => {
+    if (statusFilter === "pending") {
+      return !isApprovedStatus(item.status) && !isRejectedStatus(item.status);
+    }
+    if (statusFilter === "approved") {
+      return isApprovedStatus(item.status);
+    }
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -992,17 +1047,46 @@ export const ApprovalCenter: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
-            <div className="flex justify-between items-center select-none border-b border-border pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 select-none border-b border-border pb-3">
               <div className="flex items-center gap-1.5">
                 <Clock className="text-primary" size={16} />
                 <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  Pending Approvals ({getSubTabLabel(activeSubTab)})
+                  Applications & Moderation Queue ({getSubTabLabel(activeSubTab)})
                 </h3>
               </div>
 
-              <span className="text-[10px] text-muted-foreground flex items-center gap-1 bg-secondary px-2.5 py-1 rounded-lg border border-border/40">
-                <Filter size={10} /> Priority Queued
-              </span>
+              <div className="flex items-center gap-1.5 bg-secondary/80 p-1 rounded-xl border border-border/40">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("all")}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${statusFilter === "all"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                  All ({allSubTabItems.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("pending")}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${statusFilter === "pending"
+                    ? "bg-amber-500 text-slate-950 shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                  Pending ({allSubTabItems.filter(i => !isApprovedStatus(i.status) && !isRejectedStatus(i.status)).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("approved")}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${statusFilter === "approved"
+                    ? "bg-emerald-500 text-white shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                  Approved ({allSubTabItems.filter(i => isApprovedStatus(i.status)).length})
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3.5">
@@ -1011,92 +1095,138 @@ export const ApprovalCenter: React.FC = () => {
                   Loading approvals queue...
                 </div>
               ) : (
-                currentItems.map((item: any) => (
-                  <div
-                    key={item.id}
-                    className="bg-secondary/15 p-4 rounded-xl border border-border/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 transition-all hover:bg-secondary/25"
-                  >
-                    <div className="space-y-1 text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-foreground text-sm">{item.name}</span>
-                        <span
-                          className={`px-2 py-0.5 rounded text-[8px] font-bold ${item.priority === "High"
-                            ? "bg-rose-500/10 text-rose-500 animate-pulse"
-                            : "bg-muted text-muted-foreground"
-                            }`}
-                        >
-                          {item.priority} Priority
-                        </span>
-                        <span className="px-2 py-0.5 rounded text-[8px] font-bold bg-primary/10 text-primary">
-                          {item.status}
-                        </span>
-                      </div>
+                currentItems.map((item: any) => {
+                  const isItemApproved = isApprovedStatus(item.status);
+                  const isItemRejected = isRejectedStatus(item.status);
 
-                      <div className="text-[10px] text-muted-foreground font-mono space-y-0.5">
-                        <p>ID: {item.id} • Registered: {item.date} • Rep: <strong>{item.contact || "N/A"}</strong></p>
-                        <div className="flex flex-wrap items-center gap-2 mt-0.5 text-foreground font-sans text-[11px]">
-                          <span>📍 Location: <strong>{[item.mandal, item.district, item.state].filter(Boolean).join(", ") || item.address || "N/A"}</strong></span>
-                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20 font-mono font-bold text-[10px]">
-                            PIN: {item.pincode || "Not Set"}
+                  return (
+                    <div
+                      key={item.id}
+                      className="bg-secondary/15 p-4 rounded-xl border border-border/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 transition-all hover:bg-secondary/25"
+                    >
+                      <div className="space-y-1 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground text-sm">{item.name}</span>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[8px] font-bold ${item.priority === "High"
+                              ? "bg-rose-500/10 text-rose-500 animate-pulse"
+                              : "bg-muted text-muted-foreground"
+                              }`}
+                          >
+                            {item.priority} Priority
                           </span>
-                          {item.mobile && <span>📞 {item.mobile}</span>}
+                          <span
+                            className={`px-2 py-0.5 rounded text-[8px] font-extrabold uppercase ${isItemApproved
+                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                              : isItemRejected
+                                ? "bg-rose-500/15 text-rose-500 border border-rose-500/30"
+                                : "bg-primary/10 text-primary border border-primary/20"
+                              }`}
+                          >
+                            {isItemApproved
+                              ? item.status === "pre_approved"
+                                ? "Pre-Approved"
+                                : item.status === "verified"
+                                  ? "Verified & Approved"
+                                  : "Approved"
+                              : item.status}
+                          </span>
                         </div>
 
-                        {(activeSubTab === "vendors" || item.isVendor || item.roleId === "vendor" || item.applicationType === "vendor") && (item.primaryCategory || item.category) && (
-                          <div className="flex flex-wrap items-center gap-1 mt-1 font-sans text-xs">
-                            <span className="font-bold text-foreground">Category:</span>
-                            <span className="bg-primary/10 text-primary font-extrabold px-2 py-0.5 rounded-md text-[10px]">
-                              {item.primaryCategory || item.category}
+                        <div className="text-[10px] text-muted-foreground font-mono space-y-0.5">
+                          <p>ID: {item.id} • Registered: {item.date} • Rep: <strong>{item.contact || "N/A"}</strong></p>
+                          <div className="flex flex-wrap items-center gap-2 mt-0.5 text-foreground font-sans text-[11px]">
+                            <span>📍 Location: <strong>{[item.mandal, item.district, item.state].filter(Boolean).join(", ") || item.address || "N/A"}</strong></span>
+                            <span className="bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20 font-mono font-bold text-[10px]">
+                              PIN: {item.pincode || "Not Set"}
                             </span>
-                            {item.approvedSubcategories && item.approvedSubcategories.length > 0 && (
-                              <>
-                                <span className="font-bold text-foreground ml-1">Subcategories ({item.approvedSubcategories.length}):</span>
-                                {item.approvedSubcategories.slice(0, 3).map((sub: string, idx: number) => (
-                                  <span key={idx} className="bg-emerald-500/10 text-emerald-600 font-bold px-2 py-0.5 rounded-md text-[10px] border border-emerald-500/20">
-                                    {sub}
+                            {item.mobile && <span>📞 {item.mobile}</span>}
+                          </div>
+
+                          {(activeSubTab === "vendors" || item.isVendor || item.roleId === "vendor" || item.applicationType === "vendor") && (
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1 font-sans text-xs">
+                              <span className="font-bold text-foreground">Categories:</span>
+                              {item.categories && item.categories.length > 0 ? (
+                                item.categories.map((cat: string, cIdx: number) => (
+                                  <span key={cIdx} className="bg-primary/10 text-primary font-extrabold px-2 py-0.5 rounded-md text-[10px] border border-primary/20">
+                                    {cat}
                                   </span>
-                                ))}
-                                {item.approvedSubcategories.length > 3 && (
-                                  <span className="text-[9px] text-muted-foreground font-semibold">+{item.approvedSubcategories.length - 3} more</span>
-                                )}
+                                ))
+                              ) : (item.primaryCategory || item.category) ? (
+                                String(item.primaryCategory || item.category).split(',').map((cat: string, cIdx: number) => (
+                                  <span key={cIdx} className="bg-primary/10 text-primary font-extrabold px-2 py-0.5 rounded-md text-[10px] border border-primary/20">
+                                    {cat.trim()}
+                                  </span>
+                                ))
+                              ) : null}
+                              {item.approvedSubcategories && item.approvedSubcategories.length > 0 && (
+                                <>
+                                  <span className="font-bold text-foreground ml-1">Subcategories ({item.approvedSubcategories.length}):</span>
+                                  {item.approvedSubcategories.slice(0, 3).map((sub: string, idx: number) => (
+                                    <span key={idx} className="bg-emerald-500/10 text-emerald-600 font-bold px-2 py-0.5 rounded-md text-[10px] border border-emerald-500/20">
+                                      {sub}
+                                    </span>
+                                  ))}
+                                  {item.approvedSubcategories.length > 3 && (
+                                    <span className="text-[9px] text-muted-foreground font-semibold">+{item.approvedSubcategories.length - 3} more</span>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 w-full md:w-auto shrink-0 select-none border-t md:border-t-0 border-border/40 pt-3 md:pt-0">
+                        <button
+                          onClick={() => openDetailModal(item)}
+                          className="flex-1 md:flex-none px-3.5 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all border border-primary/20 cursor-pointer"
+                          title="Edit details and review application"
+                        >
+                          <Edit3 size={13} /> Edit & Review
+                        </button>
+
+                        {!item.isDbVendor && (
+                          <>
+                            {isItemApproved ? (
+                              <span
+                                className="flex-1 md:flex-none px-4 py-1.5 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-xs select-none"
+                                title="Application is approved"
+                              >
+                                <Check size={14} className="stroke-[3]" /> Approved
+                              </span>
+                            ) : isItemRejected ? (
+                              <span
+                                className="flex-1 md:flex-none px-3.5 py-1.5 bg-rose-500/15 text-rose-500 border border-rose-500/30 font-bold text-xs rounded-xl flex items-center justify-center gap-1 shadow-xs select-none"
+                                title="Application was rejected"
+                              >
+                                <X size={14} /> Rejected
+                              </span>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => handleAction(item.id, "Rejected")}
+                                  disabled={actionLoading}
+                                  className="flex-1 md:flex-none px-3.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold text-xs rounded-xl flex items-center justify-center gap-1 transition-all border border-rose-500/15 cursor-pointer disabled:opacity-50"
+                                >
+                                  <X size={14} /> Reject
+                                </button>
+
+                                <button
+                                  onClick={() => openDetailModal(item)}
+                                  disabled={actionLoading}
+                                  className="flex-1 md:flex-none px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                                >
+                                  <Check size={14} /> Approve
+                                </button>
                               </>
                             )}
-                          </div>
+                          </>
                         )}
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-2 w-full md:w-auto shrink-0 select-none border-t md:border-t-0 border-border/40 pt-3 md:pt-0">
-                      <button
-                        onClick={() => openDetailModal(item)}
-                        className="flex-1 md:flex-none px-3.5 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all border border-primary/20 cursor-pointer"
-                        title="Edit details and review application"
-                      >
-                        <Edit3 size={13} /> Edit & Review
-                      </button>
-
-                      {!item.isDbVendor && (
-                        <>
-                          <button
-                            onClick={() => handleAction(item.id, "Rejected")}
-                            disabled={actionLoading}
-                            className="flex-1 md:flex-none px-3.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold text-xs rounded-xl flex items-center justify-center gap-1 transition-all border border-rose-500/15 cursor-pointer disabled:opacity-50"
-                          >
-                            <X size={14} /> Reject
-                          </button>
-
-                          <button
-                            onClick={() => openDetailModal(item)}
-                            disabled={actionLoading}
-                            className="flex-1 md:flex-none px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
-                          >
-                            <Check size={14} /> Approve
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
 
               {!loading && currentItems.length === 0 && (
@@ -1182,12 +1312,28 @@ export const ApprovalCenter: React.FC = () => {
                 >
                   <Edit3 size={13} /> {isEditMode ? "Editing Enabled" : "Enable Edit Mode"}
                 </button>
-                <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase ${selectedDetailItem.status === "approved" || selectedDetailItem.status === "pre_approved"
-                  ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                  : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-                  }`}>
-                  {selectedDetailItem.status || "Pending"}
-                </span>
+                {(() => {
+                  const isModalApproved = isApprovedStatus(selectedDetailItem.status);
+                  const isModalRejected = isRejectedStatus(selectedDetailItem.status);
+                  return (
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase ${isModalApproved
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                        : isModalRejected
+                          ? "bg-rose-500/15 text-rose-500 border border-rose-500/30"
+                          : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                        }`}
+                    >
+                      {isModalApproved
+                        ? selectedDetailItem.status === "pre_approved"
+                          ? "Pre-Approved"
+                          : selectedDetailItem.status === "verified"
+                            ? "Verified & Approved"
+                            : "Approved"
+                        : selectedDetailItem.status || "Pending"}
+                    </span>
+                  );
+                })()}
                 <button
                   onClick={() => setSelectedDetailItem(null)}
                   className="p-2 bg-secondary hover:bg-secondary/80 text-foreground font-bold rounded-xl border border-border/40 transition-all cursor-pointer"
@@ -1482,29 +1628,64 @@ export const ApprovalCenter: React.FC = () => {
                   </div>
 
                   <div className="space-y-4">
-                    {/* Primary Category Selector Tabs */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-foreground block">
-                        Primary Business Category (Click to select)
-                      </label>
+                    {/* Multi-Category Selector Tabs */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-foreground block">
+                          Business Categories (Click chips to toggle multiple categories):
+                        </label>
+                        <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">
+                          {selectedCategoryNames.length} Selected
+                        </span>
+                      </div>
                       <div className="flex flex-wrap gap-2">
                         {parentCategories.map((cat: any) => {
-                          const isCatSelected = (selectedParentCatId || activeParentCat?._id) === cat._id;
+                          const isCatChosen = selectedCategoryNames.some(cn => cn.toLowerCase() === cat.name.toLowerCase());
+                          const isViewingSubs = (selectedParentCatId || activeParentCat?._id) === cat._id;
                           return (
                             <button
                               key={cat._id}
                               type="button"
-                              onClick={() => setSelectedParentCatId(cat._id)}
-                              className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all border cursor-pointer ${isCatSelected
-                                ? "bg-primary text-primary-foreground border-primary shadow-sm ring-2 ring-primary/20"
+                              onClick={() => {
+                                setSelectedParentCatId(cat._id);
+                                if (isCatChosen) {
+                                  setSelectedCategoryNames(prev => prev.filter(cn => cn.toLowerCase() !== cat.name.toLowerCase()));
+                                } else {
+                                  setSelectedCategoryNames(prev => [...prev, cat.name]);
+                                }
+                              }}
+                              className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all border cursor-pointer flex items-center gap-1.5 shadow-sm ${isCatChosen
+                                ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/25 shadow-md"
                                 : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
                                 }`}
                             >
-                              {cat.name}
+                              <span>{isCatChosen ? "✓" : "+"}</span>
+                              <span>{cat.name}</span>
+                              {isViewingSubs && <span className="text-[9px] opacity-75 font-normal">(subs active)</span>}
                             </button>
                           );
                         })}
                       </div>
+
+                      {/* Selected Categories Badges Preview */}
+                      {selectedCategoryNames.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-primary/10">
+                          <span className="text-[10px] font-bold text-muted-foreground">Approved for Vendor:</span>
+                          {selectedCategoryNames.map((cName, cIdx) => (
+                            <span key={cIdx} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-primary/15 text-primary border border-primary/25 text-xs font-black shadow-xs">
+                              <span>📁 {cName}</span>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedCategoryNames(prev => prev.filter((_, idx) => idx !== cIdx))}
+                                className="text-muted-foreground hover:text-rose-500 font-bold text-[10px] ml-0.5 cursor-pointer"
+                                title={`Remove ${cName}`}
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Toggle Subcategories Interactive Chip Grid */}
@@ -1692,25 +1873,62 @@ export const ApprovalCenter: React.FC = () => {
               </div>
 
               {!selectedDetailItem.isDbVendor && (
-                <div className="flex gap-2 w-full sm:w-auto">
-                  <button
-                    onClick={() => handleAction(selectedDetailItem.id, "Rejected")}
-                    disabled={actionLoading}
-                    className="flex-1 sm:flex-none px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold text-xs rounded-xl border border-rose-500/20 transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    Reject Application
-                  </button>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  {isApprovedStatus(selectedDetailItem.status) ? (
+                    <>
+                      <span className="px-5 py-2 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-xs select-none">
+                        <Check size={15} className="stroke-[3]" />
+                        Approved
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleAction(selectedDetailItem.id, "Rejected")}
+                        disabled={actionLoading}
+                        className="px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold text-xs rounded-xl border border-rose-500/20 transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        Revoke / Reject
+                      </button>
+                    </>
+                  ) : isRejectedStatus(selectedDetailItem.status) ? (
+                    <>
+                      <span className="px-4 py-2 bg-rose-500/15 text-rose-500 border border-rose-500/30 font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-xs select-none">
+                        <X size={15} />
+                        Rejected
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleAction(selectedDetailItem.id, "Approved")}
+                        disabled={actionLoading}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      >
+                        <Check size={15} />
+                        Re-Approve
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleAction(selectedDetailItem.id, "Rejected")}
+                        disabled={actionLoading}
+                        className="flex-1 sm:flex-none px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold text-xs rounded-xl border border-rose-500/20 transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        Reject Application
+                      </button>
 
-                  <button
-                    onClick={() => handleAction(selectedDetailItem.id, "Approved")}
-                    disabled={actionLoading}
-                    className="flex-1 sm:flex-none px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
-                  >
-                    <Check size={15} />
-                    {activeSubTab === "kyc" || selectedDetailItem.status === "under_review" || selectedDetailItem.status === "kyc_submitted"
-                      ? "Verify KYC & Approve"
-                      : "Save Edits & Pre-Approve"}
-                  </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAction(selectedDetailItem.id, "Approved")}
+                        disabled={actionLoading}
+                        className="flex-1 sm:flex-none px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      >
+                        <Check size={15} />
+                        {activeSubTab === "kyc" || selectedDetailItem.status === "under_review" || selectedDetailItem.status === "kyc_submitted"
+                          ? "Verify KYC & Approve"
+                          : "Save Edits & Pre-Approve"}
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
