@@ -278,15 +278,17 @@ export const AdminProductApproval = () => {
             categoryName: f.categoryId?.name || 'Food & Dining',
             vendorName: restName,
             baseMrp: f.basePrice,
-            baseSellingPrice: f.offerPrice || f.basePrice,
+            baseSellingPrice: (f.offerPrice && f.offerPrice > 0) ? f.offerPrice : f.basePrice,
             previousPrice: null,
             hasPriceChanged: false,
             adminPricing: {
               mrp: f.basePrice,
-              sellingPrice: f.offerPrice || f.basePrice,
+              sellingPrice: (f.offerPrice && f.offerPrice > 0) ? f.offerPrice : f.basePrice,
               platformFeePercent: f.platformCommissionPercent || 12,
-              platformFeeAmount: f.platformShareAmount || Math.round((f.basePrice * (f.platformCommissionPercent || 12)) / 100),
-              finalSellerAmount: f.vendorPayoutAmount !== undefined && f.vendorPayoutAmount !== null ? f.vendorPayoutAmount : (f.offerPrice || f.basePrice),
+              platformFeeAmount: f.platformShareAmount !== undefined && f.platformShareAmount !== null
+                ? f.platformShareAmount
+                : Math.round((((f.offerPrice && f.offerPrice > 0) ? f.offerPrice : f.basePrice) * (f.platformCommissionPercent || 12)) / 100),
+              finalSellerAmount: f.vendorPayoutAmount !== undefined && f.vendorPayoutAmount !== null ? f.vendorPayoutAmount : ((f.offerPrice && f.offerPrice > 0) ? f.offerPrice : f.basePrice),
             }
           });
         }
@@ -528,6 +530,9 @@ export const AdminProductApproval = () => {
       if (selectedProduct.isFoodItem && selectedProduct.foodMenuItemId) {
         await productService.reviewFoodItemCommission(selectedProduct.foodMenuItemId, {
           platformCommissionPercent: Number(pricing.platformFeePercent),
+          vendorCommissionPercent,
+          distributedFrom,
+          vendorPayoutAmount: finalSellerAmount,
           adminPricingNotes: pricing.remarks,
           action: 'APPROVE_COMMISSION',
         });
