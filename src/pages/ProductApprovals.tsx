@@ -66,9 +66,8 @@ const StatusBadge = ({ status }: any) => {
 
   return (
     <span
-      className={`px-2 py-1 rounded-lg text-[10px] font-bold ${
-        map[status] || 'bg-secondary text-muted-foreground'
-      }`}
+      className={`px-2 py-1 rounded-lg text-[10px] font-bold ${map[status] || 'bg-secondary text-muted-foreground'
+        }`}
     >
       {status}
     </span>
@@ -214,8 +213,8 @@ export const AdminProductApproval = () => {
         const uniqueKey = p.foodMenuItemId
           ? `food_${p.foodMenuItemId}`
           : p._id
-          ? `prod_${p._id}`
-          : `sku_${p.sku || p.name}`;
+            ? `prod_${p._id}`
+            : `sku_${p.sku || p.name}`;
 
         const previousPrice = p.preEditSnapshot?.price || p.preEditSnapshot?.baseSellingPrice || p.adminPricing?.sellingPrice || null;
         const currentPrice = p.price || p.baseSellingPrice || 0;
@@ -263,10 +262,10 @@ export const AdminProductApproval = () => {
           const normStatus = f.approvalStatus === 'PUBLISHED_LIVE'
             ? 'Live'
             : f.approvalStatus === 'PENDING_RESTAURANT_ACCEPTANCE'
-            ? 'Awaiting Seller Approval'
-            : f.approvalStatus === 'REJECTED_BY_ADMIN' || f.approvalStatus === 'REJECTED_BY_RESTAURANT'
-            ? 'Rejected'
-            : 'Pending Review';
+              ? 'Awaiting Seller Approval'
+              : f.approvalStatus === 'REJECTED_BY_ADMIN' || f.approvalStatus === 'REJECTED_BY_RESTAURANT'
+                ? 'Rejected'
+                : 'Pending Review';
 
           deduplicatedMap.set(foodKey, {
             ...f,
@@ -348,8 +347,8 @@ export const AdminProductApproval = () => {
 
     const existingShares = product.adminPricing?.commissionShares?.length
       ? product.adminPricing.commissionShares.filter(
-          (share: any) => share && share.type !== 'referrer'
-        )
+        (share: any) => share && share.type !== 'referrer'
+      )
       : defaultShares;
 
     const pf = product.adminPricing?.platformFeePercent !== undefined && product.adminPricing?.platformFeePercent !== null && product.adminPricing?.platformFeePercent !== ''
@@ -402,10 +401,10 @@ export const AdminProductApproval = () => {
     distributedFrom === 'apexbee_commission'
       ? vendorCommissionAmount
       : distributedFrom === 'both'
-      ? (vendorCommissionAmount + platformFeeAmount)
-      : distributedFrom === 'none'
-      ? 0
-      : platformFeeAmount
+        ? (vendorCommissionAmount + platformFeeAmount)
+        : distributedFrom === 'none'
+          ? 0
+          : platformFeeAmount
   );
 
   const calculatedShares = pricing.commissionShares.map((share) => {
@@ -469,8 +468,8 @@ export const AdminProductApproval = () => {
     } else if (key === 'amount') {
       const amt = Number(value || 0);
       item.amount = value;
-      item.percent = distributionPool > 0 
-        ? Number(((amt / distributionPool) * 100).toFixed(4)) 
+      item.percent = distributionPool > 0
+        ? Number(((amt / distributionPool) * 100).toFixed(4))
         : 0;
     } else {
       (item as any)[key] = value;
@@ -787,11 +786,10 @@ export const AdminProductApproval = () => {
               setPriceChangeOnly(true);
               setStatus('All');
             }}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group relative overflow-hidden ${
-              priceChangeOnly
+            className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group relative overflow-hidden ${priceChangeOnly
                 ? 'bg-amber-500/10 border-amber-500 shadow-md shadow-amber-500/15'
                 : 'bg-card border-border hover:border-amber-500/50 hover:bg-amber-500/[0.03]'
-            }`}
+              }`}
           >
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400">
@@ -821,11 +819,10 @@ export const AdminProductApproval = () => {
               setPriceChangeOnly(false);
               setStatus('Pending Review');
             }}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group ${
-              status === 'Pending Review' && !priceChangeOnly
+            className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group ${status === 'Pending Review' && !priceChangeOnly
                 ? 'bg-indigo-500/10 border-indigo-500 shadow-md shadow-indigo-500/15'
                 : 'bg-card border-border hover:border-indigo-500/50 hover:bg-indigo-500/[0.03]'
-            }`}
+              }`}
           >
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
@@ -855,11 +852,10 @@ export const AdminProductApproval = () => {
               setPriceChangeOnly(false);
               setStatus('Live');
             }}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group ${
-              status === 'Live' && !priceChangeOnly
+            className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group ${status === 'Live' && !priceChangeOnly
                 ? 'bg-emerald-500/10 border-emerald-500 shadow-md shadow-emerald-500/15'
                 : 'bg-card border-border hover:border-emerald-500/50 hover:bg-emerald-500/[0.03]'
-            }`}
+              }`}
           >
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
@@ -946,19 +942,17 @@ export const AdminProductApproval = () => {
                 <button
                   key={cat.name}
                   onClick={() => setCategoryFilter(cat.name)}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 border ${
-                    isSelected
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 border ${isSelected
                       ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/25 scale-[1.02]'
                       : 'bg-secondary/40 hover:bg-secondary text-muted-foreground hover:text-foreground border-border/70'
-                  }`}
+                    }`}
                 >
                   <span>{cat.name === 'ALL' ? '🌐 All Categories' : cat.name}</span>
                   <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                      isSelected
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${isSelected
                         ? 'bg-white text-primary'
                         : 'bg-secondary text-foreground border border-border/50'
-                    }`}
+                      }`}
                   >
                     {cat.count}
                   </span>
@@ -980,11 +974,10 @@ export const AdminProductApproval = () => {
               <button
                 key={cat.id}
                 onClick={() => setCatalogFilter(cat.id as any)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                  catalogFilter === cat.id
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${catalogFilter === cat.id
                     ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
-                }`}
+                  }`}
               >
                 {cat.label}
               </button>
@@ -995,11 +988,10 @@ export const AdminProductApproval = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPriceChangeOnly(!priceChangeOnly)}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
-                priceChangeOnly
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${priceChangeOnly
                   ? 'bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-500/20'
                   : 'bg-secondary/40 text-muted-foreground border-border hover:text-foreground hover:bg-secondary'
-              }`}
+                }`}
             >
               <Zap size={14} className={priceChangeOnly ? 'fill-white' : 'text-amber-500'} />
               <span>⚡ Price Changes Only ({priceChangedCount})</span>
@@ -1009,22 +1001,20 @@ export const AdminProductApproval = () => {
             <div className="flex items-center p-1 bg-secondary/60 rounded-xl border border-border">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-1.5 rounded-lg transition-all ${
-                  viewMode === 'grid'
+                className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid'
                     ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
-                }`}
+                  }`}
                 title="Cards Grid View"
               >
                 <LayoutGrid size={15} />
               </button>
               <button
                 onClick={() => setViewMode('table')}
-                className={`p-1.5 rounded-lg transition-all ${
-                  viewMode === 'table'
+                className={`p-1.5 rounded-lg transition-all ${viewMode === 'table'
                     ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
-                }`}
+                  }`}
                 title="Dense Table View"
               >
                 <List size={15} />
@@ -1093,21 +1083,19 @@ export const AdminProductApproval = () => {
             <button
               key={t.key}
               onClick={() => setStatus(t.key)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                status === t.key
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${status === t.key
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : t.highlight && t.count > 0
-                  ? 'bg-amber-500/15 text-amber-600 border border-amber-500/30 hover:bg-amber-500/25'
-                  : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground'
-              }`}
+                    ? 'bg-amber-500/15 text-amber-600 border border-amber-500/30 hover:bg-amber-500/25'
+                    : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                }`}
             >
               <span>{t.label}</span>
               <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                  status === t.key
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${status === t.key
                     ? 'bg-white/20 text-white'
                     : 'bg-secondary text-foreground border border-border/40'
-                }`}
+                  }`}
               >
                 {t.count}
               </span>
@@ -1151,13 +1139,12 @@ export const AdminProductApproval = () => {
               return (
                 <div
                   key={product._id}
-                  className={`bg-card border rounded-2xl p-4 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md relative group ${
-                    isSelected
+                  className={`bg-card border rounded-2xl p-4 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md relative group ${isSelected
                       ? 'border-primary ring-2 ring-primary/20 bg-primary/[0.02]'
                       : isPriceEdited
-                      ? 'border-amber-500/40 hover:border-amber-500 bg-amber-500/[0.02]'
-                      : 'border-border hover:border-primary/40'
-                  }`}
+                        ? 'border-amber-500/40 hover:border-amber-500 bg-amber-500/[0.02]'
+                        : 'border-border hover:border-primary/40'
+                    }`}
                 >
                   {/* Card Header: Checkbox & Status */}
                   <div className="flex items-center justify-between mb-3">
@@ -1228,11 +1215,10 @@ export const AdminProductApproval = () => {
                         <div className="flex items-center gap-1">
                           <span className="line-through text-muted-foreground">₹{oldPrice}</span>
                           <span
-                            className={`font-bold px-1.5 py-0.2 rounded text-[9px] ${
-                              Number(priceDiffPercent) > 0
+                            className={`font-bold px-1.5 py-0.2 rounded text-[9px] ${Number(priceDiffPercent) > 0
                                 ? 'bg-amber-500/20 text-amber-600'
                                 : 'bg-emerald-500/20 text-emerald-600'
-                            }`}
+                              }`}
                           >
                             {Number(priceDiffPercent) > 0 ? `+${priceDiffPercent}%` : `${priceDiffPercent}%`}
                           </span>
@@ -1328,9 +1314,8 @@ export const AdminProductApproval = () => {
                 return (
                   <tr
                     key={product._id}
-                    className={`hover:bg-secondary/30 transition-colors ${
-                      isSelected ? 'bg-primary/5' : isPriceEdited ? 'bg-amber-500/[0.03]' : ''
-                    }`}
+                    className={`hover:bg-secondary/30 transition-colors ${isSelected ? 'bg-primary/5' : isPriceEdited ? 'bg-amber-500/[0.03]' : ''
+                      }`}
                   >
                     {/* Multi-select Checkbox */}
                     <td className="p-3 text-center">
@@ -1405,11 +1390,10 @@ export const AdminProductApproval = () => {
                             </span>
                             <ArrowRight size={10} className="text-muted-foreground" />
                             <span
-                              className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                                Number(priceDiffPercent) > 0
-                                ? 'bg-amber-500/15 text-amber-600'
-                                : 'bg-emerald-500/15 text-emerald-600'
-                              }`}
+                              className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${Number(priceDiffPercent) > 0
+                                  ? 'bg-amber-500/15 text-amber-600'
+                                  : 'bg-emerald-500/15 text-emerald-600'
+                                }`}
                             >
                               {Number(priceDiffPercent) > 0 ? `+${priceDiffPercent}%` : `${priceDiffPercent}%`}
                             </span>
@@ -1474,9 +1458,8 @@ export const AdminProductApproval = () => {
                         <button
                           onClick={() => handleReject(product)}
                           disabled={saving}
-                          className={`p-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-colors ${
-                            saving ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
+                          className={`p-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-colors ${saving ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
                           title="Reject Product"
                         >
                           <XCircle size={14} />
@@ -2087,97 +2070,97 @@ export const AdminProductApproval = () => {
                 {/* Attributes & Specifications */}
                 {((selectedProduct.attributes && Object.keys(selectedProduct.attributes).length > 0) ||
                   (selectedProduct.specifications && Object.keys(selectedProduct.specifications).length > 0)) && (
-                  <div className="mt-3 rounded-xl bg-card border border-border p-2.5 text-xs space-y-2">
-                    <p className="font-bold text-foreground border-b border-border pb-1">
-                      Attributes & Specifications
-                    </p>
+                    <div className="mt-3 rounded-xl bg-card border border-border p-2.5 text-xs space-y-2">
+                      <p className="font-bold text-foreground border-b border-border pb-1">
+                        Attributes & Specifications
+                      </p>
 
-                    <div className="grid grid-cols-2 gap-1.5 text-[11px] max-h-36 overflow-y-auto">
-                      {Object.entries({
-                        ...(selectedProduct.attributes || {}),
-                        ...(selectedProduct.specifications || {}),
-                      }).map(([key, val]) => (
-                        <div key={key} className="p-1.5 rounded-lg bg-secondary/20 border border-border/40">
-                          <span className="text-[10px] text-muted-foreground block capitalize">{key}</span>
-                          <b className="text-foreground font-semibold">
-                            {typeof val === 'object' ? JSON.stringify(val) : String(val)}
-                          </b>
-                        </div>
-                      ))}
+                      <div className="grid grid-cols-2 gap-1.5 text-[11px] max-h-36 overflow-y-auto">
+                        {Object.entries({
+                          ...(selectedProduct.attributes || {}),
+                          ...(selectedProduct.specifications || {}),
+                        }).map(([key, val]) => (
+                          <div key={key} className="p-1.5 rounded-lg bg-secondary/20 border border-border/40">
+                            <span className="text-[10px] text-muted-foreground block capitalize">{key}</span>
+                            <b className="text-foreground font-semibold">
+                              {typeof val === 'object' ? JSON.stringify(val) : String(val)}
+                            </b>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Rules & Configurations (Inventory / Delivery / Compliance) */}
                 {((selectedProduct.inventoryRules && Object.keys(selectedProduct.inventoryRules).length > 0) ||
                   (selectedProduct.deliveryRules && Object.keys(selectedProduct.deliveryRules).length > 0) ||
                   (selectedProduct.complianceRules && Object.keys(selectedProduct.complianceRules).length > 0)) && (
-                  <div className="mt-3 rounded-xl bg-card border border-border p-2.5 text-xs space-y-2">
-                    <p className="font-bold text-foreground border-b border-border pb-1">
-                      Rules & Configurations
-                    </p>
+                    <div className="mt-3 rounded-xl bg-card border border-border p-2.5 text-xs space-y-2">
+                      <p className="font-bold text-foreground border-b border-border pb-1">
+                        Rules & Configurations
+                      </p>
 
-                    <div className="space-y-1.5 text-[10px]">
-                      {selectedProduct.inventoryRules && Object.keys(selectedProduct.inventoryRules).length > 0 && (
-                        <div className="p-2 rounded-lg bg-secondary/20 border border-border/40">
-                          <span className="font-bold text-foreground block mb-0.5">Inventory Rules</span>
-                          <p className="text-muted-foreground font-mono">
-                            {JSON.stringify(selectedProduct.inventoryRules)}
-                          </p>
-                        </div>
-                      )}
+                      <div className="space-y-1.5 text-[10px]">
+                        {selectedProduct.inventoryRules && Object.keys(selectedProduct.inventoryRules).length > 0 && (
+                          <div className="p-2 rounded-lg bg-secondary/20 border border-border/40">
+                            <span className="font-bold text-foreground block mb-0.5">Inventory Rules</span>
+                            <p className="text-muted-foreground font-mono">
+                              {JSON.stringify(selectedProduct.inventoryRules)}
+                            </p>
+                          </div>
+                        )}
 
-                      {selectedProduct.deliveryRules && Object.keys(selectedProduct.deliveryRules).length > 0 && (
-                        <div className="p-2 rounded-lg bg-secondary/20 border border-border/40">
-                          <span className="font-bold text-foreground block mb-0.5">Delivery Rules</span>
-                          <p className="text-muted-foreground font-mono">
-                            {JSON.stringify(selectedProduct.deliveryRules)}
-                          </p>
-                        </div>
-                      )}
+                        {selectedProduct.deliveryRules && Object.keys(selectedProduct.deliveryRules).length > 0 && (
+                          <div className="p-2 rounded-lg bg-secondary/20 border border-border/40">
+                            <span className="font-bold text-foreground block mb-0.5">Delivery Rules</span>
+                            <p className="text-muted-foreground font-mono">
+                              {JSON.stringify(selectedProduct.deliveryRules)}
+                            </p>
+                          </div>
+                        )}
 
-                      {selectedProduct.complianceRules && Object.keys(selectedProduct.complianceRules).length > 0 && (
-                        <div className="p-2 rounded-lg bg-secondary/20 border border-border/40">
-                          <span className="font-bold text-foreground block mb-0.5">Compliance & HSN Rules</span>
-                          <p className="text-muted-foreground font-mono">
-                            {JSON.stringify(selectedProduct.complianceRules)}
-                          </p>
-                        </div>
-                      )}
+                        {selectedProduct.complianceRules && Object.keys(selectedProduct.complianceRules).length > 0 && (
+                          <div className="p-2 rounded-lg bg-secondary/20 border border-border/40">
+                            <span className="font-bold text-foreground block mb-0.5">Compliance & HSN Rules</span>
+                            <p className="text-muted-foreground font-mono">
+                              {JSON.stringify(selectedProduct.complianceRules)}
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Keywords & Badges */}
                 {((selectedProduct.tags && selectedProduct.tags.length > 0) ||
                   (selectedProduct.keywords && selectedProduct.keywords.length > 0) ||
                   (selectedProduct.badges && selectedProduct.badges.length > 0)) && (
-                  <div className="mt-3 rounded-xl bg-card border border-border p-2.5 text-xs space-y-1.5">
-                    <p className="font-bold text-foreground border-b border-border pb-1">
-                      Tags & Badges
-                    </p>
+                    <div className="mt-3 rounded-xl bg-card border border-border p-2.5 text-xs space-y-1.5">
+                      <p className="font-bold text-foreground border-b border-border pb-1">
+                        Tags & Badges
+                      </p>
 
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      {(selectedProduct.badges || []).map((b: string, i: number) => (
-                        <span key={`b-${i}`} className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 font-bold text-[9px]">
-                          🏷️ {b}
-                        </span>
-                      ))}
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {(selectedProduct.badges || []).map((b: string, i: number) => (
+                          <span key={`b-${i}`} className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 font-bold text-[9px]">
+                            🏷️ {b}
+                          </span>
+                        ))}
 
-                      {(selectedProduct.tags || []).map((t: string, i: number) => (
-                        <span key={`t-${i}`} className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 font-semibold text-[9px]">
-                          #{t}
-                        </span>
-                      ))}
+                        {(selectedProduct.tags || []).map((t: string, i: number) => (
+                          <span key={`t-${i}`} className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 font-semibold text-[9px]">
+                            #{t}
+                          </span>
+                        ))}
 
-                      {(selectedProduct.keywords || []).map((k: string, i: number) => (
-                        <span key={`k-${i}`} className="px-2 py-0.5 rounded-full bg-secondary text-muted-foreground text-[9px]">
-                          {k}
-                        </span>
-                      ))}
+                        {(selectedProduct.keywords || []).map((k: string, i: number) => (
+                          <span key={`k-${i}`} className="px-2 py-0.5 rounded-full bg-secondary text-muted-foreground text-[9px]">
+                            {k}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {selectedProduct.images?.length > 1 && (
                   <div className="mt-3 rounded-xl bg-card border border-border p-2 text-xs">

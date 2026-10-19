@@ -1268,8 +1268,8 @@ export const VendorManagement: React.FC = () => {
                               type="button"
                               onClick={() => handleToggleCategory(String(cat._id))}
                               className={`px-3 py-1.5 rounded-lg font-bold text-[10px] transition-all border flex items-center gap-1.5 cursor-pointer ${isCatSelected
-                                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                                  : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:bg-secondary/40"
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:bg-secondary/40"
                                 }`}
                             >
                               <span className="font-extrabold">{isCatSelected ? "✓" : "+"}</span>
@@ -1311,8 +1311,8 @@ export const VendorManagement: React.FC = () => {
                               type="button"
                               onClick={() => setActiveViewingCatId(String(c._id))}
                               className={`px-2 py-0.5 rounded-md font-bold text-[9px] border transition cursor-pointer ${isViewing
-                                  ? "bg-secondary text-foreground border-primary"
-                                  : "bg-transparent text-muted-foreground border-transparent hover:border-border"
+                                ? "bg-secondary text-foreground border-primary"
+                                : "bg-transparent text-muted-foreground border-transparent hover:border-border"
                                 }`}
                             >
                               {c.name}
@@ -1972,8 +1972,8 @@ export const VendorManagement: React.FC = () => {
                                 });
                               }}
                               className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition cursor-pointer flex items-center gap-1.5 ${isCatSelected
-                                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                                  : "bg-secondary/40 text-muted-foreground border-border hover:border-primary/40"
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                : "bg-secondary/40 text-muted-foreground border-border hover:border-primary/40"
                                 }`}
                             >
                               <span>{isCatSelected ? "✓" : "+"}</span>

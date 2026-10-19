@@ -165,12 +165,22 @@ export const FeePricingManagement: React.FC = () => {
   const fetchUsers = async () => {
     try {
       setUsersLoading(true);
-      const [usersRes, vendorsRes] = await Promise.all([
+      const [usersRes, vendorsRes, restRes] = await Promise.all([
         fetch(`${API_BASE}/admin/users?limit=300`, { headers: getAuthHeader() }),
         fetch(`${API_BASE}/admin/vendors`, { headers: getAuthHeader() }),
+        fetch(`${API_BASE}/admin/food/restaurants`, { headers: getAuthHeader() }).catch(() => null),
       ]);
       const usersData = await usersRes.json();
       const vendorsData = await vendorsRes.json();
+      let restList: any[] = [];
+      if (restRes) {
+        try {
+          const restData = await restRes.json();
+          restList = restData.restaurants || restData.data || [];
+        } catch (e) {
+          // ignore
+        }
+      }
 
       const userList: any[] = usersData.users || usersData.data || [];
       const vendorList: any[] = vendorsData.vendors || vendorsData.data || [];
@@ -227,6 +237,42 @@ export const FeePricingManagement: React.FC = () => {
         }
       });
 
+      // 3. Map and merge restaurants from food partner directory
+      restList.forEach((r: any) => {
+        const userId = r.userId?._id ? String(r.userId._id) : (r.userId ? String(r.userId) : null);
+        if (userId && combinedMap.has(userId)) {
+          const existing = combinedMap.get(userId)!;
+          existing.businessName = r.restaurantName ? `🍽️ ${r.restaurantName}` : existing.businessName;
+          existing.phone = existing.phone || r.phone || r.alternatePhone || "";
+          existing.email = existing.email || r.email || "";
+          if (!existing.roles.includes("food_partner")) {
+            existing.roles.push("food_partner");
+          }
+          if (r.state || r.city || r.locality) {
+            existing.territory = {
+              state: r.state || existing.territory?.state,
+              district: r.city || existing.territory?.district,
+              mandal: r.locality || existing.territory?.mandal,
+            };
+          }
+        } else {
+          const rId = String(r._id);
+          combinedMap.set(rId, {
+            _id: userId || rId,
+            name: r.restaurantName || r.legalBusinessName || "Food Partner",
+            businessName: r.restaurantName ? `🍽️ ${r.restaurantName}` : "",
+            email: r.email || "",
+            phone: r.phone || r.alternatePhone || "",
+            roles: ["food_partner"],
+            territory: {
+              state: r.state || "",
+              district: r.city || "",
+              mandal: r.locality || "",
+            },
+          });
+        }
+      });
+
       setUsers(Array.from(combinedMap.values()));
     } catch (err) {
       console.error("Error fetching users/vendors:", err);
@@ -274,7 +320,11 @@ export const FeePricingManagement: React.FC = () => {
     try {
       setIsGeneratingLink(true);
       const targetUser = users.find((u) => u._id === selectedUser);
-      const recipientRole = targetUser?.roles?.includes("franchise") ? "franchise" : "vendor";
+      const recipientRole = targetUser?.roles?.includes("food_partner")
+        ? "food_partner"
+        : targetUser?.roles?.includes("franchise")
+          ? "franchise"
+          : "vendor";
 
       const res = await fetch(`${API_BASE}/admin/fee-pricing/send-payment-link`, {
         method: "POST",
@@ -630,6 +680,7 @@ export const FeePricingManagement: React.FC = () => {
                       >
                         <option value="all" className="bg-neutral-900">All Roles</option>
                         <option value="vendor" className="bg-neutral-900">Vendors Only</option>
+                        <option value="food_partner" className="bg-neutral-900">Food Partners / Restaurants</option>
                         <option value="franchise" className="bg-neutral-900">Franchises Only</option>
                       </select>
                     </div>
