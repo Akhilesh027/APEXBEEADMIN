@@ -283,10 +283,10 @@ export const AdminProductApproval = () => {
             adminPricing: {
               mrp: f.basePrice,
               sellingPrice: (f.offerPrice && f.offerPrice > 0) ? f.offerPrice : f.basePrice,
-              platformFeePercent: f.platformCommissionPercent || 12,
+              platformFeePercent: f.platformCommissionPercent || 5,
               platformFeeAmount: f.platformShareAmount !== undefined && f.platformShareAmount !== null
                 ? f.platformShareAmount
-                : Math.round((((f.offerPrice && f.offerPrice > 0) ? f.offerPrice : f.basePrice) * (f.platformCommissionPercent || 12)) / 100),
+                : Math.round((((f.offerPrice && f.offerPrice > 0) ? f.offerPrice : f.basePrice) * (f.platformCommissionPercent || 5)) / 100),
               finalSellerAmount: f.vendorPayoutAmount !== undefined && f.vendorPayoutAmount !== null ? f.vendorPayoutAmount : ((f.offerPrice && f.offerPrice > 0) ? f.offerPrice : f.basePrice),
             }
           });

@@ -227,10 +227,10 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
           sellerName: p.sellerId?.name || 'Seller',
           sellerId: p.sellerId?._id || p.sellerId || '',
           sku: p.sku || '',
-          commissionRate: p.commissionRate || 10,
+          commissionRate: p.adminPricing?.vendorCommissionPercent ?? p.commissionRate ?? 0,
           commissionSettings: p.adminPricing || {
             platformCommissionType: 'percentage',
-            platformCommission: p.commissionRate || 10,
+            platformCommission: p.adminPricing?.platformFeePercent ?? p.commissionRate ?? 5,
             l1ReferralType: 'percentage',
             l1Referral: 5,
             l2ReferralType: 'percentage',
