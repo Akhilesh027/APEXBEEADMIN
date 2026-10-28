@@ -108,6 +108,18 @@ export const productService = {
     return res.data;
   },
 
+  bulkDelete: async (productIds: string[]) => {
+    const res = await axios.post(
+      `${API_URL}/products/admin/bulk-delete`,
+      { productIds },
+      {
+        headers: authHeaders(),
+      }
+    );
+
+    return res.data;
+  },
+
   // ==========================
   // SELLER
   // ==========================
@@ -146,8 +158,10 @@ export const productService = {
   },
 
   delete: async (id: any) => {
+    const prodId = (typeof id === 'object' && id !== null) ? (id._id || id.id || String(id)) : String(id || '');
+    const cleanId = prodId.replace(/^(prod_|food_)/, '');
     const res = await axios.delete(
-      `${API_URL}/products/${id}`,
+      `${API_URL}/products/${cleanId}?permanent=true`,
       {
         headers: authHeaders(),
       }

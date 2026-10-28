@@ -30,7 +30,8 @@ import {
   AlertCircle,
   ShoppingBag,
   Utensils,
-  Coins
+  Coins,
+  Trash2
 } from 'lucide-react';
 import { productService } from '../services/productService';
 
@@ -243,54 +244,76 @@ export const AdminProductApproval = () => {
       (foodItems || []).forEach((f: any) => {
         const foodKey = `food_${f._id}`;
 
-        let alreadyExists = deduplicatedMap.has(foodKey);
-        if (!alreadyExists) {
-          for (const existing of deduplicatedMap.values()) {
-            if (
-              existing.foodMenuItemId === String(f._id) ||
-              String(existing._id) === String(f._id) ||
-              (existing.name?.toLowerCase() === f.name?.toLowerCase() && existing.isFoodItem)
-            ) {
-              alreadyExists = true;
-              break;
-            }
+        let existing: any = null;
+        for (const ex of deduplicatedMap.values()) {
+          if (
+            ex.foodMenuItemId === String(f._id) ||
+            String(ex._id) === String(f._id) ||
+            (ex.name?.toLowerCase() === f.name?.toLowerCase() && ex.isFoodItem)
+          ) {
+            existing = ex;
+            break;
           }
         }
 
-        if (!alreadyExists) {
-          const restName = f.restaurantId?.restaurantName || f.restaurantId?.name || 'Restaurant Partner';
-          const normStatus = f.approvalStatus === 'PUBLISHED_LIVE'
-            ? 'Live'
-            : f.approvalStatus === 'PENDING_RESTAURANT_ACCEPTANCE'
-              ? 'Awaiting Seller Approval'
-              : f.approvalStatus === 'REJECTED_BY_ADMIN' || f.approvalStatus === 'REJECTED_BY_RESTAURANT'
-                ? 'Rejected'
-                : 'Pending Review';
+        const restName = f.restaurantId?.restaurantName || f.restaurantId?.name || existing?.vendorName || 'Restaurant Partner';
+        const normStatus = f.approvalStatus === 'PUBLISHED_LIVE'
+          ? 'Live'
+          : f.approvalStatus === 'PENDING_RESTAURANT_ACCEPTANCE'
+            ? 'Awaiting Seller Approval'
+            : f.approvalStatus === 'REJECTED_BY_ADMIN' || f.approvalStatus === 'REJECTED_BY_RESTAURANT'
+              ? 'Rejected'
+              : (existing?.status || 'Pending Review');
 
-          deduplicatedMap.set(foodKey, {
-            ...f,
-            _id: f._id,
-            foodMenuItemId: f._id,
-            isFoodItem: true,
-            normalizedStatus: normStatus,
-            status: normStatus,
-            categoryName: f.categoryId?.name || 'Food & Dining',
-            vendorName: restName,
-            baseMrp: f.basePrice,
-            baseSellingPrice: (f.offerPrice && f.offerPrice > 0) ? f.offerPrice : f.basePrice,
-            previousPrice: null,
-            hasPriceChanged: false,
-            adminPricing: {
-              mrp: f.basePrice,
-              sellingPrice: (f.offerPrice && f.offerPrice > 0) ? f.offerPrice : f.basePrice,
-              platformFeePercent: f.platformCommissionPercent || 5,
-              platformFeeAmount: f.platformShareAmount !== undefined && f.platformShareAmount !== null
-                ? f.platformShareAmount
-                : Math.round((((f.offerPrice && f.offerPrice > 0) ? f.offerPrice : f.basePrice) * (f.platformCommissionPercent || 5)) / 100),
-              finalSellerAmount: f.vendorPayoutAmount !== undefined && f.vendorPayoutAmount !== null ? f.vendorPayoutAmount : ((f.offerPrice && f.offerPrice > 0) ? f.offerPrice : f.basePrice),
-            }
-          });
-        }
+        const mergedShares = f.adminPricing?.commissionShares || f.commissionShares || existing?.adminPricing?.commissionShares || existing?.commissionShares || defaultShares;
+        const ship = f.adminPricing?.shippingCharge ?? f.shippingCharge ?? f.deliveryFee ?? existing?.adminPricing?.shippingCharge ?? existing?.shippingCharge ?? 0;
+        const pack = f.adminPricing?.packingCharge ?? f.packagingCharge ?? f.packingCharge ?? existing?.adminPricing?.packingCharge ?? existing?.packingCharge ?? 0;
+
+        const mergedFoodItem = {
+          ...(existing || {}),
+          ...f,
+          _id: existing?._id || f._id,
+          productId: existing?._id,
+          foodMenuItemId: f._id,
+          isFoodItem: true,
+          normalizedStatus: normStatus,
+          status: normStatus,
+          categoryName: f.categoryId?.name || existing?.categoryName || 'Food & Dining',
+          vendorName: restName,
+          baseMrp: f.adminPricing?.mrp || f.basePrice || existing?.baseMrp || 0,
+          baseSellingPrice: (f.offerPrice && f.offerPrice > 0) ? f.offerPrice : (f.basePrice || existing?.baseSellingPrice || 0),
+          previousPrice: existing?.previousPrice || null,
+          hasPriceChanged: false,
+          adminPricing: {
+            ...(existing?.adminPricing || {}),
+            ...(f.adminPricing || {}),
+            mrp: f.adminPricing?.mrp || f.basePrice,
+            sellingPrice: f.adminPricing?.sellingPrice || ((f.offerPrice && f.offerPrice > 0) ? f.offerPrice : f.basePrice),
+            platformFeePercent: f.adminPricing?.platformFeePercent || f.platformCommissionPercent || 5,
+            platformFeeAmount: f.adminPricing?.platformFeeAmount ?? (f.platformShareAmount !== undefined && f.platformShareAmount !== null
+              ? f.platformShareAmount
+              : Math.round((((f.offerPrice && f.offerPrice > 0) ? f.offerPrice : f.basePrice) * (f.platformCommissionPercent || 5)) / 100)),
+            vendorCommissionPercent: f.adminPricing?.vendorCommissionPercent ?? f.vendorCommissionPercent ?? 0,
+            vendorCommissionAmount: f.adminPricing?.vendorCommissionAmount ?? f.vendorCommissionAmount ?? 0,
+            distributedFrom: f.adminPricing?.distributedFrom || f.distributedFrom || 'platform_fee',
+            finalSellerAmount: f.adminPricing?.finalSellerAmount ?? (f.vendorPayoutAmount !== undefined && f.vendorPayoutAmount !== null ? f.vendorPayoutAmount : ((f.offerPrice && f.offerPrice > 0) ? f.offerPrice : f.basePrice)),
+            shippingCharge: ship,
+            packingCharge: pack,
+            commissionShares: mergedShares,
+            referralCommission: f.adminPricing?.referralCommission || f.referralCommission || existing?.referralCommission || { level1: 10, level2: 5, level3: 2.5 },
+            referralEarnings: f.adminPricing?.referralEarnings || f.referralEarnings || existing?.referralEarnings,
+            estimatedEarning: f.adminPricing?.estimatedEarning || f.estimatedEarning || existing?.estimatedEarning,
+            remarks: f.adminPricingNotes || f.adminPricing?.remarks || existing?.adminPricing?.remarks || '',
+          },
+          commissionShares: mergedShares,
+          referralCommission: f.adminPricing?.referralCommission || f.referralCommission || existing?.referralCommission || { level1: 10, level2: 5, level3: 2.5 },
+          shippingCharge: ship,
+          packingCharge: pack,
+          deliveryFee: ship,
+          packagingCharge: pack,
+        };
+
+        deduplicatedMap.set(foodKey, mergedFoodItem);
       });
 
       setProducts(Array.from(deduplicatedMap.values()));
@@ -345,11 +368,19 @@ export const AdminProductApproval = () => {
   const openPricing = (product: any) => {
     setSelectedProduct(product);
 
-    const existingShares = product.adminPricing?.commissionShares?.length
-      ? product.adminPricing.commissionShares.filter(
-        (share: any) => share && share.type !== 'referrer'
-      )
-      : defaultShares;
+    const rawShares = product.adminPricing?.commissionShares?.length
+      ? product.adminPricing.commissionShares
+      : (product.commissionShares?.length ? product.commissionShares : defaultShares);
+
+    const existingShares = defaultShares.map((def) => {
+      const found = rawShares.find((s: any) => s && s.type === def.type);
+      return {
+        ...def,
+        percent: found?.percent !== undefined && found?.percent !== null && found?.percent !== '' ? found.percent : def.percent,
+        amount: found?.amount !== undefined ? found.amount : 0,
+        isActive: found?.isActive !== false,
+      };
+    });
 
     const pf = product.adminPricing?.platformFeePercent !== undefined && product.adminPricing?.platformFeePercent !== null && product.adminPricing?.platformFeePercent !== ''
       ? String(product.adminPricing.platformFeePercent)
@@ -373,12 +404,16 @@ export const AdminProductApproval = () => {
       vendorCommissionPercent: vc,
       distributedFrom: product.adminPricing?.distributedFrom || 'platform_fee',
       customEstimatedEarning: estEarn,
-      shippingCharge: product.adminPricing?.shippingCharge !== undefined && product.adminPricing?.shippingCharge !== null
+      shippingCharge: product.adminPricing?.shippingCharge !== undefined && product.adminPricing?.shippingCharge !== null && product.adminPricing?.shippingCharge !== ''
         ? product.adminPricing.shippingCharge.toString()
-        : '0',
-      packingCharge: product.adminPricing?.packingCharge !== undefined && product.adminPricing?.packingCharge !== null
+        : (product.shippingCharge !== undefined && product.shippingCharge !== null && product.shippingCharge !== ''
+            ? product.shippingCharge.toString()
+            : (product.deliveryFee !== undefined && product.deliveryFee !== null ? product.deliveryFee.toString() : '0')),
+      packingCharge: product.adminPricing?.packingCharge !== undefined && product.adminPricing?.packingCharge !== null && product.adminPricing?.packingCharge !== ''
         ? product.adminPricing.packingCharge.toString()
-        : '0',
+        : (product.packingCharge !== undefined && product.packingCharge !== null && product.packingCharge !== ''
+            ? product.packingCharge.toString()
+            : (product.packagingCharge !== undefined && product.packagingCharge !== null ? product.packagingCharge.toString() : '0')),
       remarks: product.adminPricing?.remarks || '',
       commissionShares: existingShares,
     });
@@ -532,6 +567,24 @@ export const AdminProductApproval = () => {
           vendorCommissionPercent,
           distributedFrom,
           vendorPayoutAmount: finalSellerAmount,
+          shippingCharge: Number(pricing.shippingCharge || 0),
+          packingCharge: Number(pricing.packingCharge || 0),
+          packagingCharge: Number(pricing.packingCharge || 0),
+          commissionShares: calculatedShares,
+          referralCommission: {
+            level1: Number(pricing.commissionShares?.find((s: any) => s.type === 'level1')?.percent || 10),
+            level2: Number(pricing.commissionShares?.find((s: any) => s.type === 'level2')?.percent || 5),
+            level3: Number(pricing.commissionShares?.find((s: any) => s.type === 'level3')?.percent || 2.5),
+          },
+          referralEarnings: {
+            level1: l1EarnAmt,
+            level2: l2EarnAmt,
+            level3: l3EarnAmt,
+            average: activeEstimatedEarn,
+            total: totalReferralEarn,
+          },
+          customEstimatedEarning: activeEstimatedEarn,
+          estimatedEarning: activeEstimatedEarn,
           adminPricingNotes: pricing.remarks,
           action: 'APPROVE_COMMISSION',
         });
@@ -561,6 +614,33 @@ export const AdminProductApproval = () => {
     } catch (err) {
       console.error(err);
       alert('Failed to reject product');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteProduct = async (product: any) => {
+    const prodName = product.name || 'this item';
+    const confirm = window.confirm(
+      `⚠️ PERMANENT DATABASE DELETION\n\nAre you sure you want to permanently delete "${prodName}" from the database?\n\nThis will remove the product, inventory records, and all associated pricing and configuration. This action cannot be undone.`
+    );
+    if (!confirm) return;
+
+    try {
+      setSaving(true);
+      const targetId = product._id || product.foodMenuItemId || product.id;
+      await productService.delete(targetId);
+      showToast(`🗑️ "${prodName}" permanently deleted from database.`);
+
+      if (selectedProduct && (selectedProduct._id === product._id || selectedProduct.foodMenuItemId === product.foodMenuItemId)) {
+        setSelectedProduct(null);
+      }
+      setSelectedIds((prev) => prev.filter((id) => id !== String(product._id) && id !== String(product.foodMenuItemId)));
+      setProducts((prev) => prev.filter((p) => p._id !== product._id && p.foodMenuItemId !== product.foodMenuItemId));
+      await fetchProducts();
+    } catch (err: any) {
+      console.error('Delete product error:', err);
+      alert(err?.response?.data?.message || 'Failed to delete product from database');
     } finally {
       setSaving(false);
     }
@@ -638,6 +718,29 @@ export const AdminProductApproval = () => {
     } catch (err: any) {
       console.error('Bulk reject error:', err);
       alert(err?.response?.data?.message || 'Failed to bulk reject products');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    const confirm = window.confirm(
+      `⚠️ PERMANENT DATABASE DELETION\n\nAre you sure you want to permanently delete all ${selectedIds.length} selected products from the database?\n\nThis will remove them completely along with linked inventory and store mappings. This action cannot be undone.`
+    );
+    if (!confirm) return;
+
+    try {
+      setBulkLoading(true);
+      const res = await productService.bulkDelete(selectedIds);
+      showToast(`🗑️ ${res.message || `Permanently deleted ${selectedIds.length} products from database.`}`);
+      const deletedSet = new Set(selectedIds);
+      setProducts((prev) => prev.filter((p) => !deletedSet.has(String(p._id)) && !deletedSet.has(String(p.foodMenuItemId))));
+      setSelectedIds([]);
+      await fetchProducts();
+    } catch (err: any) {
+      console.error('Bulk delete error:', err);
+      alert(err?.response?.data?.message || 'Failed to delete selected products from database');
     } finally {
       setBulkLoading(false);
     }
@@ -1252,10 +1355,19 @@ export const AdminProductApproval = () => {
                     <button
                       onClick={() => handleReject(product)}
                       disabled={saving}
-                      className="p-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-colors cursor-pointer disabled:opacity-50"
+                      className="p-2 rounded-xl bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors cursor-pointer disabled:opacity-50"
                       title="Reject Product"
                     >
                       <XCircle size={14} />
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteProduct(product)}
+                      disabled={saving}
+                      className="p-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-600 hover:text-white transition-all cursor-pointer disabled:opacity-50"
+                      title="Permanently Delete from Database"
+                    >
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
@@ -1421,6 +1533,19 @@ export const AdminProductApproval = () => {
                               <span>Est. Earn: ₹{Number(product.adminPricing.estimatedEarning ?? product.adminPricing.averageReferralEarning ?? product.adminPricing.referralEarnings?.average ?? 0).toFixed(2)}</span>
                             </span>
                           </div>
+
+                          <div className="flex items-center gap-1.5 flex-wrap text-[9px] pt-0.5">
+                            {(Number(product.adminPricing?.shippingCharge ?? product.shippingCharge ?? product.deliveryFee ?? 0) > 0) && (
+                              <span className="bg-emerald-500/10 text-emerald-600 font-bold px-1.5 py-0.2 rounded border border-emerald-500/20">
+                                🚚 Ship: ₹{product.adminPricing?.shippingCharge ?? product.shippingCharge ?? product.deliveryFee}
+                              </span>
+                            )}
+                            {(Number(product.adminPricing?.packingCharge ?? product.packingCharge ?? product.packagingCharge ?? 0) > 0) && (
+                              <span className="bg-blue-500/10 text-blue-600 font-bold px-1.5 py-0.2 rounded border border-blue-500/20">
+                                📦 Pack: ₹{product.adminPricing?.packingCharge ?? product.packingCharge ?? product.packagingCharge}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       ) : (
                         <span className="text-muted-foreground italic text-[11px]">Auto / Default Split</span>
@@ -1458,11 +1583,21 @@ export const AdminProductApproval = () => {
                         <button
                           onClick={() => handleReject(product)}
                           disabled={saving}
-                          className={`p-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-colors ${saving ? 'opacity-50 cursor-not-allowed' : ''
+                          className={`p-1.5 rounded-lg bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors ${saving ? 'opacity-50 cursor-not-allowed' : ''
                             }`}
                           title="Reject Product"
                         >
                           <XCircle size={14} />
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteProduct(product)}
+                          disabled={saving}
+                          className={`p-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-600 hover:text-white transition-all cursor-pointer ${saving ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                          title="Permanently Delete from Database"
+                        >
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>
@@ -1516,10 +1651,21 @@ export const AdminProductApproval = () => {
             <button
               onClick={handleBulkReject}
               disabled={bulkLoading}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-600/20 text-amber-500 hover:bg-amber-600/30 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
             >
               <XCircle size={14} />
               <span>Reject Selected</span>
+            </button>
+
+            {/* Delete Selected from Database */}
+            <button
+              onClick={handleBulkDelete}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/30 transition-all cursor-pointer disabled:opacity-50"
+              title="Permanently Delete Selected from Database"
+            >
+              <Trash2 size={14} />
+              <span>{bulkLoading ? 'Deleting...' : 'Delete Selected from Database'}</span>
             </button>
 
             {/* Clear Selection */}
@@ -1549,12 +1695,24 @@ export const AdminProductApproval = () => {
                 </p>
               </div>
 
-              <button
-                onClick={() => setSelectedProduct(null)}
-                className="px-3 py-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-xs font-bold text-foreground border border-border cursor-pointer transition-colors"
-              >
-                ✕ Close
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleDeleteProduct(selectedProduct)}
+                  disabled={saving}
+                  className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-600 text-rose-600 hover:text-white text-xs font-bold border border-rose-500/20 cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  title="Permanently Delete this Product from Database"
+                >
+                  <Trash2 size={13} />
+                  <span>Delete from DB</span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedProduct(null)}
+                  className="px-3 py-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-xs font-bold text-foreground border border-border cursor-pointer transition-colors"
+                >
+                  ✕ Close
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_0.65fr] gap-5 flex-1 overflow-hidden">
@@ -1874,18 +2032,32 @@ export const AdminProductApproval = () => {
                   rows={2}
                 />
 
-                <button
-                  onClick={handleSavePricing}
-                  disabled={saving}
-                  className={`w-full py-2.5 rounded-xl bg-emerald-600 text-white font-bold flex items-center justify-center gap-2 ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
-                >
-                  {saving ? (
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <CheckCircle size={16} />
-                  )}
-                  {saving ? 'Saving Pricing...' : 'Save Pricing & Send to Seller'}
-                </button>
+                <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteProduct(selectedProduct)}
+                    disabled={saving}
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-rose-600/10 text-rose-600 hover:bg-rose-600 hover:text-white border border-rose-500/20 font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 text-xs shrink-0"
+                    title="Permanently Delete this Product from Database"
+                  >
+                    <Trash2 size={15} />
+                    <span>Delete from Database</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSavePricing}
+                    disabled={saving}
+                    className={`w-full flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center justify-center gap-2 transition-all cursor-pointer text-xs ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  >
+                    {saving ? (
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <CheckCircle size={16} />
+                    )}
+                    <span>{saving ? 'Saving Pricing...' : 'Save Pricing & Send to Seller'}</span>
+                  </button>
+                </div>
               </div>
 
               <div className="overflow-y-auto border border-border rounded-2xl p-3 bg-secondary/10">
