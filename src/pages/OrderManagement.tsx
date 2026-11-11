@@ -22,7 +22,123 @@ import {
   RefreshCw,
   X,
   CreditCard,
+  ShieldCheck,
+  Tag,
+  Percent,
+  Receipt,
+  Store,
+  Bike
 } from 'lucide-react';
+
+// Helpers for order calculations & delivery info
+export const getOrderCalculations = (order: Order) => {
+  const summary = (order as any).orderSummary || {};
+  const items = order.items || [];
+
+  const calculatedItemsTotal = items.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
+  const calculatedMrpTotal = items.reduce((sum, item) => sum + ((item as any).mrp || item.price || 0) * (item.quantity || 1), 0);
+
+  const totalMrp = Number(summary.mrp ?? summary.totalMrp ?? (order as any).mrp ?? calculatedMrpTotal);
+  const rawSubtotal = Number(summary.subtotal ?? (order as any).subtotal ?? calculatedItemsTotal);
+  const discount = Number(summary.discount ?? summary.mrpDiscount ?? (order as any).discount ?? Math.max(0, totalMrp - rawSubtotal));
+  const subtotal = rawSubtotal > 0 ? rawSubtotal : Math.max(0, totalMrp - discount);
+
+  const totalTax = Number(summary.tax ?? (order as any).tax ?? 0);
+  let cgst = summary.cgst !== undefined && summary.cgst !== null ? Number(summary.cgst) : (order as any).cgst !== undefined && (order as any).cgst !== null ? Number((order as any).cgst) : null;
+  let sgst = summary.sgst !== undefined && summary.sgst !== null ? Number(summary.sgst) : (order as any).sgst !== undefined && (order as any).sgst !== null ? Number((order as any).sgst) : null;
+
+  if ((cgst === null || sgst === null) && totalTax > 0) {
+    cgst = Number((totalTax / 2).toFixed(2));
+    sgst = Number((totalTax / 2).toFixed(2));
+  } else if (cgst === null && sgst === null) {
+    cgst = 0;
+    sgst = 0;
+  }
+
+  const shipping = Number(summary.shippingFee ?? summary.shipping ?? (order as any).shippingCharge ?? 0);
+  const packing = Number(summary.packageCharge ?? summary.packing ?? (order as any).packingCharge ?? 0);
+  const platformFee = Number(summary.platformFee ?? (order as any).platformFee ?? 0);
+  const couponDiscount = Number(summary.couponDiscount ?? (order as any).couponDiscount ?? 0);
+  const walletDeduction = Number(summary.walletDeduction ?? (order as any).walletDeduction ?? 0);
+  const couponCode = (order as any).couponCode || (summary as any).couponCode || '';
+
+  const grandTotal = Number(summary.grandTotal ?? summary.total ?? order.totalAmount ?? (subtotal + totalTax + shipping + packing + platformFee - couponDiscount - walletDeduction));
+
+  const isStoreSelfDelivery = order.deliveryType === 'Vendor' || (order as any).deliveryMode === 'store_delivery' || (order as any).fulfillment?.deliveryType === 'store_delivery';
+  const commission = Number((order as any).commissionAmount ?? Math.round(subtotal * 0.05));
+  const vendorDeliveryFee = isStoreSelfDelivery ? shipping : 0;
+  const netVendorPayout = Math.max(0, subtotal - commission + vendorDeliveryFee);
+
+  const gstRate = subtotal > 0 && totalTax > 0 ? Math.round((totalTax / subtotal) * 100) : 0;
+  const halfGstRate = gstRate > 0 ? Number((gstRate / 2).toFixed(1)) : 0;
+
+  return {
+    totalMrp,
+    discount,
+    subtotal,
+    cgst: cgst ?? 0,
+    sgst: sgst ?? 0,
+    totalTax,
+    gstRate,
+    halfGstRate,
+    shipping,
+    packing,
+    platformFee,
+    couponDiscount,
+    couponCode,
+    walletDeduction,
+    grandTotal,
+    commission,
+    isStoreSelfDelivery,
+    vendorDeliveryFee,
+    netVendorPayout,
+  };
+};
+
+export const getDeliveryTypeInfo = (order: Order) => {
+  const isPickup = Boolean(order.isSelfPickup || (order as any).fulfillment?.type === 'pickup' || order.deliveryType === 'pickup');
+  const isSubscription = Boolean(order.isScheduledSubscription || (order as any).isSubscription);
+  const isStoreSelf = order.deliveryType === 'Vendor' || (order as any).deliveryMode === 'store_delivery' || (order as any).fulfillment?.deliveryType === 'store_delivery';
+
+  if (isSubscription) {
+    return {
+      type: 'subscription',
+      badge: '🔁 Subscribed Route',
+      label: 'Recurring Hyperlocal Subscription',
+      color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30',
+      description: 'Scheduled doorstep recurring delivery route with automated calendar fulfillment.',
+      icon: '🔁'
+    };
+  }
+  if (isPickup) {
+    return {
+      type: 'pickup',
+      badge: '🏪 In-Store Pickup',
+      label: 'Customer Self-Pickup',
+      color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
+      description: 'Customer visits the merchant store directly to collect package with verified OTP handshake.',
+      icon: '🏪'
+    };
+  }
+  if (isStoreSelf) {
+    return {
+      type: 'store_delivery',
+      badge: '🛵 Store Self-Delivery',
+      label: 'Store Partner Self-Delivery',
+      color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+      description: 'Handled directly by merchant private fleet / staff. Delivery fee is retained by the vendor.',
+      icon: '🛵'
+    };
+  }
+  return {
+    type: 'platform',
+    badge: '🚚 Platform Courier',
+    label: 'ApexBee Platform Courier Pool',
+    color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30',
+    description: 'Fulfilled by ApexBee broadcast rider network or partner courier (Delhivery/Dunzo).',
+    icon: '🚚'
+  };
+};
 
 interface OrderManagementProps {
   defaultView?: 'orders' | 'subscriptions';
@@ -62,6 +178,14 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
   const [courier, setCourier] = useState('Delhivery');
   const [tracking, setTracking] = useState('');
   const [isDispatching, setIsDispatching] = useState(false);
+
+  const selectedCalc = useMemo(() => {
+    return selectedOrder ? getOrderCalculations(selectedOrder) : null;
+  }, [selectedOrder]);
+
+  const selectedDelInfo = useMemo(() => {
+    return selectedOrder ? getDeliveryTypeInfo(selectedOrder) : null;
+  }, [selectedOrder]);
 
   // Fetch DB Categories and Subscriptions
   useEffect(() => {
@@ -115,7 +239,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
     try {
       setSettlingId(id);
       const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
-      const res = await fetch(`https://server.apexbee.in/api/billing/statements/${id}/approve`, {
+      const res = await fetch(`https://server.apexbee.in/api/local-shop/billing/statements/${id}/approve`, {
         method: 'PATCH',
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
@@ -292,20 +416,39 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
 
   const getOrderStatusBadge = (status: Order['orderStatus']) => {
     switch (status) {
+      case 'Placed':
+        return <span className="px-2.5 py-1 bg-blue-500/10 text-blue-600 font-black rounded-lg text-[10px]">Order Placed</span>;
       case 'Pending Payment':
         return <span className="px-2.5 py-1 bg-amber-500/10 text-amber-500 font-bold rounded-lg text-[10px]">Unpaid</span>;
       case 'Confirmed':
-        return <span className="px-2.5 py-1 bg-blue-500/10 text-blue-500 font-bold rounded-lg text-[10px]">Confirmed</span>;
+        return <span className="px-2.5 py-1 bg-sky-500/10 text-sky-600 font-bold rounded-lg text-[10px]">Confirmed</span>;
+      case 'Accepted':
+      case 'Assigned':
+        return <span className="px-2.5 py-1 bg-amber-500/10 text-amber-600 font-bold rounded-lg text-[10px]">Rider Assigned 🛵</span>;
+      case 'Reached Vendor':
+        return <span className="px-2.5 py-1 bg-purple-500/10 text-purple-600 font-bold rounded-lg text-[10px]">Rider at Store 🏬</span>;
       case 'Payment Verified':
         return <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold rounded-lg text-[10px]">Paid / Verified</span>;
       case 'Processing':
         return <span className="px-2.5 py-1 bg-indigo-500/10 text-indigo-500 font-bold rounded-lg text-[10px]">Processing</span>;
       case 'Packed':
-        return <span className="px-2.5 py-1 bg-purple-500/10 text-purple-500 font-bold rounded-lg text-[10px]">Packed</span>;
+        return <span className="px-2.5 py-1 bg-purple-500/10 text-purple-600 font-bold rounded-lg text-[10px]">Packed & Ready</span>;
+      case 'Ready for Pickup':
+        return <span className="px-2.5 py-1 bg-amber-500/10 text-amber-700 font-bold rounded-lg text-[10px]">Ready for Pickup 🏪</span>;
+      case 'Picked Up':
+        return <span className="px-2.5 py-1 bg-indigo-500/10 text-indigo-600 font-bold rounded-lg text-[10px]">Picked Up 📦</span>;
+      case 'Out for Delivery':
+        return <span className="px-2.5 py-1 bg-indigo-500/10 text-indigo-600 font-bold rounded-lg text-[10px]">Out for Delivery 🚚</span>;
+      case 'Reached Customer':
+        return <span className="px-2.5 py-1 bg-sky-500/10 text-sky-600 font-bold rounded-lg text-[10px]">Rider at Doorstep 📍</span>;
       case 'Shipped':
         return <span className="px-2.5 py-1 bg-pink-500/10 text-pink-500 font-bold rounded-lg text-[10px]">Shipped</span>;
       case 'Delivered':
-        return <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-black rounded-lg text-[10px]">Delivered</span>;
+        return <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-black rounded-lg text-[10px]">Delivered ✅</span>;
+      case 'Cancelled':
+        return <span className="px-2.5 py-1 bg-rose-500/10 text-rose-600 font-bold rounded-lg text-[10px]">Cancelled ❌</span>;
+      case 'Returned':
+        return <span className="px-2.5 py-1 bg-orange-500/10 text-orange-600 font-bold rounded-lg text-[10px]">Returned ↩️</span>;
       default:
         return <span className="px-2.5 py-1 bg-secondary text-muted-foreground font-bold rounded-lg text-[10px]">{status}</span>;
     }
@@ -543,28 +686,57 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
                 </div>
 
                 <div className="divide-y divide-border/60 min-h-[380px]">
-                  {paginatedOrders.map((order) => (
-                    <div
-                      key={order.id}
-                      onClick={() => setSelectedOrder(order)}
-                      className={`p-4 flex items-center justify-between cursor-pointer hover:bg-secondary/20 transition-all ${selectedOrder?.id === order.id ? 'bg-secondary/40 border-l-4 border-primary' : ''
-                        }`}
-                    >
-                      <div>
-                        <span className="font-bold text-xs text-foreground block">{order.customerName}</span>
-                        <span className="text-[10px] text-muted-foreground block mt-1">
-                          ID: {order.id} • {order.items.length} items
-                        </span>
-                        <span className="text-[9px] text-muted-foreground mt-0.5 block font-mono">{order.date}</span>
+                  {paginatedOrders.map((order) => {
+                    const calc = getOrderCalculations(order);
+                    const delInfo = getDeliveryTypeInfo(order);
+                    const isSelected = selectedOrder?.id === order.id;
+                    const speedMode = (order as any).deliverySpeed || (order as any).deliveryMode === 'express' || (order as any).fulfillment?.deliveryMode === 'express'
+                      ? 'Express 15-30m'
+                      : (order as any).deliveryMode === 'same_day' || (order as any).fulfillment?.deliveryMode === 'same_day'
+                        ? 'Same Day'
+                        : 'Standard';
+
+                    return (
+                      <div
+                        key={order.id}
+                        onClick={() => setSelectedOrder(order)}
+                        className={`p-4 flex flex-col gap-2.5 cursor-pointer hover:bg-secondary/20 transition-all ${isSelected ? 'bg-secondary/40 border-l-4 border-primary' : ''
+                          }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <span className="font-bold text-xs text-foreground block truncate">{order.customerName}</span>
+                            <span className="text-[10px] text-muted-foreground block mt-0.5 font-mono">
+                              ID: {order.id} • {order.items.length} item{order.items.length === 1 ? '' : 's'}
+                            </span>
+                            <span className="text-[9px] text-muted-foreground mt-0.5 block font-mono">{order.date}</span>
+                          </div>
+                          <div className="shrink-0 flex flex-col items-end gap-1">
+                            <span className="font-mono text-xs font-black text-foreground">
+                              ₹{calc.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                            </span>
+                            {getOrderStatusBadge(order.orderStatus)}
+                          </div>
+                        </div>
+
+                        {/* Badges: Delivery Type, Delivery Speed, Delivery Fee, Payment Mode */}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/40 text-[10px]">
+                          <span className={`px-2 py-0.5 rounded-md font-black border text-[9px] ${delInfo.color}`}>
+                            {delInfo.badge}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded-md font-bold bg-secondary/60 text-foreground border border-border/60 text-[9px]">
+                            ⚡ {speedMode}
+                          </span>
+                          <span className={`px-1.5 py-0.5 rounded-md font-bold text-[9px] ${calc.shipping === 0 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-secondary/40 text-muted-foreground border border-border/50'}`}>
+                            {calc.shipping === 0 ? 'Free Del' : `+₹${calc.shipping}`}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded-md font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 ml-auto text-[9px]">
+                            {order.paymentMethod || 'UPI'}
+                          </span>
+                        </div>
                       </div>
-                      <div className="shrink-0 flex flex-col items-end gap-1.5">
-                        <span className="font-mono text-xs font-black text-foreground">
-                          ₹{order.totalAmount.toLocaleString('en-IN')}
-                        </span>
-                        {getOrderStatusBadge(order.orderStatus)}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {filteredOrders.length === 0 && (
                     <div className="p-8 text-center text-xs text-muted-foreground">
@@ -635,176 +807,320 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
                     ) : (
                       <button
                         onClick={async () => {
-                          const targetId = selectedOrder.id || (selectedOrder as any)._id;
+                          const targetId = (selectedOrder as any)._id || selectedOrder.id;
                           setReleasingCommId(targetId);
                           try {
-                            await releaseCommissions(targetId);
-                            setSelectedOrder((prev) => (prev ? ({ ...prev, commissionReleaseStatus: 'Released', isCommissionReleased: true } as any) : prev));
+                            const success = await releaseCommissions(targetId);
+                            if (success) {
+                              setSelectedOrder((prev) => (prev ? ({ ...prev, commissionReleaseStatus: 'Released', isCommissionReleased: true } as any) : prev));
+                              alert('Commissions successfully distributed to vendor, franchise, and referral wallets!');
+                            }
                           } finally {
                             setReleasingCommId(null);
                           }
                         }}
-                        disabled={releasingCommId === (selectedOrder.id || (selectedOrder as any)._id)}
+                        disabled={releasingCommId === ((selectedOrder as any)._id || selectedOrder.id)}
                         className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-black shadow-sm flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
                         title="Trigger ApexBee Commission Engine to distribute earnings to vendor & franchise wallets"
                       >
-                        <span>{releasingCommId === (selectedOrder.id || (selectedOrder as any)._id) ? '⏳ Distributing...' : '💸 Distribute Commission'}</span>
+                        <span>{releasingCommId === ((selectedOrder as any)._id || selectedOrder.id) ? '⏳ Distributing...' : '💸 Distribute Commission'}</span>
                       </button>
                     )}
                   </div>
                 </div>
 
-                {/* Specs Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                  {/* Buyer Box */}
-                  <div className="space-y-3 bg-secondary/15 p-4 rounded-2xl border border-border/40">
-                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">Buyer Registry</span>
-                    <div className="space-y-1.5 text-xs">
-                      <p>
-                        <span className="text-muted-foreground font-semibold">Name: </span>
-                        <strong className="text-foreground">{selectedOrder.customerName}</strong>
-                      </p>
-                      <p>
-                        <span className="text-muted-foreground font-semibold">Phone: </span>
-                        <strong className="font-mono text-foreground">{selectedOrder.customerMobile}</strong>
-                      </p>
-                      <p>
-                        <span className="text-muted-foreground font-semibold">Address: </span>
-                        <span className="text-foreground">{selectedOrder.customerAddress}</span>
-                      </p>
+                {/* 🚚 Comprehensive Delivery Logistics & Fulfillment Overview Card */}
+                {selectedDelInfo && selectedCalc && (
+                  <div className="rounded-2xl border border-border/80 bg-secondary/10 overflow-hidden shadow-xs space-y-0">
+                    <div className={`p-4 border-b border-border/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${selectedDelInfo.color}`}>
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-2xl">{selectedDelInfo.icon}</span>
+                        <div>
+                          <div className="font-black text-xs uppercase tracking-wider flex items-center gap-2">
+                            <span>{selectedDelInfo.label}</span>
+                            <span className="px-2 py-0.5 rounded-full bg-foreground/10 text-foreground font-black text-[10px]">
+                              {selectedDelInfo.badge}
+                            </span>
+                          </div>
+                          <p className="text-[11px] opacity-85 mt-0.5 font-medium">{selectedDelInfo.description}</p>
+                        </div>
+                      </div>
+                      <span className="px-3 py-1 rounded-full bg-foreground text-background font-black text-[10px] uppercase shrink-0">
+                        ⚡ {(selectedOrder as any).deliverySpeed || (selectedOrder as any).deliveryMode === 'express' || (selectedOrder as any).fulfillment?.deliveryMode === 'express' ? 'Express 15-30m' : (selectedOrder as any).deliveryMode === 'same_day' || (selectedOrder as any).fulfillment?.deliveryMode === 'same_day' ? 'Same Day' : 'Standard'}
+                      </span>
                     </div>
-                  </div>
 
-                  {/* Financial Summary Box */}
-                  <div className="space-y-3 bg-secondary/15 p-4 rounded-2xl border border-border/40">
-                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">Financial Summary</span>
-                    <div className="space-y-1.5 text-xs font-mono">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Subtotal:</span>
-                        <span className="text-foreground font-bold">
-                          ₹{selectedOrder.items.reduce((sum, i) => sum + i.price * i.quantity, 0)}
+                    <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                      {/* Delivery Mode & Speed */}
+                      <div className="p-3 bg-card rounded-xl border border-border/60">
+                        <span className="font-bold text-muted-foreground block text-[10px] uppercase tracking-wider mb-1">
+                          🚀 Delivery Speed &amp; Mode
+                        </span>
+                        <span className="font-extrabold text-foreground block">
+                          {(selectedOrder as any).deliverySpeed || (selectedOrder as any).deliveryMode === 'express' || (selectedOrder as any).fulfillment?.deliveryMode === 'express'
+                            ? '🚀 Express (15-30m)'
+                            : (selectedOrder as any).deliveryMode === 'same_day' || (selectedOrder as any).fulfillment?.deliveryMode === 'same_day'
+                              ? '🌆 Same Day Slot'
+                              : '📦 Standard Delivery'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                          Cost: {selectedCalc.shipping === 0 ? 'Free Delivery' : `+₹${selectedCalc.shipping}`}
                         </span>
                       </div>
-                      {(() => {
-                        const subTotalSum = selectedOrder.items.reduce((sum: number, i: any) => sum + i.price * i.quantity, 0);
-                        const gstPct = (selectedOrder as any).gstPercent || (selectedOrder as any).gstRate || (selectedOrder as any).taxPercent || 5;
-                        const gstVal = (selectedOrder as any).gstAmount || Math.round(subTotalSum * (gstPct / 100));
-                        return (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">GST ({gstPct}% Tax Included):</span>
-                            <span className="text-amber-500 font-bold">₹{gstVal}</span>
+
+                      {/* Scheduled Slot & Extension */}
+                      <div className="p-3 bg-card rounded-xl border border-border/60">
+                        <span className="font-bold text-muted-foreground block text-[10px] uppercase tracking-wider mb-1">
+                          🗓️ Scheduled Time Slot
+                        </span>
+                        <span className="font-extrabold text-foreground block truncate">
+                          {(selectedOrder as any).deliverySlot || (selectedOrder as any).fulfillment?.pickupSlot?.time || (selectedOrder as any).scheduleDetails?.deliverySlot || 'Immediate Dispatch'}
+                        </span>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5 block">
+                          {(selectedOrder as any).slotExtension ? 'Extension Provided' : 'Standard Scheduled Slot'}
+                        </span>
+                      </div>
+
+                      {/* Assigned Rider / Handler */}
+                      <div className="p-3 bg-card rounded-xl border border-border/60">
+                        <span className="font-bold text-muted-foreground block text-[10px] uppercase tracking-wider mb-1">
+                          🛵 Assigned Driver / Courier
+                        </span>
+                        <span className="font-extrabold text-foreground block truncate">
+                          {(selectedOrder as any).assignedDeliveryAgent || (selectedOrder as any).courierPartner || (selectedCalc.isStoreSelfDelivery ? 'Store Delivery Fleet' : 'Broadcast Rider Pool')}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground mt-0.5 block font-mono">
+                          {(selectedOrder as any).assignedDeliveryAgentPhone ? `📞 ${(selectedOrder as any).assignedDeliveryAgentPhone}` : (selectedOrder as any).trackingId ? `Track: ${(selectedOrder as any).trackingId}` : 'Dispatch Queue'}
+                        </span>
+                      </div>
+
+                      {/* Delivery Handshake OTP */}
+                      <div className="p-3 bg-card rounded-xl border border-border/60">
+                        <span className="font-bold text-muted-foreground block text-[10px] uppercase tracking-wider mb-1">
+                          🔐 Handshake OTP
+                        </span>
+                        <span className="font-mono font-black text-sm tracking-widest text-primary block">
+                          {(selectedOrder as any).deliveryVerificationOtp || (selectedOrder as any).handshakeOtp || (selectedOrder as any).pickupVerification?.otp || '••••'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                          Verified at Doorstep
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Drop-off Instruction & Driver Note */}
+                    <div className="px-4 pb-4 pt-1 flex flex-col sm:flex-row gap-2.5 text-xs">
+                      <div className="p-2.5 bg-card/60 rounded-xl border border-border/60 flex-1 flex items-center gap-2">
+                        <span className="text-sm">🔔</span>
+                        <div>
+                          <span className="font-bold text-muted-foreground text-[10px] uppercase block">Drop-off Preference:</span>
+                          <span className="font-extrabold text-foreground text-[11px]">
+                            {(selectedOrder as any).fulfillment?.deliveryInstruction === 'ring_bell'
+                              ? '🔔 Ring doorbell'
+                              : (selectedOrder as any).fulfillment?.deliveryInstruction === 'leave_gate'
+                                ? '🚪 Leave at gate / door'
+                                : (selectedOrder as any).fulfillment?.deliveryInstruction === 'contactless'
+                                  ? '🛡️ Contactless drop-off'
+                                  : '📞 Call customer before arrival'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {((selectedOrder as any).fulfillment?.customInstruction || (selectedOrder as any).customInstruction || (selectedOrder as any).deliveryInstructions) && (
+                        <div className="p-2.5 bg-amber-500/10 rounded-xl border border-amber-500/30 flex-1 flex items-center gap-2 text-amber-900 dark:text-amber-300">
+                          <span className="text-sm">💬</span>
+                          <div className="min-w-0">
+                            <span className="font-bold text-amber-800 dark:text-amber-400 text-[10px] uppercase block">Special Note:</span>
+                            <span className="font-semibold italic text-[11px] truncate block">
+                              "{(selectedOrder as any).fulfillment?.customInstruction || (selectedOrder as any).customInstruction || (selectedOrder as any).deliveryInstructions}"
+                            </span>
                           </div>
-                        );
-                      })()}
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Courier Charges:</span>
-                        <span className="text-foreground">+₹{selectedOrder.orderStatus === 'Pending Payment' ? '0' : '40'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Packing Charges:</span>
-                        <span className="text-foreground">+₹{selectedOrder.orderStatus === 'Pending Payment' ? '0' : '15'}</span>
-                      </div>
-                      {((selectedOrder as any).couponCode || (selectedOrder as any).coupon || (selectedOrder as any).discount > 0) && (
-                        <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 p-1.5 rounded-lg border border-emerald-500/20">
-                          <span>🎟️ Coupon ({(selectedOrder as any).couponCode || (selectedOrder as any).coupon || 'SPECIAL10'}):</span>
-                          <span>-₹{(selectedOrder as any).couponDiscount || (selectedOrder as any).discount || Math.round(selectedOrder.items.reduce((sum: number, i: any) => sum + i.price * i.quantity, 0) * 0.1)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between border-t border-dashed border-border pt-1.5 font-black text-sm">
-                        <span className="text-foreground">Grand Total:</span>
-                        <span className="text-emerald-600 dark:text-emerald-400">
-                          ₹{selectedOrder.totalAmount.toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                )}
+
+                {/* Specs Grid: Buyer Registry & Financial Summary */}
+                {selectedCalc && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    {/* Buyer Box */}
+                    <div className="space-y-3 bg-secondary/15 p-4 rounded-2xl border border-border/40 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block mb-2">Buyer Registry &amp; Address</span>
+                        <div className="space-y-1.5 text-xs">
+                          <p>
+                            <span className="text-muted-foreground font-semibold">Name: </span>
+                            <strong className="text-foreground">{selectedOrder.customerName}</strong>
+                          </p>
+                          <p>
+                            <span className="text-muted-foreground font-semibold">Phone: </span>
+                            <strong className="font-mono text-foreground">{selectedOrder.customerMobile}</strong>
+                          </p>
+                          <p>
+                            <span className="text-muted-foreground font-semibold">Address: </span>
+                            <span className="text-foreground">{selectedOrder.customerAddress}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-border/50 text-[11px] space-y-1">
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Payment Method:</span>
+                          <span className="font-bold text-foreground">{selectedOrder.paymentMethod || 'UPI'}</span>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Payment Status:</span>
+                          <span className={`font-bold ${selectedOrder.paymentStatus === 'Approved' ? 'text-emerald-500' : 'text-amber-500'}`}>{selectedOrder.paymentStatus}</span>
+                        </div>
+                        {selectedOrder.upiRefNo && (
+                          <div className="flex justify-between text-muted-foreground font-mono">
+                            <span>Ref ID:</span>
+                            <span className="text-foreground truncate max-w-[150px]">{selectedOrder.upiRefNo}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Financial Summary Box with Exact Complete Calculations */}
+                    <div className="space-y-3 bg-secondary/15 p-4 rounded-2xl border border-border/40">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">All Calculations &amp; Bill Breakdown</span>
+                        <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                          VERIFIED AUDIT
                         </span>
+                      </div>
+
+                      <div className="space-y-1.5 text-xs font-mono">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground font-sans">Total MRP (Retail Value):</span>
+                          <span className="text-foreground font-bold">
+                            ₹{selectedCalc.totalMrp.toFixed(2)}
+                          </span>
+                        </div>
+
+                        {selectedCalc.discount > 0 && (
+                          <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                            <span className="font-sans">Discount on MRP:</span>
+                            <span className="font-bold">-₹{selectedCalc.discount.toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between border-t border-border/40 pt-1">
+                          <span className="text-muted-foreground font-sans font-bold">Items Subtotal (Price After Discount):</span>
+                          <span className="text-foreground font-black">
+                            ₹{selectedCalc.subtotal.toFixed(2)}
+                          </span>
+                        </div>
+
+                        {/* CGST & SGST Taxes */}
+                        <div className="flex justify-between text-[11px]">
+                          <span className="text-muted-foreground font-sans">
+                            Central GST (CGST {selectedCalc.halfGstRate > 0 ? `${selectedCalc.halfGstRate}%` : ''}):
+                          </span>
+                          <span className="text-amber-500 font-bold">+₹{selectedCalc.cgst.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-[11px]">
+                          <span className="text-muted-foreground font-sans">
+                            State GST (SGST {selectedCalc.halfGstRate > 0 ? `${selectedCalc.halfGstRate}%` : ''}):
+                          </span>
+                          <span className="text-amber-500 font-bold">+₹{selectedCalc.sgst.toFixed(2)}</span>
+                        </div>
+
+                        {/* Total GST Summary */}
+                        <div className="flex justify-between text-[11px] bg-secondary/30 px-2 py-0.5 rounded">
+                          <span className="text-muted-foreground font-sans font-semibold">Total GST Tax ({selectedCalc.gstRate}% Included):</span>
+                          <span className="text-amber-600 dark:text-amber-400 font-bold">₹{selectedCalc.totalTax.toFixed(2)}</span>
+                        </div>
+
+                        {/* Delivery Charges */}
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground font-sans">
+                            Delivery Charges ({selectedCalc.isStoreSelfDelivery ? 'Store Fleet' : 'Platform'}):
+                          </span>
+                          <span className={selectedCalc.shipping === 0 ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-foreground font-bold'}>
+                            {selectedCalc.shipping === 0 ? 'FREE' : `+₹${selectedCalc.shipping.toFixed(2)}`}
+                          </span>
+                        </div>
+
+                        {/* Packing Charges */}
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground font-sans">Packing Charges:</span>
+                          <span className="text-foreground font-bold">
+                            {selectedCalc.packing === 0 ? '₹0.00' : `+₹${selectedCalc.packing.toFixed(2)}`}
+                          </span>
+                        </div>
+
+                        {/* Platform Fee */}
+                        {selectedCalc.platformFee > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground font-sans">Platform Fee:</span>
+                            <span className="text-foreground font-bold">+₹{selectedCalc.platformFee.toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        {/* Coupon Discount */}
+                        {selectedCalc.couponDiscount > 0 && (
+                          <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 p-1 rounded border border-emerald-500/20">
+                            <span className="font-sans">🎟️ Coupon ({selectedCalc.couponCode || 'PROMO'}):</span>
+                            <span>-₹{selectedCalc.couponDiscount.toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        {/* Wallet Deduction */}
+                        {selectedCalc.walletDeduction > 0 && (
+                          <div className="flex justify-between text-blue-600 dark:text-blue-400 font-bold">
+                            <span className="font-sans">👛 Wallet Points Deducted:</span>
+                            <span>-₹{selectedCalc.walletDeduction.toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between border-t border-dashed border-border pt-1.5 font-black text-sm">
+                          <span className="text-foreground font-sans">Grand Total (Customer Paid):</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                            ₹{selectedCalc.grandTotal.toFixed(2)}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* Order Type & Fulfillment Classification Box */}
-                <div className="p-4 rounded-2xl border bg-secondary/10 space-y-2 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Order Fulfillment Classification</span>
-                    {Boolean((selectedOrder as any).isScheduledSubscription || (selectedOrder as any).isSubscription) ? (
-                      <span className="px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-600 dark:text-purple-400 font-black text-xs border border-purple-500/30">
-                        🔁 SUBSCRIBED ORDER
-                      </span>
-                    ) : Boolean((selectedOrder as any).fulfillment?.type === 'pickup' || (selectedOrder as any).deliveryType === 'pickup' || (selectedOrder as any).isSelfPickup) ? (
-                      <span className="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 font-black text-xs border border-amber-500/30">
-                        🏪 IN-STORE SELF PICKUP ORDER
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400 font-black text-xs border border-blue-500/30">
-                        🚚 NORMAL HOME DELIVERY ORDER
-                      </span>
-                    )}
-                  </div>
-
-                  {Boolean((selectedOrder as any).fulfillment?.type === 'pickup' || (selectedOrder as any).deliveryType === 'pickup' || (selectedOrder as any).isSelfPickup) && (
-                    <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-1.5 text-xs">
-                      <p className="font-bold text-amber-800 dark:text-amber-400">🏪 Pickup Storefront: ApexBee Verified Store Hub</p>
-                      <p className="text-muted-foreground">🗓️ Slot: {(selectedOrder as any).fulfillment?.pickupSlot?.date || 'Today'} • {(selectedOrder as any).fulfillment?.pickupSlot?.time || '10:00 AM - 06:00 PM'}</p>
-                      <div className="flex justify-between items-center font-extrabold pt-1 text-emerald-700 dark:text-emerald-400">
-                        <span>CUSTOMER PICKUP OTP:</span>
-                        <span className="font-mono text-sm tracking-widest bg-emerald-500/20 px-2.5 py-0.5 rounded border border-emerald-500/40">
-                          {(selectedOrder as any).pickupVerification?.otp || '9823'}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* 📝 Customer Selected Delivery Preferences & Driver Instructions Card */}
-                {!((selectedOrder as any).fulfillment?.type === 'pickup' || (selectedOrder as any).deliveryType === 'pickup' || (selectedOrder as any).isSelfPickup) && (
-                  <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 space-y-3 text-xs">
+                {/* 💼 Platform Settlement & Merchant Payout Ledger Card */}
+                {selectedCalc && (
+                  <div className="p-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 space-y-3 text-xs">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5 font-heading">
-                        <span>📝</span> Customer Delivery Preferences & Driver Instructions
+                      <span className="text-[10px] font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5 font-heading">
+                        <span>💼</span> Merchant Payout &amp; Platform Settlement Ledger
                       </span>
-                      <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black text-[10px] uppercase">
-                        {selectedOrder.fulfillment?.deliveryMode === 'express' || (selectedOrder as any).deliveryMode === 'express'
-                          ? '🚀 Express 15-30 Min'
-                          : selectedOrder.fulfillment?.deliveryMode === 'same_day' || (selectedOrder as any).deliveryMode === 'same_day'
-                            ? '🌆 Same Day'
-                            : '🚚 Standard'}
+                      <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-black text-[10px] uppercase">
+                        Wallet Settlement
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-                      <div className="p-3 bg-card rounded-xl border border-border/60">
-                        <span className="font-bold text-muted-foreground block text-[10px] uppercase tracking-wider mb-1">⚡ Delivery Speed</span>
-                        <span className="font-extrabold text-foreground">
-                          {selectedOrder.fulfillment?.deliveryMode === 'express' || (selectedOrder as any).deliveryMode === 'express'
-                            ? '🚀 Express 15-30 Mins (+₹49)'
-                            : selectedOrder.fulfillment?.deliveryMode === 'same_day' || (selectedOrder as any).deliveryMode === 'same_day'
-                              ? '🌆 Same Day Slot (+₹19)'
-                              : '🚚 Standard Delivery (Free)'}
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-mono text-center">
+                      <div className="p-2.5 bg-card rounded-xl border border-border/60">
+                        <span className="font-bold text-muted-foreground block text-[10px] uppercase tracking-wider mb-0.5 font-sans">Items GMV</span>
+                        <span className="font-black text-foreground text-xs">₹{selectedCalc.subtotal.toFixed(2)}</span>
+                      </div>
+
+                      <div className="p-2.5 bg-card rounded-xl border border-border/60">
+                        <span className="font-bold text-muted-foreground block text-[10px] uppercase tracking-wider mb-0.5 font-sans">Platform Comm.</span>
+                        <span className="font-black text-rose-500 text-xs">-₹{selectedCalc.commission.toFixed(2)}</span>
+                      </div>
+
+                      <div className="p-2.5 bg-card rounded-xl border border-border/60">
+                        <span className="font-bold text-muted-foreground block text-[10px] uppercase tracking-wider mb-0.5 font-sans">Store Delivery Share</span>
+                        <span className="font-black text-emerald-600 dark:text-emerald-400 text-xs">
+                          {selectedCalc.isStoreSelfDelivery ? `+₹${selectedCalc.vendorDeliveryFee.toFixed(2)}` : '₹0.00 (Platform)'}
                         </span>
                       </div>
 
-                      <div className="p-3 bg-card rounded-xl border border-border/60">
-                        <span className="font-bold text-muted-foreground block text-[10px] uppercase tracking-wider mb-1">🔔 Driver Drop-off Preference</span>
-                        <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
-                          {selectedOrder.fulfillment?.deliveryInstruction === 'call_before' || (selectedOrder as any).deliveryInstruction === 'call_before'
-                            ? '📞 Call me before delivery'
-                            : selectedOrder.fulfillment?.deliveryInstruction === 'ring_bell' || (selectedOrder as any).deliveryInstruction === 'ring_bell'
-                              ? '🔔 Ring doorbell'
-                              : selectedOrder.fulfillment?.deliveryInstruction === 'leave_gate' || (selectedOrder as any).deliveryInstruction === 'leave_gate'
-                                ? '🚪 Leave at gate / door'
-                                : selectedOrder.fulfillment?.deliveryInstruction === 'contactless' || (selectedOrder as any).deliveryInstruction === 'contactless'
-                                  ? '🛡️ Contactless drop-off'
-                                  : '📞 Call me before delivery'}
-                        </span>
+                      <div className="p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/30">
+                        <span className="font-bold text-emerald-800 dark:text-emerald-400 block text-[10px] uppercase tracking-wider mb-0.5 font-sans">Net Merchant Payout</span>
+                        <span className="font-black text-emerald-600 dark:text-emerald-400 text-sm">₹{selectedCalc.netVendorPayout.toFixed(2)}</span>
                       </div>
                     </div>
-
-                    {(selectedOrder.fulfillment?.customInstruction || (selectedOrder as any).customInstruction || (selectedOrder as any).deliveryInstructions) && (
-                      <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/20 text-amber-900 dark:text-amber-300">
-                        <span className="font-extrabold text-amber-800 dark:text-amber-400 block text-[10px] uppercase tracking-wider mb-0.5">💬 Special Driver Note from Customer:</span>
-                        <p className="font-medium text-xs italic">
-                          "{selectedOrder.fulfillment?.customInstruction || (selectedOrder as any).customInstruction || (selectedOrder as any).deliveryInstructions}"
-                        </p>
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -943,8 +1259,18 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
                               ₹{(item.price * item.quantity).toLocaleString('en-IN')}
                             </span>
                             <span className="text-muted-foreground text-[10px]">
-                              ₹{item.price} × {item.quantity} units
+                              ₹{item.price} × {item.quantity} unit{item.quantity === 1 ? '' : 's'}
                             </span>
+                            {item.mrp && item.mrp > item.price && (
+                              <span className="text-[10px] text-muted-foreground line-through">
+                                MRP ₹{(item.mrp * item.quantity).toLocaleString('en-IN')}
+                              </span>
+                            )}
+                            {item.gstRate && item.gstRate > 0 && (
+                              <span className="text-[9px] text-amber-600 dark:text-amber-400 font-bold">
+                                GST {item.gstRate}% Included
+                              </span>
+                            )}
                           </div>
                         </div>
                       );

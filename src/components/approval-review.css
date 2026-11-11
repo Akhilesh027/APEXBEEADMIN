@@ -1,0 +1,13 @@
+.approval-review-dialog { isolation: isolate; }
+.approval-review-dialog .approval-review-body { scrollbar-gutter: stable; }
+.approval-review-dialog .approval-review-body :is(.grid, .grid > *, fieldset, section) { min-width: 0; }
+.approval-review-dialog :is(input, select, textarea) { max-width: 100%; min-width: 0; }
+.approval-review-dialog textarea { resize: vertical; }
+.approval-review-dialog .approval-review-footer button { min-height: 40px; white-space: normal; }
+.approval-review-dialog .approval-review-body :is(p, h4) { overflow-wrap: anywhere; }
+@media (max-width: 639px) {
+  .approval-review-dialog :is(input, select, textarea) { font-size: 16px; }
+  .approval-review-dialog .approval-review-body > div { padding: 12px; }
+  .approval-review-dialog .approval-review-body .flex.items-center.justify-between { flex-wrap: wrap; gap: 8px; }
+  .approval-review-dialog .approval-review-footer { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+}

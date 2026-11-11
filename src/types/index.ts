@@ -110,26 +110,76 @@ export interface OrderItem {
   productName: string;
   quantity: number;
   price: number;
+  mrp?: number;
+  image?: string;
   variantSku?: string;
+  categoryId?: string | null;
+  categoryName?: string;
+  selectedAttributes?: Record<string, string>;
+  gstRate?: number;
+  tax?: number;
 }
 
 export interface Order {
   id: string;
+  _id?: string;
   customerName: string;
   customerMobile: string;
   customerAddress: string;
   items: OrderItem[];
   totalAmount: number;
+  subtotal?: number;
+  mrp?: number;
+  discount?: number;
+  tax?: number;
+  cgst?: number;
+  sgst?: number;
+  shippingCharge?: number;
+  packingCharge?: number;
+  platformFee?: number;
+  couponCode?: string;
+  couponDiscount?: number;
+  walletDeduction?: number;
+  commissionAmount?: number;
+  isCommissionReleased?: boolean;
+  orderSummary?: {
+    mrp?: number;
+    totalMrp?: number;
+    discount?: number;
+    mrpDiscount?: number;
+    subtotal?: number;
+    tax?: number;
+    cgst?: number;
+    sgst?: number;
+    shipping?: number;
+    shippingFee?: number;
+    packing?: number;
+    packageCharge?: number;
+    platformFee?: number;
+    couponDiscount?: number;
+    walletDeduction?: number;
+    total?: number;
+    grandTotal?: number;
+    totalAmount?: number;
+  };
   paymentMethod?: string;
   upiRefNo: string;
   paymentScreenshot: string; // URL mock
   paymentStatus: 'Pending Verification' | 'Approved' | 'Rejected' | 'Request Reupload';
   orderStatus:
+    | 'Placed'
     | 'Pending Payment'
     | 'Payment Verified'
     | 'Processing'
     | 'Confirmed'
+    | 'Accepted'
+    | 'Assigned'
+    | 'Reached Vendor'
     | 'Packed'
+    | 'Ready for Pickup'
+    | 'Picked Up'
+    | 'Out for Delivery'
+    | 'Reached Customer'
     | 'Shipped'
     | 'Delivered'
     | 'Return Requested'
@@ -139,6 +189,14 @@ export interface Order {
   date: string;
   deliveryAgentId?: string;
   deliveryType?: 'Platform' | 'Vendor' | 'Independent';
+  deliveryMode?: string;
+  deliverySpeed?: string;
+  deliverySlot?: string;
+  deliveryVerificationOtp?: string;
+  handshakeOtp?: string;
+  assignedDeliveryAgent?: string;
+  assignedDeliveryAgentPhone?: string;
+  deliveryInstructions?: string;
   courierPartner?: string;
   trackingId?: string;
   returnAllowed: boolean;
@@ -153,6 +211,11 @@ export interface Order {
   isSelfPickup?: boolean;
   isScheduledSubscription?: boolean;
   isSubscription?: boolean;
+  orderType?: string;
+  restaurantId?: string | null;
+  vendorId?: string | null;
+  categoryId?: string | null;
+  categoryName?: string;
 }
 
 export interface FranchiseNode {

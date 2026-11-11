@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { SubcategoryDecisionEditor } from '../components/SubcategoryDecisionEditor';
+import '../components/approval-review.css';
 import { useAdminState } from "../context/AdminStateContext";
 import {
   ClipboardCheck,
@@ -81,6 +83,9 @@ export const ApprovalCenter: React.FC = () => {
 
   // Selected Detail Modal & Edit State
   const [selectedDetailItem, setSelectedDetailItem] = useState<any | null>(null);
+  const [correctionStage, setCorrectionStage] = useState<'application' | 'documents'>('application');
+  const [correctionReason, setCorrectionReason] = useState('');
+  useEffect(() => { setCorrectionReason(''); setCorrectionStage('application'); }, [selectedDetailItem?.id]);
   const [isEditMode, setIsEditMode] = useState<boolean>(true);
   const [editFormData, setEditFormData] = useState<any>({});
   const [editingSubcategories, setEditingSubcategories] = useState<string[]>([]);
@@ -102,9 +107,11 @@ export const ApprovalCenter: React.FC = () => {
 
   const parseSubcategories = (item: any): string[] => {
     if (!item) return [];
-    const subs = item.approvedSubcategories || item.subCategories || item.subcategories;
+    const subs = item.approvedSubcategories?.length ? item.approvedSubcategories
+      : item.requestedSubcategories?.length ? item.requestedSubcategories
+        : item.subCategories || item.subcategories;
     if (Array.isArray(subs) && subs.length > 0) {
-      return subs.flatMap((s: any) => typeof s === 'string' && s.includes(',') ? s.split(',').map(x => x.trim()) : String(s).trim()).filter(Boolean);
+      return subs.map((s: any) => String(s).trim()).filter(Boolean);
     }
     const single = item.subCategory || item.subcategory;
     if (typeof single === 'string' && single.trim()) {
@@ -334,6 +341,14 @@ export const ApprovalCenter: React.FC = () => {
       category: parsedCats.join(", ") || app.category || app.primaryCategory || "",
       subCategory: parsedSubs[0] || app.subCategory || "",
       approvedSubcategories: parsedSubs,
+      requestedSubcategories: app.requestedSubcategories,
+      subcategoryDecisions: app.subcategoryDecisions?.length ? app.subcategoryDecisions : (app.requestedSubcategories || []).map((name: string) => ({ subcategoryName: name, status: app.approvedSubcategories?.includes(name) ? 'approved' : 'pending', reason: '' })),
+      businessDetails: app.businessDetails,
+      businessInformation: app.businessInformation,
+      bankDetails: app.bankDetails,
+      onboardingVersion: app.onboardingVersion,
+      correctionStage: app.correctionStage,
+      correctionReason: app.correctionReason,
       address: app.address,
       pincode: app.pincode,
       state: app.state,
@@ -633,6 +648,40 @@ export const ApprovalCenter: React.FC = () => {
     }
   };
 
+  const saveSubcategoryDecision = async (decision: { subcategoryName: string; status: string; reason?: string }) => {
+    if (!selectedDetailItem?.id) return;
+    setActionLoading(true); setNotificationMsg(null);
+    try {
+      const response = await fetch(`https://server.apexbee.in/api/admin/applications/${selectedDetailItem.id}/subcategory-decision`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('adminToken')}` }, body: JSON.stringify(decision),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to save decision.');
+      setSelectedDetailItem((previous: any) => ({ ...previous, ...data.application, id: previous.id }));
+      setEditingSubcategories(data.application.approvedSubcategories || []);
+      setNotificationMsg({ type: 'success', text: 'Subcategory decision saved. Portal access starts only after final verification.' });
+      await fetchEcosystemData();
+    } catch (error) { setNotificationMsg({ type: 'error', text: error instanceof Error ? error.message : 'Unable to save decision.' }); }
+    finally { setActionLoading(false); }
+  };
+
+  const requestCorrections = async () => {
+    if (!selectedDetailItem?.id || correctionReason.trim().length < 5) return;
+    setActionLoading(true); setNotificationMsg(null);
+    try {
+      const response = await fetch(`https://server.apexbee.in/api/admin/applications/${selectedDetailItem.id}/request-changes`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+        body: JSON.stringify({ stage: correctionStage, reason: correctionReason }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to request corrections.');
+      setSelectedDetailItem((previous: any) => ({ ...previous, ...data.application, id: previous.id }));
+      setNotificationMsg({ type: 'success', text: 'Corrections requested. The applicant can resubmit from My Applications.' });
+      await fetchEcosystemData();
+    } catch (error) { setNotificationMsg({ type: 'error', text: error instanceof Error ? error.message : 'Unable to request corrections.' }); }
+    finally { setActionLoading(false); }
+  };
+
   // Main Action: Approve or Reject (with edited details passed along)
   const handleAction = async (id: string, action: "Approved" | "Rejected") => {
     const isRealApp = applications.some(app => app._id === id);
@@ -762,7 +811,7 @@ export const ApprovalCenter: React.FC = () => {
       );
 
       // Submit category capability review if vendor exists
-      if (app?.userId) {
+      if (app?.userId && app.onboardingVersion !== 2) {
         try {
           const vRes = await fetch(`https://server.apexbee.in/api/admin/vendors`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -1279,21 +1328,21 @@ export const ApprovalCenter: React.FC = () => {
 
       {/* Comprehensive Audit & Edit Modal */}
       {selectedDetailItem && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-card border border-border max-w-5xl w-full max-h-[92vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col text-xs text-foreground">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-0 sm:p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="approval-review-title" className="approval-review-dialog bg-card border border-border max-w-5xl w-full h-dvh sm:h-[92dvh] sm:max-h-[1000px] sm:rounded-2xl overflow-hidden shadow-2xl flex flex-col text-xs text-foreground min-w-0">
 
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-5 border-b border-border bg-muted/30">
-              <div className="flex items-center gap-3">
+            <div className="shrink-0 flex flex-wrap items-start justify-between gap-3 p-4 sm:p-5 border-b border-border bg-muted/30">
+              <div className="flex items-center gap-3 min-w-0 flex-1 basis-56">
                 <div className="p-2.5 bg-primary/10 rounded-xl text-primary font-bold">
                   <Edit3 size={20} />
                 </div>
-                <div className="text-left">
-                  <h3 className="text-base font-black text-foreground uppercase tracking-wide flex items-center gap-2">
+                <div className="text-left min-w-0">
+                  <h3 id="approval-review-title" className="text-sm sm:text-base font-black text-foreground uppercase tracking-wide flex flex-wrap items-center gap-x-2 gap-y-1 break-words">
                     <span>Audit & Edit Details Before Approval</span>
                     <span className="text-xs font-mono font-normal text-muted-foreground">({selectedDetailItem.name})</span>
                   </h3>
-                  <p className="text-xs text-muted-foreground flex items-center gap-2">
+                  <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-2">
                     <span>Role: <strong>{selectedDetailItem.type || selectedDetailItem.roleId}</strong></span>
                     <span>•</span>
                     <span className="font-mono text-primary font-bold">📮 PIN: {editFormData.pincode || selectedDetailItem.pincode || "Not Set"}</span>
@@ -1301,7 +1350,7 @@ export const ApprovalCenter: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsEditMode(!isEditMode)}
@@ -1345,7 +1394,7 @@ export const ApprovalCenter: React.FC = () => {
 
             {/* Notification alert */}
             {notificationMsg && (
-              <div className={`mx-6 mt-4 p-3 rounded-xl text-xs font-bold flex items-center justify-between border ${notificationMsg.type === 'success'
+              <div role="status" className={`shrink-0 mx-4 sm:mx-6 mt-3 p-3 rounded-xl text-xs font-bold flex items-center justify-between gap-2 break-words border ${notificationMsg.type === 'success'
                 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
                 : 'bg-rose-500/10 border-rose-500/20 text-rose-500'
                 }`}>
@@ -1357,7 +1406,7 @@ export const ApprovalCenter: React.FC = () => {
             )}
 
             {/* Modal Body */}
-            <div className="p-6 space-y-5 overflow-y-auto flex-1 text-left">
+            <div className="approval-review-body min-h-0 min-w-0 p-4 sm:p-6 space-y-5 overflow-y-auto overflow-x-hidden overscroll-contain flex-1 text-left">
 
               {/* Section 1: Business & Identity Details (Editable) */}
               <div className="bg-secondary/15 p-4 rounded-xl border border-border/40 space-y-3">
@@ -1615,7 +1664,24 @@ export const ApprovalCenter: React.FC = () => {
                 )}
               </div>
 
+              {selectedDetailItem.businessInformation && <section className="rounded-xl border border-border p-4 space-y-2 text-sm">
+                <h4 className="font-bold">Business operations submitted by applicant</h4>
+                <p>Hours: {selectedDetailItem.businessInformation.openingTime} to {selectedDetailItem.businessInformation.closingTime}</p>
+                <p>Service radius: {selectedDetailItem.businessInformation.serviceRadiusKm} km · Accept orders: {selectedDetailItem.businessInformation.acceptsOrders ? 'Yes' : 'No'}</p>
+                <p>Logo: {selectedDetailItem.businessInformation.logoUrl ? 'Provided' : 'Not provided'} · Shop photos: {selectedDetailItem.businessInformation.shopPhotos?.length || 0}</p>
+              </section>}
               {/* Section 3: Business Category & Subcategories Governance */}
+              {selectedDetailItem.businessDetails?.dairy && (
+                <section className="rounded-xl border border-border p-4 space-y-2 text-sm">
+                  <h4 className="font-bold">Dairy business details</h4>
+                  <p>Business type: {selectedDetailItem.businessDetails.dairy.businessType}</p>
+                  <p>Morning delivery: {selectedDetailItem.businessDetails.dairy.morningDelivery || 'Not offered'}</p>
+                  <p>Evening delivery: {selectedDetailItem.businessDetails.dairy.eveningDelivery || 'Not offered'}</p>
+                  <p>Weekly holiday: {selectedDetailItem.businessDetails.dairy.weeklyHoliday}</p>
+                  <p>Orders: {selectedDetailItem.businessDetails.dairy.orderMode}</p>
+                  <p>Registration: {selectedDetailItem.businessDetails.dairy.registrationNumber || 'Not provided'}</p>
+                </section>
+              )}
               {(activeSubTab === "vendors" || selectedDetailItem.isVendor || selectedDetailItem.roleId === "vendor" || selectedDetailItem.applicationType === "vendor" || selectedDetailItem.isDbVendor) && (
                 <div className="bg-primary/5 p-5 rounded-2xl border border-primary/20 space-y-4">
                   <div className="flex items-center justify-between border-b border-primary/15 pb-2">
@@ -1847,11 +1913,20 @@ export const ApprovalCenter: React.FC = () => {
                   </div>
                 </div>
               )}
+              {selectedDetailItem.onboardingVersion === 2 && ['pending', 'pending_approval', 'pre_approved', 'under_review', 'kyc_submitted', 'changes_requested'].includes(selectedDetailItem.status) && <section className="p-4 border-t border-border space-y-3">
+                <h4 className="font-bold text-sm">Request applicant corrections</h4>
+                {selectedDetailItem.correctionReason && <p className="text-sm text-amber-600 whitespace-pre-wrap">Previous request: {selectedDetailItem.correctionReason}</p>}
+                <label className="block text-sm">Correction stage<select className="block border border-border bg-card rounded-lg p-2 mt-1" value={correctionStage} onChange={event => setCorrectionStage(event.target.value as 'application' | 'documents')}><option value="application">Application details</option>{['pre_approved', 'under_review', 'kyc_submitted'].includes(selectedDetailItem.status) && <option value="documents">Documents</option>}</select></label>
+                <label className="block text-sm">What should the applicant correct?<textarea maxLength={2000} value={correctionReason} onChange={event => setCorrectionReason(event.target.value)} className="block w-full rounded-lg border border-border bg-card p-2 mt-1" rows={3} /></label>
+                <button type="button" disabled={actionLoading || correctionReason.trim().length < 5} onClick={requestCorrections} className="rounded-lg border border-amber-500 text-amber-600 px-4 py-2 text-sm disabled:opacity-50">Send Correction Request</button>
+              </section>}
+              {selectedDetailItem.onboardingVersion === 2 && selectedDetailItem.applicationType === 'vendor' && !!selectedDetailItem.requestedSubcategories?.length && <SubcategoryDecisionEditor
+                key={selectedDetailItem.id} names={selectedDetailItem.requestedSubcategories} decisions={selectedDetailItem.subcategoryDecisions}
+                disabled={actionLoading || !['pending', 'pending_approval', 'changes_requested'].includes(selectedDetailItem.status) || selectedDetailItem.correctionStage === 'documents'} onSave={saveSubcategoryDecision} />}
             </div>
-
             {/* Modal Footer */}
-            <div className="p-4 border-t border-border bg-muted/20 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="approval-review-footer shrink-0 p-3 sm:p-4 border-t border-border bg-card flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2">
+              <div className="grid grid-cols-2 gap-2 w-full lg:w-auto">
                 <button
                   type="button"
                   onClick={() => setSelectedDetailItem(null)}
@@ -1873,7 +1948,7 @@ export const ApprovalCenter: React.FC = () => {
               </div>
 
               {!selectedDetailItem.isDbVendor && (
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="grid grid-cols-2 gap-2 w-full lg:w-auto">
                   {isApprovedStatus(selectedDetailItem.status) ? (
                     <>
                       <span className="px-5 py-2 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-xs select-none">

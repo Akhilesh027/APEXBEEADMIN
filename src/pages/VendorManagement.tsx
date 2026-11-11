@@ -254,6 +254,8 @@ export const VendorManagement: React.FC = () => {
         // Don't allow deselecting the only category
         if (prev.length <= 1) return prev;
         next = prev.filter(id => id !== catId);
+        const removedNames = new Set(dbCategories.filter((item: any) => item.level === 2 && String(item.parentId?._id || item.parentId) === catId).map((item: any) => item.name));
+        setEditingSubcategories(names => names.filter(name => !removedNames.has(name)));
         if (primaryCatId === catId) {
           setPrimaryCatId(next[0] || '');
         }
@@ -274,8 +276,14 @@ export const VendorManagement: React.FC = () => {
   const handleAddSubcategory = (name: string) => {
     if (!name.trim()) return;
     const trimmed = name.trim();
-    if (!editingSubcategories.includes(trimmed)) {
-      setEditingSubcategories(prev => [...prev, trimmed]);
+    const match = dbCategories.find((item: any) => item.level === 2 && item.isActive !== false &&
+      selectedCategoryIds.includes(String(item.parentId?._id || item.parentId)) && item.name.toLowerCase().trim() === trimmed.toLowerCase());
+    if (!match) {
+      setErrorMsg('Choose a subcategory under a selected category, or create it in Category Management first.');
+      return;
+    }
+    if (!editingSubcategories.includes(match.name)) {
+      setEditingSubcategories(prev => [...prev, match.name]);
     }
     setNewSubCategoryName('');
   };
@@ -316,14 +324,16 @@ export const VendorManagement: React.FC = () => {
       });
       const data = await res.json();
       if (data.success) {
+        const saved = data.data;
         setSuccessMsg(`Category governance updated for ${selectedVendor.name}! (${selectedCatNames.length} categories permitted)`);
         setSelectedVendor((prev: any) => prev ? {
           ...prev,
-          category: selectedCatNames.join(', ') || primaryCategoryName,
-          categories: selectedCatNames,
-          allowedCategories: selectedCategoryIds,
-          primaryCategory: primaryCategoryName,
-          approvedSubcategories: editingSubcategories
+          category: saved.category,
+          categories: saved.categories,
+          allowedCategories: saved.allowedCategories,
+          primaryCategory: saved.primaryCategory,
+          subCategory: saved.subCategory,
+          approvedSubcategories: saved.approvedSubcategories,
         } : null);
         fetchVendors();
       } else {
@@ -1360,7 +1370,7 @@ export const VendorManagement: React.FC = () => {
                       </div>
                     ) : (
                       <div className="p-2 bg-card border border-dashed border-primary/20 rounded-lg text-[10px] text-muted-foreground text-center">
-                        No default subcategories for this category in DB. Add custom below.
+                        No subcategories are available. Add one in Category Management first.
                       </div>
                     )}
 
@@ -1376,7 +1386,7 @@ export const VendorManagement: React.FC = () => {
                             handleAddSubcategory(newSubCategoryName);
                           }
                         }}
-                        placeholder="Add custom subcategory..."
+                        placeholder="Add an existing subcategory by name"
                         className="flex-1 px-2.5 py-1 bg-card border border-primary/30 rounded-lg text-[10px] outline-none"
                       />
                       <button

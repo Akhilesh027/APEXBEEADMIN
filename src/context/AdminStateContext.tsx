@@ -56,7 +56,7 @@ interface AdminStateContextProps {
   assignDelivery: (orderId: string, agentId: string, type: Order['deliveryType']) => void;
   updateOrderStatus: (orderId: string, status: Order['orderStatus'], courierPartner?: string, trackingId?: string) => Promise<boolean>;
   processWithdrawal: (id: string, status: WithdrawalRequest['status'], referenceId?: string, payoutMethod?: string, remarks?: string) => void;
-  releaseCommissions: (orderId: string) => void;
+  releaseCommissions: (orderId: string) => Promise<boolean>;
   addCoupon: (coupon: Coupon) => void;
   toggleCouponStatus: (id: string) => void;
   deleteCoupon: (id: string) => void;
@@ -104,27 +104,40 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
         const data = await res.json();
         const list = data.orders || [];
         const mapped = list.map((order: any) => {
-          let orderStatus: Order['orderStatus'] = 'Pending Payment';
-          if (order.orderStatus === 'Placed' || order.orderStatus === 'placed') {
-            orderStatus = order.paymentStatus === 'Paid' || order.paymentStatus === 'Approved' ? 'Processing' : 'Pending Payment';
-          } else if (order.orderStatus === 'Confirmed') {
+          let orderStatus: Order['orderStatus'] = 'Placed';
+          const rawStatus = String(order.orderStatus || order.orderStatusObj?.currentStatus || 'Placed').trim();
+          const normalized = rawStatus.toLowerCase();
+
+          if (normalized === 'placed') {
+            orderStatus = 'Placed';
+          } else if (normalized === 'confirmed') {
             orderStatus = 'Confirmed';
-          } else if (['Accepted', 'Assigned', 'assigned'].includes(order.orderStatus)) {
-            orderStatus = 'Accepted' as any;
-          } else if (order.orderStatus === 'Payment Verified') {
-            orderStatus = 'Payment Verified';
-          } else if (order.orderStatus === 'Packed') {
+          } else if (['accepted', 'assigned'].includes(normalized)) {
+            orderStatus = 'Accepted';
+          } else if (normalized === 'reached vendor') {
+            orderStatus = 'Reached Vendor';
+          } else if (normalized === 'packed') {
             orderStatus = 'Packed';
-          } else if (['Shipped', 'Picked Up', 'Out for Delivery', 'Reached Customer', 'Reached Vendor'].includes(order.orderStatus)) {
-            orderStatus = order.orderStatus;
-          } else if (order.orderStatus === 'Delivered') {
+          } else if (normalized === 'ready for pickup' || normalized === 'ready_for_pickup' || normalized === 'ready') {
+            orderStatus = 'Ready for Pickup';
+          } else if (normalized === 'picked up' || normalized === 'picked_up') {
+            orderStatus = 'Picked Up';
+          } else if (normalized === 'out for delivery' || normalized === 'out_for_delivery') {
+            orderStatus = 'Out for Delivery';
+          } else if (normalized === 'reached customer') {
+            orderStatus = 'Reached Customer';
+          } else if (normalized === 'shipped') {
+            orderStatus = 'Shipped';
+          } else if (normalized === 'delivered') {
             orderStatus = 'Delivered';
-          } else if (order.orderStatus === 'Returned') {
+          } else if (normalized === 'returned') {
             orderStatus = 'Returned';
-          } else if (order.orderStatus === 'Cancelled') {
+          } else if (normalized === 'cancelled') {
             orderStatus = 'Cancelled';
+          } else if (normalized === 'payment verified') {
+            orderStatus = 'Payment Verified';
           } else {
-            orderStatus = order.orderStatus || 'Confirmed';
+            orderStatus = (order.orderStatus as any) || 'Placed';
           }
 
           const rawMethod = (
@@ -167,11 +180,30 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
               productName: it.name || it.productName || 'Product',
               quantity: it.quantity || 1,
               price: it.price || 0,
-              variantSku: it.sku || '',
+              mrp: it.mrp || it.price || 0,
+              image: it.image || it.images?.[0] || '',
+              variantSku: it.sku || it.variantSku || '',
               categoryId: it.categoryId || order.categoryId || null,
-              categoryName: it.categoryName || order.categoryName || ''
+              categoryName: it.categoryName || order.categoryName || '',
+              selectedAttributes: it.variantAttributes || it.selectedAttributes || it.attributes || null,
+              gstRate: it.gstRate || it.gstPercent || it.taxRate || 0,
+              tax: it.tax || 0
             })),
-            totalAmount: order.orderSummary?.total || order.totalAmount || 0,
+            totalAmount: order.orderSummary?.total || order.orderSummary?.grandTotal || order.totalAmount || 0,
+            orderSummary: order.orderSummary || null,
+            subtotal: order.orderSummary?.subtotal || order.subtotal || 0,
+            mrp: order.orderSummary?.mrp || order.orderSummary?.totalMrp || order.totalMrp || 0,
+            discount: order.orderSummary?.discount || order.orderSummary?.mrpDiscount || order.mrpDiscount || 0,
+            tax: order.orderSummary?.tax || order.tax || 0,
+            cgst: order.orderSummary?.cgst ?? null,
+            sgst: order.orderSummary?.sgst ?? null,
+            shippingCharge: order.orderSummary?.shippingFee ?? order.orderSummary?.shipping ?? order.shippingFee ?? order.shippingCharges ?? 0,
+            packingCharge: order.orderSummary?.packageCharge ?? order.orderSummary?.packing ?? order.packagingFee ?? order.packingCharges ?? 0,
+            platformFee: order.orderSummary?.platformFee ?? order.platformFee ?? 0,
+            couponCode: order.couponCode || order.orderSummary?.couponCode || '',
+            couponDiscount: order.couponDiscount || order.orderSummary?.couponDiscount || 0,
+            walletDeduction: order.orderSummary?.walletDeduction || order.walletDeduction || 0,
+            commissionAmount: order.commissionAmount || 0,
             paymentMethod: rawMethod || (isCodOrder ? 'COD' : 'UPI'),
             upiRefNo: order.paymentDetails?.upiDetails?.transactionId || order.paymentDetails?.transactionId || '',
             paymentScreenshot: order.paymentDetails?.upiDetails?.paymentProof || '',
@@ -179,7 +211,15 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
             orderStatus,
             date: order.createdAt ? new Date(order.createdAt).toISOString().replace('T', ' ').substring(0, 16) : new Date().toISOString().replace('T', ' ').substring(0, 16),
             deliveryAgentId: order.deliveryAgentId || '',
-            deliveryType: order.deliveryType || 'Platform',
+            deliveryType: (order.deliveryType as any) || (order.fulfillment?.type === 'pickup' ? 'Vendor' : 'Platform'),
+            deliveryMode: order.deliveryMode || order.fulfillment?.deliveryMode || (order.restaurantId ? 'express' : 'standard'),
+            deliverySpeed: order.deliverySpeed || order.fulfillment?.deliverySpeed || (order.fulfillment?.deliveryMode === 'express' ? 'Express 15-30m' : order.fulfillment?.deliveryMode === 'same_day' ? 'Same Day' : 'Standard'),
+            deliverySlot: order.deliverySlot || order.fulfillment?.deliverySlot || order.fulfillment?.pickupSlot?.time || '',
+            deliveryVerificationOtp: order.deliveryVerificationOtp || order.handshakeOtp || order.pickupVerification?.otp || '',
+            handshakeOtp: order.handshakeOtp || order.deliveryVerificationOtp || order.pickupVerification?.otp || '',
+            assignedDeliveryAgent: order.assignedDeliveryAgent || order.deliveryAgentName || '',
+            assignedDeliveryAgentPhone: order.assignedDeliveryAgentPhone || order.deliveryAgentPhone || '',
+            deliveryInstructions: order.deliveryInstructions || order.fulfillment?.deliveryInstruction || order.fulfillment?.customInstruction || '',
             courierPartner: order.courierPartner || '',
             trackingId: order.trackingId || '',
             fulfillment: order.fulfillment || null,
@@ -191,6 +231,7 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
             returnWindowDays: 7,
             refundType: 'Both',
             commissionReleaseStatus: order.commissionReleaseStatus || 'Pending',
+            isCommissionReleased: order.commissionReleaseStatus === 'Released' || Boolean(order.isCommissionReleased),
             commissionReleasedAt: order.commissionReleasedAt || null,
             timeline: (order.timeline || []).map((t: any) => ({
               status: t.status,
@@ -838,11 +879,14 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   };
 
-  const releaseCommissions = async (orderId: string) => {
+  const releaseCommissions = async (orderId: string): Promise<boolean> => {
     const matched = orders.find(o => o.id === orderId || (o as any)._id === orderId);
-    const dbId = matched ? (matched as any)._id : orderId;
-    const token = localStorage.getItem('adminToken');
-    if (!token) return;
+    const dbId = matched ? ((matched as any)._id || matched.id) : orderId;
+    const token = localStorage.getItem('adminToken') || localStorage.getItem('token') || localStorage.getItem('admin_token');
+    if (!token) {
+      alert('Authentication error: Admin token not found. Please log in again.');
+      return false;
+    }
     try {
       const res = await fetch('https://server.apexbee.in/api/admin/settlements/release', {
         method: 'POST',
@@ -850,7 +894,7 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ orderId: dbId })
+        body: JSON.stringify({ orderId: dbId, orderNumber: matched?.id })
       });
       if (res.ok) {
         const data = await res.json();
@@ -862,18 +906,22 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
         await fetchOrders();
         await fetchWallets();
         await fetchWithdrawals();
+        return true;
       } else {
         const data = await res.json();
         alert(data.message || 'Failed to release commissions');
+        return false;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error releasing commissions:', err);
+      alert(err.message || 'Network error while distributing commissions');
+      return false;
     }
   };
 
   // 9. Withdrawal Payout Request Handling
   const processWithdrawal = async (id: string, status: WithdrawalRequest['status'], referenceId?: string, payoutMethod?: string, remarks?: string) => {
-    const token = localStorage.getItem('adminToken');
+    const token = localStorage.getItem('adminToken') || localStorage.getItem('token') || localStorage.getItem('admin_token');
     if (!token) return;
     try {
       const action = status === 'Approved' ? 'approve' : 'reject';
