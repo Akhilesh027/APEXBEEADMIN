@@ -96,7 +96,7 @@ export const getOrderCalculations = (order: Order) => {
 };
 
 export const getDeliveryTypeInfo = (order: Order) => {
-  const isPickup = Boolean(order.isSelfPickup || (order as any).fulfillment?.type === 'pickup' || order.deliveryType === 'pickup');
+  const isPickup = Boolean(order.isSelfPickup || (order as any).fulfillment?.type === 'pickup' || (order.deliveryType as string) === 'pickup');
   const isSubscription = Boolean(order.isScheduledSubscription || (order as any).isSubscription);
   const isStoreSelf = order.deliveryType === 'Vendor' || (order as any).deliveryMode === 'store_delivery' || (order as any).fulfillment?.deliveryType === 'store_delivery';
 
