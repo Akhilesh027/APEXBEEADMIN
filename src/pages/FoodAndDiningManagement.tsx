@@ -475,7 +475,16 @@ export const FoodAndDiningManagement: React.FC = () => {
                       <div className="font-bold text-slate-100">{app.restaurantName || app.businessName || app.name}</div>
                       <div className="text-[11px] text-slate-400">{app.name} • {app.mobile}</div>
                     </td>
-                    <td className="p-4 text-slate-300 capitalize">{app.foodBusinessType?.replace('_', ' ') || 'RESTAURANT'}</td>
+                    <td className="p-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold w-fit">
+                          📁 {app.primaryCategory || (Array.isArray(app.categories) && app.categories[0]) || 'Food & Dining'}
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold w-fit">
+                          🏷️ {app.foodBusinessType?.replace('_', ' ') || app.subCategory || (Array.isArray(app.approvedSubcategories) && app.approvedSubcategories[0]) || 'Restaurants'}
+                        </span>
+                      </div>
+                    </td>
                     <td className="p-4 text-slate-400">
                       <div className="font-mono text-amber-400 font-semibold">FSSAI: {app.fssaiNumber || 'Pending'}</div>
                       <div className="text-[11px] text-slate-400 truncate max-w-[200px]">
@@ -639,6 +648,20 @@ export const FoodAndDiningManagement: React.FC = () => {
                 <span className="text-xs text-slate-400 block mt-0.5 font-mono">
                   {[selectedApp.mandal, selectedApp.district, selectedApp.state].filter(Boolean).join(', ')} • PIN: <strong className="text-amber-400">{selectedApp.pincode || 'Not provided'}</strong>
                 </span>
+              </div>
+
+              <div className="col-span-2 p-3.5 bg-slate-900/60 rounded-2xl border border-slate-800 space-y-2">
+                <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">
+                  Category & Subcategory Governance
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-1 bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded-xl font-bold text-xs flex items-center gap-1">
+                    📁 Category: <strong>{selectedApp.primaryCategory || (Array.isArray(selectedApp.categories) && selectedApp.categories[0]) || 'Food & Dining'}</strong>
+                  </span>
+                  <span className="px-2.5 py-1 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-xl font-bold text-xs flex items-center gap-1">
+                    🏷️ Subcategory: <strong>{selectedApp.foodBusinessType || selectedApp.subCategory || (Array.isArray(selectedApp.approvedSubcategories) && selectedApp.approvedSubcategories[0]) || 'Restaurants'}</strong>
+                  </span>
+                </div>
               </div>
             </div>
 

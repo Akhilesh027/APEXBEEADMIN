@@ -27,7 +27,11 @@ import {
   Percent,
   Receipt,
   Store,
-  Bike
+  Bike,
+  Coins,
+  Eye,
+  Package,
+  Droplets
 } from 'lucide-react';
 
 // Helpers for order calculations & delivery info
@@ -172,12 +176,21 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
   const [adminSubscriptions, setAdminSubscriptions] = useState<any[]>([]);
   const [loadingSubs, setLoadingSubs] = useState(false);
   const [selectedSubDetail, setSelectedSubDetail] = useState<any | null>(null);
+  const [selectedSubModal, setSelectedSubModal] = useState<any | null>(null);
   const [allStatements, setAllStatements] = useState<any[]>([]);
   const [settlingId, setSettlingId] = useState<string | null>(null);
   const [releasingCommId, setReleasingCommId] = useState<string | null>(null);
+  const [releasingAllComms, setReleasingAllComms] = useState<boolean>(false);
   const [courier, setCourier] = useState('Delhivery');
   const [tracking, setTracking] = useState('');
   const [isDispatching, setIsDispatching] = useState(false);
+
+  // Subscriptions Filter States
+  const [subSearch, setSubSearch] = useState('');
+  const [subStatusFilter, setSubStatusFilter] = useState<string>('All');
+  const [subFrequencyFilter, setSubFrequencyFilter] = useState<string>('All');
+  const [subPortalFilter, setSubPortalFilter] = useState<string>('All');
+  const [subFulfillmentFilter, setSubFulfillmentFilter] = useState<string>('All');
 
   const selectedCalc = useMemo(() => {
     return selectedOrder ? getOrderCalculations(selectedOrder) : null;
@@ -205,15 +218,140 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
         const token = localStorage.getItem('adminToken') || localStorage.getItem('token') || localStorage.getItem('admin_token');
         const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
-        const res = await fetch('https://server.apexbee.in/api/local-shop/subscriptions/admin/all', { headers });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && Array.isArray(data.subscriptions)) {
-            setAdminSubscriptions(data.subscriptions);
-            if (!selectedSubDetail && data.subscriptions.length > 0) {
-              setSelectedSubDetail(data.subscriptions[0]);
+        let subsList: any[] = [];
+        try {
+          const res = await fetch('https://server.apexbee.in/api/admin/product-subscriptions', { headers });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success) {
+              const localSubs = (data.subscriptions || []).map((s: any) => {
+                const qty = Number(s.quantity || 1);
+                const unitPrice = Number(s.unitPrice || s.productId?.price || 0);
+                const daysInCycle = s.frequency === 'daily' ? 30 : s.frequency === 'alternate' ? 15 : s.frequency === 'weekly' ? 4 : 1;
+                const cycleSubtotal = qty * unitPrice * daysInCycle;
+                const estTax = Math.round(cycleSubtotal * 0.05 * 100) / 100;
+                const estTotal = cycleSubtotal + estTax;
+                const isSelf = s.deliveryAgentType === 'self_delivery' || !s.deliveryAgentType;
+
+                return {
+                  ...s,
+                  isLocalSub: true,
+                  subscriptionId: s._id,
+                  displayId: `SUB-${s._id.toString().slice(-6).toUpperCase()}`,
+                  customerName: s.customerName || s.userId?.name || 'Subscriber Customer',
+                  customerMobile: s.customerPhone || s.userId?.phone || 'N/A',
+                  customerAddress: s.deliveryAddress || s.address || 'Doorstep Delivery Address',
+                  productName: s.productName || s.productId?.name || 'Recurring Subscribed Item',
+                  productImage: s.productImage || s.productId?.thumbnail || (Array.isArray(s.productId?.images) ? s.productId.images[0] : '') || '',
+                  quantity: qty,
+                  unitPrice: unitPrice,
+                  frequency: s.frequency || 'daily',
+                  deliverySlot: s.deliverySlot || 'Morning (6:00 AM - 8:30 AM)',
+                  status: (s.status || 'active').toLowerCase(),
+                  autoRenew: s.autoRenew !== false,
+                  startDate: s.startDate || (s.createdAt ? new Date(s.createdAt).toISOString().split('T')[0] : 'Active'),
+                  storeName: s.vendorId?.businessName || s.vendorId?.shopName || s.vendorId?.name || 'Partner Store',
+                  storePhone: s.vendorId?.phone || '',
+                  fulfillmentMode: isSelf ? 'Store Partner Self-Delivery Fleet' : 'Platform Logistics Courier',
+                  isStoreSelfDelivery: isSelf,
+                  deliveryAgentName: s.deliveryAgentName || '',
+                  subtotal: cycleSubtotal,
+                  tax: estTax,
+                  shippingFee: 0,
+                  grandTotal: estTotal,
+                  commissionStatus: s.commissionReleased ? 'Released' : 'Pending',
+                  isCommissionReleased: Boolean(s.commissionReleased),
+                  portalType: s.portalType || (s.productName?.toLowerCase().includes('water') ? 'water' : s.productName?.toLowerCase().includes('milk') ? 'dairy' : 'general'),
+                  deliveryHistory: s.deliveryHistory || [],
+                  createdAt: s.createdAt
+                };
+              });
+
+              const subOrders = (data.orders || []).map((o: any) => {
+                const summary = o.orderSummary || {};
+                const firstItem = (o.items && o.items[0]) || {};
+                const freq = o.scheduleDetails?.frequency || o.frequency || 'daily';
+                const isSelf = o.deliveryType === 'self_delivery' || o.isSelfDelivery || Boolean(o.sellerId?.deliveryMode === 'self_delivery') || o.deliveryType === 'Vendor';
+                const title = firstItem.productName || firstItem.name || 'Subscribed Order Item';
+
+                return {
+                  ...o,
+                  isLocalSub: false,
+                  subscriptionId: o._id,
+                  displayId: o.orderNumber || `#AB-${o._id.toString().slice(-6).toUpperCase()}`,
+                  customerName: o.shippingAddress?.name || o.customerId?.name || o.customerName || 'Subscriber Customer',
+                  customerMobile: o.shippingAddress?.phone || o.customerId?.phone || o.customerMobile || 'N/A',
+                  customerAddress: [o.shippingAddress?.address || o.deliveryAddress, o.shippingAddress?.city, o.shippingAddress?.pincode].filter(Boolean).join(', ') || 'Doorstep Delivery',
+                  productName: title,
+                  productImage: firstItem.image || firstItem.productId?.thumbnail || (Array.isArray(firstItem.productId?.images) ? firstItem.productId.images[0] : '') || '',
+                  quantity: Number(firstItem.quantity || 1),
+                  unitPrice: Number(firstItem.price || firstItem.unitPrice || 0),
+                  frequency: freq,
+                  deliverySlot: o.deliverySlot || o.preOrderTimeSlot || o.scheduleDetails?.deliverySlot || 'Morning (6:00 AM - 8:30 AM)',
+                  status: (o.orderStatus || 'active').toLowerCase(),
+                  autoRenew: o.autoRenew !== false,
+                  startDate: o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : 'Active',
+                  storeName: o.sellerId?.businessName || o.sellerId?.shopName || o.sellerId?.name || 'Local Merchant',
+                  storePhone: o.sellerId?.phone || '',
+                  fulfillmentMode: isSelf ? 'Store Partner Self-Delivery Fleet' : 'Platform Logistics Courier',
+                  isStoreSelfDelivery: isSelf,
+                  deliveryAgentName: o.assignedDeliveryAgent || o.deliveryAgentName || '',
+                  subtotal: Number(summary.subtotal || o.subtotal || 0),
+                  tax: Number(summary.tax || (Number(summary.cgst || 0) + Number(summary.sgst || 0)) || 0),
+                  shippingFee: Number(summary.shipping ?? summary.shippingFee ?? o.shippingCharge ?? 0),
+                  grandTotal: Number(summary.grandTotal || summary.total || o.totalAmount || 0),
+                  commissionStatus: (o.commissionReleaseStatus === 'Released' || o.isCommissionReleased) ? 'Released' : 'Pending',
+                  isCommissionReleased: Boolean(o.commissionReleaseStatus === 'Released' || o.isCommissionReleased),
+                  portalType: title.toLowerCase().includes('water') ? 'water' : title.toLowerCase().includes('milk') ? 'dairy' : 'general',
+                  deliveryHistory: o.deliveryHistory || [],
+                  createdAt: o.createdAt
+                };
+              });
+
+              subsList = [...localSubs, ...subOrders];
             }
           }
+        } catch (_) { }
+
+        if (subsList.length === 0) {
+          const fallbackRes = await fetch('https://server.apexbee.in/api/local-shop/subscriptions/admin/all', { headers });
+          if (fallbackRes.ok) {
+            const fbData = await fallbackRes.json();
+            if (fbData.success && Array.isArray(fbData.subscriptions)) {
+              subsList = fbData.subscriptions.map((s: any) => ({
+                ...s,
+                subscriptionId: s._id,
+                displayId: `SUB-${s._id.toString().slice(-6).toUpperCase()}`,
+                customerName: s.customerName || s.userMobile || 'Subscriber Customer',
+                customerMobile: s.userMobile || s.customerPhone || 'N/A',
+                customerAddress: s.address || s.deliveryAddress || 'Doorstep Delivery Address',
+                productName: s.productName || 'Subscribed Product',
+                quantity: Number(s.quantity || 1),
+                unitPrice: Number(s.unitPrice || 0),
+                frequency: s.frequency || 'daily',
+                deliverySlot: s.deliverySlot || 'Morning (6:00 AM - 8:30 AM)',
+                status: (s.status || 'active').toLowerCase(),
+                autoRenew: s.autoRenew !== false,
+                startDate: s.startDate || 'Active',
+                storeName: s.vendorName || 'Partner Store',
+                fulfillmentMode: 'Store Partner Self-Delivery Fleet',
+                isStoreSelfDelivery: true,
+                subtotal: Number(s.unitPrice || 0) * Number(s.quantity || 1) * 30,
+                tax: Math.round(Number(s.unitPrice || 0) * Number(s.quantity || 1) * 30 * 0.05 * 100) / 100,
+                shippingFee: 0,
+                grandTotal: Math.round(Number(s.unitPrice || 0) * Number(s.quantity || 1) * 30 * 1.05 * 100) / 100,
+                commissionStatus: s.commissionReleased ? 'Released' : 'Pending',
+                isCommissionReleased: Boolean(s.commissionReleased),
+                portalType: s.portalType || 'dairy',
+                deliveryHistory: s.deliveryHistory || []
+              }));
+            }
+          }
+        }
+
+        setAdminSubscriptions(subsList);
+        if (subsList.length > 0 && !selectedSubDetail) {
+          setSelectedSubDetail(subsList[0]);
         }
 
         const stmtRes = await fetch('https://server.apexbee.in/api/local-shop/billing/statements', { headers });
@@ -407,12 +545,118 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
     return filteredOrders.slice(start, start + ordersPerPage);
   }, [filteredOrders, ordersPage, ordersPerPage]);
 
+  const handleReleaseAllCommissions = async () => {
+    if (!window.confirm('⚡ Are you sure you want to distribute and release all pending platform commissions, vendor payouts, and referral rewards to partner wallets?')) {
+      return;
+    }
+    try {
+      setReleasingAllComms(true);
+      const success = await releaseCommissions();
+      if (success) {
+        alert('🎉 All platform commissions distributed successfully! Wallets credited.');
+        setAdminSubscriptions((prev) =>
+          prev.map((s) => ({ ...s, commissionStatus: 'Released', isCommissionReleased: true }))
+        );
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error distributing commissions');
+    } finally {
+      setReleasingAllComms(false);
+    }
+  };
+
+  const handleDistributeCommission = async (id: string) => {
+    try {
+      setReleasingCommId(id);
+      const success = await releaseCommissions(id);
+      if (success) {
+        setAdminSubscriptions((prev) =>
+          prev.map((s) => (s._id === id || s.subscriptionId === id ? { ...s, commissionStatus: 'Released', isCommissionReleased: true } : s))
+        );
+        if (selectedOrder && ((selectedOrder as any)._id === id || selectedOrder.id === id)) {
+          setSelectedOrder((prev) => (prev ? ({ ...prev, commissionReleaseStatus: 'Released', isCommissionReleased: true } as any) : prev));
+        }
+        if (selectedSubModal && (selectedSubModal._id === id || selectedSubModal.subscriptionId === id)) {
+          setSelectedSubModal((prev: any) => ({ ...prev, commissionStatus: 'Released', isCommissionReleased: true }));
+        }
+        alert('Commissions successfully distributed to vendor, franchise, and referral wallets!');
+      }
+    } finally {
+      setReleasingCommId(null);
+    }
+  };
+
+  // Subscriptions KPI Stats
+  const subStats = useMemo(() => {
+    let totalMRV = 0;
+    let activeCount = 0;
+    let dairyCount = 0;
+    let waterCount = 0;
+    let storeFleetCount = 0;
+
+    adminSubscriptions.forEach((s) => {
+      totalMRV += Number(s.grandTotal || 0);
+      if (s.status === 'active') activeCount++;
+      if (s.portalType === 'dairy' || s.productName?.toLowerCase().includes('milk') || s.productName?.toLowerCase().includes('dairy')) dairyCount++;
+      if (s.portalType === 'water' || s.productName?.toLowerCase().includes('water')) waterCount++;
+      if (s.isStoreSelfDelivery) storeFleetCount++;
+    });
+
+    return {
+      totalCount: adminSubscriptions.length,
+      activeCount,
+      dairyCount,
+      waterCount,
+      storeFleetCount,
+      totalMRV
+    };
+  }, [adminSubscriptions]);
+
+  // Filtered Subscriptions
+  const filteredSubs = useMemo(() => {
+    return adminSubscriptions.filter((s) => {
+      if (subSearch.trim()) {
+        const q = subSearch.toLowerCase();
+        const dispId = (s.displayId || '').toLowerCase();
+        const custName = (s.customerName || '').toLowerCase();
+        const custMobile = (s.customerMobile || '').toLowerCase();
+        const prod = (s.productName || '').toLowerCase();
+        const store = (s.storeName || '').toLowerCase();
+        const addr = (s.customerAddress || '').toLowerCase();
+        if (!dispId.includes(q) && !custName.includes(q) && !custMobile.includes(q) && !prod.includes(q) && !store.includes(q) && !addr.includes(q)) {
+          return false;
+        }
+      }
+
+      if (subStatusFilter !== 'All') {
+        if (s.status !== subStatusFilter) return false;
+      }
+
+      if (subFrequencyFilter !== 'All') {
+        if ((s.frequency || '').toLowerCase() !== subFrequencyFilter) return false;
+      }
+
+      if (subPortalFilter !== 'All') {
+        if (subPortalFilter === 'dairy' && !(s.portalType === 'dairy' || s.productName?.toLowerCase().includes('milk') || s.productName?.toLowerCase().includes('dairy'))) return false;
+        if (subPortalFilter === 'water' && !(s.portalType === 'water' || s.productName?.toLowerCase().includes('water'))) return false;
+        if (subPortalFilter === 'general' && (s.portalType === 'dairy' || s.portalType === 'water')) return false;
+      }
+
+      if (subFulfillmentFilter !== 'All') {
+        if (subFulfillmentFilter === 'self_delivery' && !s.isStoreSelfDelivery) return false;
+        if (subFulfillmentFilter === 'platform' && s.isStoreSelfDelivery) return false;
+      }
+
+      return true;
+    });
+  }, [adminSubscriptions, subSearch, subStatusFilter, subFrequencyFilter, subPortalFilter, subFulfillmentFilter]);
+
   // Paginated Subscriptions
-  const totalSubsPages = Math.ceil(adminSubscriptions.length / subsPerPage) || 1;
+  const totalSubsPages = Math.ceil(filteredSubs.length / subsPerPage) || 1;
   const paginatedSubs = useMemo(() => {
     const start = (subsPage - 1) * subsPerPage;
-    return adminSubscriptions.slice(start, start + subsPerPage);
-  }, [adminSubscriptions, subsPage, subsPerPage]);
+    return filteredSubs.slice(start, start + subsPerPage);
+  }, [filteredSubs, subsPage, subsPerPage]);
 
   const getOrderStatusBadge = (status: Order['orderStatus']) => {
     switch (status) {
@@ -461,13 +705,13 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
 
   return (
     <div className="space-y-6 text-left font-sans">
-      {/* Header Bar with View Selector */}
-      <div className="bg-card border border-border/80 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      {/* Header Bar with View Selector & Commission Release Button */}
+      <div className="bg-card border border-border/80 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex border border-border/80 rounded-xl p-1 bg-secondary/20">
+          <div className="flex border border-border/80 rounded-xl p-1 bg-secondary/20 flex-wrap">
             <button
               onClick={() => setMainView('orders')}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition cursor-pointer flex items-center gap-1.5 ${mainView === 'orders' ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition cursor-pointer flex items-center gap-1.5 ${mainView === 'orders' ? 'bg-card text-foreground shadow-xs font-black' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
               <ShoppingBag className="h-4 w-4 text-primary" />
@@ -475,13 +719,25 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
             </button>
             <button
               onClick={() => setMainView('subscriptions')}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition cursor-pointer flex items-center gap-1.5 ${mainView === 'subscriptions' ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition cursor-pointer flex items-center gap-1.5 ${mainView === 'subscriptions' ? 'bg-card text-foreground shadow-xs font-black' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
               <Repeat className="h-4 w-4 text-emerald-500" />
               <span>Product Subscribers Hub ({adminSubscriptions.length})</span>
             </button>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleReleaseAllCommissions}
+            disabled={releasingAllComms}
+            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 rounded-xl text-xs font-black shadow-md flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+            title="Release and distribute all eligible platform commissions, vendor earnings, and partner incentives"
+          >
+            <Coins className={`h-4 w-4 ${releasingAllComms ? 'animate-spin' : ''}`} />
+            <span>{releasingAllComms ? 'Distributing Commissions...' : '⚡ Distribute All Commissions'}</span>
+          </button>
         </div>
       </div>
 
@@ -1286,59 +1542,576 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ defaultView = 
           </div>
         </>
       ) : (
-        /* VIEW MODE 2: SUBSCRIBERS HUB */
+        /* VIEW MODE 2: PRODUCT SUBSCRIBERS HUB */
         <div className="space-y-6">
-          <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-xs">
-            <h3 className="text-sm font-bold text-foreground uppercase tracking-wider mb-2">Product Subscribers Hub</h3>
-            <p className="text-xs text-muted-foreground mb-4">
-              Manage repeating daily/weekly product subscriptions and automated billing cycles.
-            </p>
+          {/* Subscriptions Overview Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+            <div className="bg-card border border-border/80 p-4 rounded-2xl shadow-xs text-left">
+              <span className="text-[10px] font-black uppercase text-muted-foreground block tracking-wider">Total Subscriptions</span>
+              <span className="text-2xl font-black text-foreground mt-1 block">{subStats.totalCount}</span>
+              <span className="text-[10px] text-muted-foreground font-medium">All recurring routines</span>
+            </div>
 
-            {loadingSubs ? (
-              <div className="py-12 text-center text-xs text-muted-foreground">Loading active subscriptions...</div>
-            ) : adminSubscriptions.length === 0 ? (
-              <div className="py-12 text-center text-xs text-muted-foreground italic">No active product subscriptions found.</div>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-3">
-                  {paginatedSubs.map((sub: any) => (
-                    <div key={sub._id} className="p-4 bg-secondary/10 border border-border/60 rounded-2xl flex items-center justify-between text-xs">
-                      <div>
-                        <div className="font-bold text-foreground">{sub.productName || 'Subscription Plan'}</div>
-                        <div className="text-[10px] text-muted-foreground">Frequency: {sub.frequency || 'Daily'} • Customer: {sub.userMobile || sub.userId}</div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 font-bold rounded-lg text-[10px]">
-                          {sub.status || 'ACTIVE'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+            <div className="bg-card border border-border/80 p-4 rounded-2xl shadow-xs text-left">
+              <span className="text-[10px] font-black uppercase text-muted-foreground block tracking-wider">Active Deliveries</span>
+              <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block">{subStats.activeCount}</span>
+              <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold">Live recurring cycles</span>
+            </div>
+
+            <div className="bg-card border border-border/80 p-4 rounded-2xl shadow-xs text-left">
+              <span className="text-[10px] font-black uppercase text-muted-foreground block tracking-wider">Milk &amp; Dairy Routines</span>
+              <span className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1 block">{subStats.dairyCount}</span>
+              <span className="text-[10px] text-blue-700 dark:text-blue-300 font-medium">Daily doorstep bottles/packs</span>
+            </div>
+
+            <div className="bg-card border border-border/80 p-4 rounded-2xl shadow-xs text-left">
+              <span className="text-[10px] font-black uppercase text-muted-foreground block tracking-wider">Water Can Routes</span>
+              <span className="text-2xl font-black text-cyan-600 dark:text-cyan-400 mt-1 block">{subStats.waterCount}</span>
+              <span className="text-[10px] text-cyan-700 dark:text-cyan-300 font-medium">20L daily &amp; weekly cans</span>
+            </div>
+
+            <div className="bg-card border border-border/80 p-4 rounded-2xl shadow-xs text-left">
+              <span className="text-[10px] font-black uppercase text-muted-foreground block tracking-wider">Monthly Recurring Value</span>
+              <span className="text-2xl font-black text-amber-500 mt-1 block">₹{subStats.totalMRV.toLocaleString('en-IN')}</span>
+              <span className="text-[10px] text-muted-foreground font-medium">Gross customer cycle value</span>
+            </div>
+          </div>
+
+          {/* Subscription Filter & Search Bar */}
+          <div className="bg-card border border-border/80 p-4 rounded-2xl shadow-xs space-y-4">
+            <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
+              <div className="relative w-full md:w-96">
+                <Search className="absolute left-3.5 top-3 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search by Subscriber, Mobile, Address, Product, Store..."
+                  value={subSearch}
+                  onChange={(e) => { setSubSearch(e.target.value); setSubsPage(1); }}
+                  className="w-full bg-secondary/20 border border-border/80 rounded-xl pl-10 pr-4 py-2 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                <select
+                  value={subStatusFilter}
+                  onChange={(e) => { setSubStatusFilter(e.target.value); setSubsPage(1); }}
+                  className="bg-card border border-border/80 rounded-xl px-3 py-2 text-xs font-bold text-foreground focus:outline-none"
+                >
+                  <option value="All">Status: All Statuses</option>
+                  <option value="active">🟢 Active</option>
+                  <option value="paused">⏸️ Paused</option>
+                  <option value="cancelled">❌ Cancelled / Expired</option>
+                </select>
+
+                <select
+                  value={subFrequencyFilter}
+                  onChange={(e) => { setSubFrequencyFilter(e.target.value); setSubsPage(1); }}
+                  className="bg-card border border-border/80 rounded-xl px-3 py-2 text-xs font-bold text-foreground focus:outline-none"
+                >
+                  <option value="All">Frequency: All Frequencies</option>
+                  <option value="daily">☀️ Daily</option>
+                  <option value="alternate">🔄 Alternate Days</option>
+                  <option value="weekly">📅 Weekly</option>
+                  <option value="monthly">🗓️ Monthly</option>
+                </select>
+
+                <select
+                  value={subPortalFilter}
+                  onChange={(e) => { setSubPortalFilter(e.target.value); setSubsPage(1); }}
+                  className="bg-card border border-border/80 rounded-xl px-3 py-2 text-xs font-bold text-foreground focus:outline-none"
+                >
+                  <option value="All">Category: All Categories</option>
+                  <option value="dairy">🥛 Milk &amp; Dairy Essentials</option>
+                  <option value="water">💧 20L Water Cans</option>
+                  <option value="general">📦 General Recurring Packs</option>
+                </select>
+
+                <select
+                  value={subFulfillmentFilter}
+                  onChange={(e) => { setSubFulfillmentFilter(e.target.value); setSubsPage(1); }}
+                  className="bg-card border border-border/80 rounded-xl px-3 py-2 text-xs font-bold text-foreground focus:outline-none"
+                >
+                  <option value="All">Fulfillment: All Modes</option>
+                  <option value="self_delivery">🛵 Store Partner Self-Delivery</option>
+                  <option value="platform">🚚 Platform Logistics Courier</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Subscriptions Table */}
+          <div className="bg-card border border-border/80 rounded-2xl shadow-xs overflow-hidden text-left">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs divide-y divide-border/60">
+                <thead className="bg-secondary/20 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="py-3.5 px-4">Subscription &amp; Schedule</th>
+                    <th className="py-3.5 px-4">Subscriber Details</th>
+                    <th className="py-3.5 px-4">Subscribed Product</th>
+                    <th className="py-3.5 px-4">Fulfillment Mode &amp; Store</th>
+                    <th className="py-3.5 px-4">Calculations (Subtotal / GST / Total)</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4">Commission</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-border/40 font-medium">
+                  {loadingSubs ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-12 text-muted-foreground">
+                        <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-amber-500" />
+                        Loading recurring product subscriptions...
+                      </td>
+                    </tr>
+                  ) : paginatedSubs.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-12 text-muted-foreground italic">
+                        No product subscriptions found matching active filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedSubs.map((sub: any) => {
+                      const subId = sub.subscriptionId || sub._id;
+                      const isReleased = sub.commissionStatus === 'Released' || sub.isCommissionReleased;
+
+                      return (
+                        <tr key={subId} className="hover:bg-secondary/20 transition-colors">
+                          {/* Subscription & Schedule */}
+                          <td className="py-3.5 px-4">
+                            <span className="font-mono font-black text-foreground text-xs block">
+                              {sub.displayId}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground block mt-0.5">
+                              Started: {sub.startDate}
+                            </span>
+                            <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30">
+                                {sub.frequency === 'daily' ? '☀️ Daily' : sub.frequency === 'alternate' ? '🔄 Alternate' : sub.frequency === 'weekly' ? '📅 Weekly' : '🗓️ Monthly'}
+                              </span>
+                              {sub.autoRenew && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                                  Auto-Renew
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[9px] text-blue-600 dark:text-blue-400 font-mono block mt-1">
+                              🕒 {sub.deliverySlot}
+                            </span>
+                          </td>
+
+                          {/* Subscriber Details */}
+                          <td className="py-3.5 px-4">
+                            <span className="font-bold text-foreground block truncate max-w-[150px]">
+                              {sub.customerName}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground font-mono block flex items-center gap-1 mt-0.5">
+                              <Phone className="h-3 w-3 text-muted-foreground shrink-0" /> {sub.customerMobile}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground block truncate max-w-[160px] mt-0.5 flex items-start gap-1">
+                              <MapPin className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+                              <span className="truncate">{sub.customerAddress}</span>
+                            </span>
+                          </td>
+
+                          {/* Subscribed Product */}
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-2.5">
+                              {sub.productImage ? (
+                                <img
+                                  src={sub.productImage}
+                                  alt={sub.productName}
+                                  className="w-10 h-10 rounded-xl object-cover border border-border/80 shrink-0 bg-secondary/30"
+                                  onError={(e) => { (e.target as any).style.display = 'none'; }}
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-xl bg-secondary/30 border border-border/80 flex items-center justify-center shrink-0 text-muted-foreground">
+                                  <Package className="h-4 w-4" />
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <span className="font-bold text-foreground block text-xs truncate max-w-[140px]">
+                                  {sub.productName}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground font-medium block">
+                                  Qty: <strong className="text-foreground">{sub.quantity}</strong> · ₹{Number(sub.unitPrice).toFixed(2)}/unit
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Fulfillment Mode & Store */}
+                          <td className="py-3.5 px-4">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase border inline-flex items-center gap-1 ${sub.fulfillmentMode?.includes('Self-Delivery') || sub.isStoreSelfDelivery
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                                : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30'
+                              }`}>
+                              {sub.fulfillmentMode?.includes('Self-Delivery') || sub.isStoreSelfDelivery ? '🛵 Store Fleet' : '🚚 Platform Rider'}
+                            </span>
+                            <span className="font-bold text-foreground text-xs block truncate max-w-[140px] mt-1">
+                              {sub.storeName}
+                            </span>
+                            {sub.storePhone && (
+                              <span className="text-[10px] text-muted-foreground font-mono block">
+                                📞 {sub.storePhone}
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Calculations */}
+                          <td className="py-3.5 px-4">
+                            <div className="font-black text-sm text-foreground font-mono">
+                              ₹{Number(sub.grandTotal).toFixed(2)}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground space-y-0.5 mt-0.5">
+                              <div>Items: ₹{Number(sub.subtotal).toFixed(2)}</div>
+                              {Number(sub.tax) > 0 && <div className="text-amber-600 dark:text-amber-400 font-semibold">GST: ₹{Number(sub.tax).toFixed(2)}</div>}
+                              <div className="text-emerald-600 dark:text-emerald-400 font-bold">
+                                {Number(sub.shippingFee) === 0 ? 'Free Delivery' : `₹${Number(sub.shippingFee)} Del.`}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Status */}
+                          <td className="py-3.5 px-4">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase inline-block ${sub.status === 'active'
+                                ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                                : sub.status === 'paused'
+                                  ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                                  : 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+                              }`}>
+                              {sub.status === 'active' ? '🟢 Active' : sub.status === 'paused' ? '⏸️ Paused' : '❌ Cancelled'}
+                            </span>
+                          </td>
+
+                          {/* Commission Settlement */}
+                          <td className="py-3.5 px-4">
+                            <div className="flex flex-col gap-1 items-start">
+                              {isReleased ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1">
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> Released
+                                </span>
+                              ) : (
+                                <>
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 inline-flex items-center gap-1">
+                                    <Clock className="h-3 w-3 text-amber-500" /> Pending
+                                  </span>
+                                  <button
+                                    onClick={() => handleDistributeCommission(subId)}
+                                    disabled={releasingCommId === subId}
+                                    className="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-[10px] rounded-lg transition flex items-center gap-1 shadow-2xs cursor-pointer disabled:opacity-50"
+                                    title="Release and distribute commission for this subscription"
+                                  >
+                                    <Coins className={`h-3 w-3 ${releasingCommId === subId ? 'animate-spin' : ''}`} />
+                                    <span>{releasingCommId === subId ? 'Releasing...' : 'Distribute'}</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-3.5 px-4 text-right">
+                            <button
+                              onClick={() => setSelectedSubModal(sub)}
+                              className="px-3 py-1.5 bg-secondary hover:bg-secondary/80 text-foreground font-black text-xs rounded-xl border border-border transition cursor-pointer flex items-center gap-1.5 ml-auto shadow-xs"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              <span>Audit &amp; History</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Subscriptions Pagination */}
+            <div className="p-4 border-t border-border/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground font-medium">
+              <span>
+                Showing {filteredSubs.length === 0 ? 0 : (subsPage - 1) * subsPerPage + 1} to{' '}
+                {Math.min(subsPage * subsPerPage, filteredSubs.length)} of {filteredSubs.length} subscriptions
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={subsPage <= 1}
+                  onClick={() => setSubsPage((p) => Math.max(p - 1, 1))}
+                  className="px-3 py-1.5 rounded-lg border border-border/80 bg-card text-foreground font-bold text-[11px] disabled:opacity-40 cursor-pointer flex items-center gap-1"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  <span>Prev</span>
+                </button>
+                <span className="text-[10px] font-bold text-foreground">
+                  Page {subsPage} of {totalSubsPages}
+                </span>
+                <button
+                  disabled={subsPage >= totalSubsPages}
+                  onClick={() => setSubsPage((p) => Math.min(p + 1, totalSubsPages))}
+                  className="px-3 py-1.5 rounded-lg border border-border/80 bg-card text-foreground font-bold text-[11px] disabled:opacity-40 cursor-pointer flex items-center gap-1"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: SUBSCRIPTION AUDIT & DELIVERY HISTORY */}
+      {selectedSubModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-card border border-border rounded-3xl max-w-3xl w-full p-6 sm:p-7 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 my-8 text-left max-h-[92vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-border/60 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold">
+                  <Repeat className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-foreground text-base sm:text-lg">
+                    Subscription Audit #{selectedSubModal.displayId}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Active since {selectedSubModal.startDate} · {String(selectedSubModal.frequency).toUpperCase()} Routine
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedSubModal(null)}
+                className="p-2 text-muted-foreground hover:text-foreground rounded-xl hover:bg-secondary transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Logistics & Route Card */}
+            <div className="bg-gradient-to-br from-slate-900 to-[#0A1128] text-white p-5 rounded-2xl space-y-3.5 shadow-md">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/60 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl">
+                    {selectedSubModal.portalType === 'water' ? '💧' : selectedSubModal.portalType === 'dairy' ? '🥛' : '🔁'}
+                  </span>
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider block">
+                      Recurring Fulfillment Channel
+                    </span>
+                    <h4 className="font-extrabold text-sm text-white">
+                      {selectedSubModal.fulfillmentMode}
+                    </h4>
+                  </div>
                 </div>
 
-                {totalSubsPages > 1 && (
-                  <div className="pt-3 border-t border-border/60 flex items-center justify-between text-xs">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-white/10 text-white border border-white/20">
+                    {selectedSubModal.frequency}
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+                    {selectedSubModal.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700/60">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">
+                    🕒 Scheduled Window
+                  </span>
+                  <span className="font-bold text-amber-300 block">
+                    {selectedSubModal.deliverySlot}
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    {selectedSubModal.autoRenew ? '✓ Auto-Renew Enabled' : 'Manual Renew'}
+                  </span>
+                </div>
+
+                <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700/60">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">
+                    🏪 Store Partner
+                  </span>
+                  <span className="font-extrabold text-white block truncate">
+                    {selectedSubModal.storeName}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {selectedSubModal.storePhone || 'Verified Partner'}
+                  </span>
+                </div>
+
+                <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700/60">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">
+                    🛵 Assigned Driver / Fleet
+                  </span>
+                  <span className="font-extrabold text-white block truncate">
+                    {selectedSubModal.deliveryAgentName || (selectedSubModal.isStoreSelfDelivery ? 'Store Dedicated Fleet' : 'Platform Rider Pool')}
+                  </span>
+                  <span className="text-[10px] text-emerald-400">
+                    Doorstep Delivery Route
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Customer & Merchant Information Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="bg-secondary/10 p-4 rounded-2xl border border-border/80 space-y-1.5 text-left">
+                <span className="text-[10px] font-black uppercase text-muted-foreground block tracking-wider">Subscriber Customer Details</span>
+                <div className="font-extrabold text-foreground text-sm">
+                  {selectedSubModal.customerName}
+                </div>
+                <div className="text-muted-foreground font-mono">
+                  📞 {selectedSubModal.customerMobile}
+                </div>
+                <div className="text-foreground leading-relaxed text-xs">
+                  📍 {selectedSubModal.customerAddress}
+                </div>
+              </div>
+
+              <div className="bg-secondary/10 p-4 rounded-2xl border border-border/80 space-y-1.5 text-left">
+                <span className="text-[10px] font-black uppercase text-muted-foreground block tracking-wider">Subscribed Product Details</span>
+                <div className="flex items-center gap-3 pt-1">
+                  {selectedSubModal.productImage ? (
+                    <img
+                      src={selectedSubModal.productImage}
+                      alt={selectedSubModal.productName}
+                      className="w-12 h-12 rounded-xl object-cover border border-border shrink-0 bg-secondary/30"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center shrink-0">
+                      <Package className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div>
+                    <div className="font-extrabold text-foreground text-sm">
+                      {selectedSubModal.productName}
+                    </div>
+                    <div className="text-muted-foreground text-xs">
+                      Quantity: <strong className="text-foreground">{selectedSubModal.quantity}</strong> pack(s)
+                    </div>
+                    <div className="text-amber-600 dark:text-amber-400 font-bold font-mono text-xs">
+                      ₹{Number(selectedSubModal.unitPrice).toFixed(2)} per unit
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Financial Calculation & Commission Allocation */}
+            <div className="bg-secondary/10 border border-border/80 rounded-2xl p-5 space-y-3 text-xs">
+              <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
+                <h4 className="font-black text-foreground text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <span>🧾</span> Bill Breakdown &amp; Commission Allocation
+                </h4>
+                <span className="font-extrabold text-[11px] text-muted-foreground">
+                  Recurring Cycle Value
+                </span>
+              </div>
+
+              <div className="space-y-1.5 text-muted-foreground">
+                <div className="flex justify-between font-bold text-foreground">
+                  <span>Items Subtotal</span>
+                  <span className="font-mono">₹{Number(selectedSubModal.subtotal).toFixed(2)}</span>
+                </div>
+
+                {Number(selectedSubModal.tax) > 0 && (
+                  <div className="flex justify-between text-amber-600 dark:text-amber-400 font-semibold">
+                    <span>GST Tax (5%)</span>
+                    <span className="font-mono">₹{Number(selectedSubModal.tax).toFixed(2)}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span>Doorstep Delivery Fee</span>
+                  <span className="font-mono">{Number(selectedSubModal.shippingFee) === 0 ? 'FREE' : `₹${Number(selectedSubModal.shippingFee).toFixed(2)}`}</span>
+                </div>
+
+                <div className="flex justify-between font-black text-base border-t border-border/80 pt-2 text-foreground">
+                  <span>Total Customer Paid (Cycle Amount)</span>
+                  <span className="font-mono text-primary">₹{Number(selectedSubModal.grandTotal).toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="mt-3 bg-card border border-border/80 rounded-xl p-3.5 space-y-2 text-[11px] text-muted-foreground">
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-foreground text-xs uppercase tracking-wider">
+                    💰 Commission Settlement Status
+                  </span>
+                  {selectedSubModal.commissionStatus === 'Released' || selectedSubModal.isCommissionReleased ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> Released to Wallets
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                      <Clock className="h-3 w-3 text-amber-500" /> Pending Release
+                    </span>
+                  )}
+                </div>
+
+                {!(selectedSubModal.commissionStatus === 'Released' || selectedSubModal.isCommissionReleased) && (
+                  <div className="pt-2 border-t border-border/40 flex justify-end">
                     <button
-                      disabled={subsPage <= 1}
-                      onClick={() => setSubsPage((p) => Math.max(p - 1, 1))}
-                      className="px-3 py-1.5 rounded-lg border bg-card text-foreground font-bold text-[11px] disabled:opacity-40 cursor-pointer flex items-center gap-1"
+                      onClick={() => handleDistributeCommission(selectedSubModal.subscriptionId || selectedSubModal._id)}
+                      disabled={releasingCommId === (selectedSubModal.subscriptionId || selectedSubModal._id)}
+                      className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
                     >
-                      <ChevronLeft className="h-3.5 w-3.5" />
-                      <span>Prev</span>
-                    </button>
-                    <span className="text-[10px] font-bold text-muted-foreground">Page {subsPage} of {totalSubsPages}</span>
-                    <button
-                      disabled={subsPage >= totalSubsPages}
-                      onClick={() => setSubsPage((p) => Math.min(p + 1, totalSubsPages))}
-                      className="px-3 py-1.5 rounded-lg border bg-card text-foreground font-bold text-[11px] disabled:opacity-40 cursor-pointer flex items-center gap-1"
-                    >
-                      <span>Next</span>
-                      <ChevronRight className="h-3.5 w-3.5" />
+                      <Coins className={`h-3.5 w-3.5 ${releasingCommId === (selectedSubModal.subscriptionId || selectedSubModal._id) ? 'animate-spin' : ''}`} />
+                      <span>{releasingCommId === (selectedSubModal.subscriptionId || selectedSubModal._id) ? 'Distributing...' : '💸 Distribute Commission Now'}</span>
                     </button>
                   </div>
                 )}
               </div>
-            )}
+            </div>
+
+            {/* Delivery History Log */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                Recurring Delivery History &amp; Dispatch Proofs ({selectedSubModal.deliveryHistory?.length || 0} runs)
+              </h4>
+              <div className="border border-border/80 rounded-2xl overflow-hidden max-h-48 overflow-y-auto">
+                {selectedSubModal.deliveryHistory && selectedSubModal.deliveryHistory.length > 0 ? (
+                  <table className="w-full text-left text-xs divide-y divide-border/60">
+                    <thead className="bg-secondary/30 text-[10px] uppercase font-bold text-muted-foreground sticky top-0">
+                      <tr>
+                        <th className="py-2.5 px-3">Date</th>
+                        <th className="py-2.5 px-3">Status</th>
+                        <th className="py-2.5 px-3">Notes / Proof</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40 font-medium">
+                      {selectedSubModal.deliveryHistory.map((h: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-secondary/20">
+                          <td className="py-2.5 px-3 font-mono text-foreground">{h.date}</td>
+                          <td className="py-2.5 px-3">
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${h.status === 'delivered' ? 'bg-emerald-500/20 text-emerald-400' : h.status === 'skipped' ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'
+                              }`}>
+                              {h.status}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-muted-foreground">{h.notes || 'Routine doorstep dropoff'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="p-4 text-center text-xs text-muted-foreground">
+                    No delivery runs logged yet. Delivery cycles begin from {selectedSubModal.startDate}.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end pt-3 border-t border-border/60">
+              <button
+                onClick={() => setSelectedSubModal(null)}
+                className="px-5 py-2 bg-secondary hover:bg-secondary/80 text-foreground rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Close Audit View
+              </button>
+            </div>
           </div>
         </div>
       )}

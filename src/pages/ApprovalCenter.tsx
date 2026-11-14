@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { SubcategoryDecisionEditor } from '../components/SubcategoryDecisionEditor';
 import '../components/approval-review.css';
 import { useAdminState } from "../context/AdminStateContext";
@@ -32,6 +32,7 @@ export const ApprovalCenter: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<
     | "all"
     | "vendors"
+    | "food_partners"
     | "wholesalers"
     | "entrepreneurs"
     | "franchises"
@@ -46,6 +47,7 @@ export const ApprovalCenter: React.FC = () => {
 
   const [, setPendingItems] = useState<Record<string, any[]>>({
     vendors: [],
+    food_partners: [],
     wholesalers: [],
     entrepreneurs: [],
     franchises: [],
@@ -92,6 +94,28 @@ export const ApprovalCenter: React.FC = () => {
   const [newSubCategoryName, setNewSubCategoryName] = useState<string>("");
   const [selectedCategoryNames, setSelectedCategoryNames] = useState<string[]>([]);
 
+  const isCategoryEnabledItem = (item: any) => {
+    if (!item) return false;
+    const t = String(item.type || item.roleId || item.applicationType || '').toLowerCase();
+    return (
+      activeSubTab === "vendors" ||
+      activeSubTab === "food_partners" ||
+      item.isVendor ||
+      item.isDbVendor ||
+      t.includes("vendor") ||
+      t.includes("food") ||
+      t.includes("restaurant") ||
+      t.includes("dining") ||
+      t.includes("kitchen") ||
+      t.includes("wholesaler") ||
+      t.includes("manufacturer") ||
+      (Array.isArray(item.categories) && item.categories.length > 0) ||
+      Boolean(item.category) ||
+      Boolean(item.primaryCategory) ||
+      Boolean(item.foodBusinessType)
+    );
+  };
+
   const parseCategories = (item: any): string[] => {
     if (!item) return [];
     const cats = item.categories;
@@ -101,6 +125,10 @@ export const ApprovalCenter: React.FC = () => {
     const single = item.category || item.primaryCategory;
     if (typeof single === 'string' && single.trim()) {
       return single.split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
+    const t = String(item.roleId || item.applicationType || item.type || '').toLowerCase();
+    if (t.includes('food') || t.includes('restaurant') || t.includes('dining') || t.includes('kitchen')) {
+      return ['Food & Dining'];
     }
     return [];
   };
@@ -113,7 +141,7 @@ export const ApprovalCenter: React.FC = () => {
     if (Array.isArray(subs) && subs.length > 0) {
       return subs.map((s: any) => String(s).trim()).filter(Boolean);
     }
-    const single = item.subCategory || item.subcategory;
+    const single = item.subCategory || item.subcategory || item.foodBusinessType;
     if (typeof single === 'string' && single.trim()) {
       const trimmed = single.trim();
       if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
@@ -125,6 +153,13 @@ export const ApprovalCenter: React.FC = () => {
       if (trimmed.includes(',')) return trimmed.split(',').map(s => s.trim()).filter(Boolean);
       return [trimmed];
     }
+    if (item.foodBusinessType && typeof item.foodBusinessType === 'string' && item.foodBusinessType.trim()) {
+      return [item.foodBusinessType.trim()];
+    }
+    const t = String(item.roleId || item.applicationType || item.type || '').toLowerCase();
+    if (t.includes('food') || t.includes('restaurant') || t.includes('dining') || t.includes('kitchen')) {
+      return ['Restaurants'];
+    }
     return [];
   };
 
@@ -132,8 +167,20 @@ export const ApprovalCenter: React.FC = () => {
     setSelectedDetailItem(item);
     setIsEditMode(true);
 
+    const isFood = String(item.type || item.roleId || item.applicationType || '').toLowerCase().includes('food') ||
+      String(item.type || item.roleId || item.applicationType || '').toLowerCase().includes('restaurant') ||
+      String(item.type || item.roleId || item.applicationType || '').toLowerCase().includes('dining');
+
+    const initialCats = parseCategories(item);
+    const finalCats = initialCats.length > 0 ? initialCats : (isFood ? ['Food & Dining'] : []);
+    setSelectedCategoryNames(finalCats);
+
+    const initialSubs = parseSubcategories(item);
+    const finalSubs = initialSubs.length > 0 ? initialSubs : (item.foodBusinessType ? [item.foodBusinessType] : (isFood ? ['Restaurants'] : []));
+    setEditingSubcategories(finalSubs);
+
     setEditFormData({
-      businessName: item.name || '',
+      businessName: item.restaurantName || item.businessName || item.name || '',
       ownerName: item.contact || item.name || '',
       mobile: item.mobile || '',
       email: item.email || '',
@@ -151,21 +198,42 @@ export const ApprovalCenter: React.FC = () => {
       investmentCapacity: item.investmentCapacity || '',
       franchiseLevel: item.franchiseLevel || '',
       serviceType: item.serviceType || '',
-      restaurantName: item.restaurantName || '',
-      foodBusinessType: item.foodBusinessType || '',
+      restaurantName: item.restaurantName || item.name || '',
+      foodBusinessType: item.foodBusinessType || finalSubs[0] || 'Restaurants',
+      foodPreference: item.foodPreference || 'Both',
+      cuisines: Array.isArray(item.cuisines) ? item.cuisines.join(', ') : (item.cuisines || ''),
       adminRemarks: item.adminRemarks || '',
     });
 
-    const initialCats = parseCategories(item);
-    setSelectedCategoryNames(initialCats);
-    if (initialCats.length > 0) {
-      const match = parentCategories.find((c: any) => initialCats.some(ic => ic.toLowerCase() === c.name.toLowerCase()));
+    const parents = dbCategories.filter((c: any) => c.level === 1 || !c.parentId);
+    if (finalCats.length > 0) {
+      const match = parents.find((c: any) =>
+        finalCats.some(ic =>
+          ic.toLowerCase() === c.name.toLowerCase() ||
+          c.name.toLowerCase().includes(ic.toLowerCase()) ||
+          ic.toLowerCase().includes(c.name.toLowerCase())
+        )
+      );
       if (match) setSelectedParentCatId(match._id);
+    } else if (isFood) {
+      const match = parents.find((c: any) =>
+        c.name.toLowerCase().includes('food') ||
+        c.slug?.toLowerCase().includes('restaurant') ||
+        c.slug?.toLowerCase().includes('food')
+      );
+      if (match) {
+        setSelectedParentCatId(match._id);
+        setSelectedCategoryNames([match.name]);
+      }
     } else if (item.primaryCategory || item.category) {
-      const match = parentCategories.find((c: any) => c.name === item.primaryCategory || c.name === item.category);
+      const catStr = String(item.primaryCategory || item.category).toLowerCase();
+      const match = parents.find((c: any) =>
+        c.name.toLowerCase() === catStr ||
+        c.name.toLowerCase().includes(catStr) ||
+        catStr.includes(c.name.toLowerCase())
+      );
       if (match) setSelectedParentCatId(match._id);
     }
-    setEditingSubcategories(parseSubcategories(item));
   };
 
   const handleAddSubcategory = (subName: string) => {
@@ -233,22 +301,41 @@ export const ApprovalCenter: React.FC = () => {
 
   useEffect(() => {
     if (selectedDetailItem && dbCategories.length > 0) {
+      const itemType = String(selectedDetailItem.type || selectedDetailItem.roleId || selectedDetailItem.applicationType || '').toLowerCase();
+      const isFood = itemType.includes('food') || itemType.includes('restaurant') || itemType.includes('dining');
+
       const itemCats = parseCategories(selectedDetailItem);
-      setSelectedCategoryNames(itemCats);
-      const appCat = itemCats[0] || selectedDetailItem.primaryCategory || selectedDetailItem.category || '';
+      const finalCats = itemCats.length > 0 ? itemCats : (isFood ? ['Food & Dining'] : []);
+      setSelectedCategoryNames(finalCats);
+
       const parents = dbCategories.filter((c: any) => c.level === 1 || !c.parentId);
-      const matched = parents.find((c: any) =>
+      const appCat = finalCats[0] || selectedDetailItem.primaryCategory || selectedDetailItem.category || (isFood ? 'Food & Dining' : '');
+
+      let matched = parents.find((c: any) =>
         c.name.toLowerCase() === appCat.toLowerCase() ||
         c.name.toLowerCase().includes(appCat.toLowerCase()) ||
         appCat.toLowerCase().includes(c.name.toLowerCase())
       );
+      if (!matched && isFood) {
+        matched = parents.find((c: any) =>
+          c.name.toLowerCase().includes('food') ||
+          c.slug?.toLowerCase().includes('restaurant') ||
+          c.slug?.toLowerCase().includes('food')
+        );
+      }
+
       if (matched) {
         setSelectedParentCatId(matched._id);
-      } else if (parents.length > 0) {
+        if (finalCats.length === 0) {
+          setSelectedCategoryNames([matched.name]);
+        }
+      } else if (parents.length > 0 && !selectedParentCatId) {
         setSelectedParentCatId(parents[0]._id);
       }
 
-      setEditingSubcategories(parseSubcategories(selectedDetailItem));
+      const initialSubs = parseSubcategories(selectedDetailItem);
+      const finalSubs = initialSubs.length > 0 ? initialSubs : (selectedDetailItem.foodBusinessType ? [selectedDetailItem.foodBusinessType] : (isFood ? ['Restaurants'] : []));
+      setEditingSubcategories(finalSubs);
     }
   }, [selectedDetailItem, dbCategories]);
 
@@ -256,11 +343,13 @@ export const ApprovalCenter: React.FC = () => {
     const t = String(type || "").toLowerCase();
 
     if (
-      t.includes("vendor") ||
       t.includes("restaurant") ||
       t.includes("food") ||
       t.includes("dining") ||
-      t.includes("kitchen") ||
+      t.includes("kitchen")
+    ) return "food_partners";
+    if (
+      t.includes("vendor") ||
       t.includes("daily_needs") ||
       t.includes("grocery") ||
       t.includes("store")
@@ -282,6 +371,8 @@ export const ApprovalCenter: React.FC = () => {
         return "All Applications";
       case "vendors":
         return "Vendors";
+      case "food_partners":
+        return "Food Partners";
       case "wholesalers":
         return "Wholesalers";
       case "entrepreneurs":
@@ -308,11 +399,19 @@ export const ApprovalCenter: React.FC = () => {
   };
 
   const mapApplicationToItem = (app: any) => {
-    const parsedSubs = parseSubcategories(app);
+    const isFood = String(app.roleId || app.applicationType || "").toLowerCase().includes("food") ||
+      String(app.roleId || app.applicationType || "").toLowerCase().includes("restaurant") ||
+      String(app.roleId || app.applicationType || "").toLowerCase().includes("dining");
+
     const parsedCats = parseCategories(app);
+    const finalCats = parsedCats.length > 0 ? parsedCats : (isFood ? ["Food & Dining"] : []);
+
+    const parsedSubs = parseSubcategories(app);
+    const finalSubs = parsedSubs.length > 0 ? parsedSubs : (app.foodBusinessType ? [app.foodBusinessType] : (isFood ? ["Restaurants"] : []));
+
     return {
       id: app._id,
-      name: app.businessName || app.ownerName || "Business Opportunity",
+      name: app.restaurantName || app.businessName || app.ownerName || "Business Opportunity",
       contact: app.ownerName || "",
       date: new Date(app.updatedAt || app.createdAt).toISOString().substring(0, 10),
       priority: app.status === "under_review" ? "High" : "Normal",
@@ -336,13 +435,15 @@ export const ApprovalCenter: React.FC = () => {
       licenseNumber: app.licenseNumber,
       restaurantName: app.restaurantName,
       foodBusinessType: app.foodBusinessType,
-      categories: parsedCats,
-      primaryCategory: parsedCats[0] || app.primaryCategory || app.category || "",
-      category: parsedCats.join(", ") || app.category || app.primaryCategory || "",
-      subCategory: parsedSubs[0] || app.subCategory || "",
-      approvedSubcategories: parsedSubs,
-      requestedSubcategories: app.requestedSubcategories,
-      subcategoryDecisions: app.subcategoryDecisions?.length ? app.subcategoryDecisions : (app.requestedSubcategories || []).map((name: string) => ({ subcategoryName: name, status: app.approvedSubcategories?.includes(name) ? 'approved' : 'pending', reason: '' })),
+      cuisines: app.cuisines,
+      foodPreference: app.foodPreference,
+      categories: finalCats,
+      primaryCategory: finalCats[0] || app.primaryCategory || app.category || (isFood ? "Food & Dining" : ""),
+      category: finalCats.join(", ") || app.category || app.primaryCategory || (isFood ? "Food & Dining" : ""),
+      subCategory: finalSubs[0] || app.subCategory || (isFood ? "Restaurants" : ""),
+      approvedSubcategories: finalSubs,
+      requestedSubcategories: (app.requestedSubcategories && app.requestedSubcategories.length > 0) ? app.requestedSubcategories : finalSubs,
+      subcategoryDecisions: app.subcategoryDecisions?.length ? app.subcategoryDecisions : (app.requestedSubcategories || finalSubs).map((name: string) => ({ subcategoryName: name, status: finalSubs?.includes(name) ? 'approved' : 'pending', reason: '' })),
       businessDetails: app.businessDetails,
       businessInformation: app.businessInformation,
       bankDetails: app.bankDetails,
@@ -508,6 +609,15 @@ export const ApprovalCenter: React.FC = () => {
       return Array.from(uniqueProdsMap.values());
     }
 
+    if (tab === "food_partners") {
+      return applications
+        .filter(app => {
+          const t = String(app.roleId || app.applicationType || "").toLowerCase();
+          return t.includes("food") || t.includes("restaurant") || t.includes("dining") || t.includes("kitchen");
+        })
+        .map(mapApplicationToItem);
+    }
+
     if (tab === "withdrawals") {
       return dbWallets
         .filter((w: any) => (w.pendingWithdrawalAmount || 0) > 0 || (w.availableBalance || 0) > 1000)
@@ -532,10 +642,26 @@ export const ApprovalCenter: React.FC = () => {
       .map(mapApplicationToItem);
   };
 
-  const parentCategories = dbCategories.filter((c: any) => c.level === 1 || !c.parentId);
+  const parentCategories = useMemo(() => {
+    const parents = dbCategories.filter((c: any) => c.level === 1 || !c.parentId);
+    const hasFood = parents.some((c: any) =>
+      c.name?.toLowerCase().includes('food') ||
+      c.slug?.toLowerCase().includes('restaurant') ||
+      c.slug?.toLowerCase().includes('food')
+    );
+    if (!hasFood) {
+      return [
+        ...parents,
+        { _id: 'cat_food_dining_default', name: 'Food & Dining', slug: 'food-dining', level: 1 }
+      ];
+    }
+    return parents;
+  }, [dbCategories]);
 
   const activeParentCat = parentCategories.find(
     (c: any) => String(c._id) === String(selectedParentCatId)
+  ) || parentCategories.find(
+    (c: any) => c.name?.toLowerCase().includes('food') || c.slug?.toLowerCase().includes('food')
   ) || parentCategories[0];
 
   const currentSubCategories = dbCategories.filter((c: any) => {
@@ -543,6 +669,30 @@ export const ApprovalCenter: React.FC = () => {
     const parentIdStr = typeof c.parentId === 'object' ? c.parentId?._id : c.parentId;
     return String(parentIdStr) === String(activeParentCat?._id);
   });
+
+  const isFoodParent = Boolean(
+    activeParentCat && (
+      activeParentCat.name?.toLowerCase().includes('food') ||
+      activeParentCat.slug?.toLowerCase().includes('restaurant') ||
+      activeParentCat.slug?.toLowerCase().includes('food') ||
+      activeParentCat._id === 'cat_food_dining_default'
+    )
+  );
+
+  const fallbackFoodSubcategories = [
+    { _id: 'food_sub_1', name: 'Restaurants' },
+    { _id: 'food_sub_2', name: 'Street Food' },
+    { _id: 'food_sub_3', name: 'Fast Food & Snacks' },
+    { _id: 'food_sub_4', name: 'Tiffins & Meals' },
+    { _id: 'food_sub_5', name: 'Cafés, Bakery & Beverages' },
+    { _id: 'food_sub_6', name: 'Sweets & Desserts' },
+    { _id: 'food_sub_7', name: 'Biryani & Cloud Kitchen' },
+    { _id: 'food_sub_8', name: 'Fresh Meat & Seafood' },
+  ];
+
+  const availableSubCategories = currentSubCategories.length > 0
+    ? currentSubCategories
+    : (isFoodParent ? fallbackFoodSubcategories : []);
 
   const getCapabilitiesForCategory = (cat: any) => {
     if (!cat) return [];
@@ -606,17 +756,29 @@ export const ApprovalCenter: React.FC = () => {
       setActionLoading(true);
       setNotificationMsg(null);
       const token = localStorage.getItem("adminToken");
+      const isFoodDetail = Boolean(
+        selectedDetailItem?.restaurantName ||
+        selectedDetailItem?.foodBusinessType ||
+        String(selectedDetailItem?.type || selectedDetailItem?.roleId || selectedDetailItem?.applicationType || '').toLowerCase().includes('food') ||
+        String(selectedDetailItem?.type || selectedDetailItem?.roleId || selectedDetailItem?.applicationType || '').toLowerCase().includes('restaurant')
+      );
+
       const assignedCats = selectedCategoryNames.length > 0
         ? selectedCategoryNames
-        : (activeParentCat?.name ? [activeParentCat.name] : (selectedDetailItem.categories && selectedDetailItem.categories.length > 0 ? selectedDetailItem.categories : [selectedDetailItem.primaryCategory || selectedDetailItem.category || "General Retail"]));
+        : (activeParentCat?.name ? [activeParentCat.name] : (selectedDetailItem.categories && selectedDetailItem.categories.length > 0 ? selectedDetailItem.categories : [selectedDetailItem.primaryCategory || selectedDetailItem.category || (isFoodDetail ? "Food & Dining" : "General Retail")]));
 
       const payload = {
         ...editFormData,
         categories: assignedCats,
         primaryCategory: assignedCats[0],
         category: assignedCats.join(", "),
-        subCategory: editingSubcategories[0] || editFormData.subCategory || "",
+        subCategory: editingSubcategories[0] || editFormData.subCategory || editFormData.foodBusinessType || (isFoodDetail ? "Restaurants" : ""),
         approvedSubcategories: editingSubcategories,
+        requestedSubcategories: editingSubcategories,
+        foodBusinessType: editFormData.foodBusinessType || editingSubcategories[0] || "Restaurants",
+        restaurantName: editFormData.restaurantName || editFormData.businessName,
+        cuisines: typeof editFormData.cuisines === 'string' ? editFormData.cuisines.split(',').map((c: string) => c.trim()).filter(Boolean) : (editFormData.cuisines || []),
+        foodPreference: editFormData.foodPreference || 'Both',
       };
 
       const res = await fetch(`https://server.apexbee.in/api/admin/applications/${selectedDetailItem.id}`, {
@@ -760,9 +922,16 @@ export const ApprovalCenter: React.FC = () => {
         endpoint = `https://server.apexbee.in/api/admin/applications/${id}/verify-kyc`;
       }
 
+      const isFoodDetailApp = Boolean(
+        currentApp?.restaurantName ||
+        currentApp?.foodBusinessType ||
+        String(currentApp?.roleId || currentApp?.applicationType || '').toLowerCase().includes('food') ||
+        String(currentApp?.roleId || currentApp?.applicationType || '').toLowerCase().includes('restaurant')
+      );
+
       const assignedCats = selectedCategoryNames.length > 0
         ? selectedCategoryNames
-        : (activeParentCat?.name ? [activeParentCat.name] : (currentApp?.categories && currentApp.categories.length > 0 ? currentApp.categories : [editFormData.primaryCategory || currentApp?.primaryCategory || currentApp?.category || "Food & Restaurant"]));
+        : (activeParentCat?.name ? [activeParentCat.name] : (currentApp?.categories && currentApp.categories.length > 0 ? currentApp.categories : [editFormData.primaryCategory || currentApp?.primaryCategory || currentApp?.category || (isFoodDetailApp ? "Food & Dining" : "General Retail")]));
 
       const checkedCaps = Array.from(document.querySelectorAll('.cat-cap-cb:checked')).map(el => (el as HTMLInputElement).value);
       const checkedSubCatIds = Array.from(document.querySelectorAll('.cat-subcat-cb:checked')).map(el => (el as HTMLInputElement).value);
@@ -773,8 +942,13 @@ export const ApprovalCenter: React.FC = () => {
         categories: assignedCats,
         primaryCategory: assignedCats[0],
         category: assignedCats.join(", "),
-        subCategory: editingSubcategories[0] || editFormData.subCategory || "",
+        subCategory: editingSubcategories[0] || editFormData.subCategory || editFormData.foodBusinessType || (isFoodDetailApp ? "Restaurants" : ""),
         approvedSubcategories: editingSubcategories,
+        requestedSubcategories: editingSubcategories,
+        foodBusinessType: editFormData.foodBusinessType || editingSubcategories[0] || "Restaurants",
+        restaurantName: editFormData.restaurantName || editFormData.businessName,
+        cuisines: typeof editFormData.cuisines === 'string' ? editFormData.cuisines.split(',').map((c: string) => c.trim()).filter(Boolean) : (editFormData.cuisines || []),
+        foodPreference: editFormData.foodPreference || 'Both',
         requestedCapabilities: checkedCaps,
         adminRemarks:
           editFormData.adminRemarks ||
@@ -954,7 +1128,7 @@ export const ApprovalCenter: React.FC = () => {
         {/* Card 2 */}
         <div
           onClick={() => setActiveSubTab("vendors")}
-          className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group ${["vendors", "wholesalers", "franchises", "manufacturers", "entrepreneurs", "service_providers", "course_providers", "delivery_partners"].includes(activeSubTab)
+          className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group ${["vendors", "food_partners", "wholesalers", "franchises", "manufacturers", "entrepreneurs", "service_providers", "course_providers", "delivery_partners"].includes(activeSubTab)
             ? "bg-indigo-500/10 border-indigo-500 shadow-md shadow-indigo-500/15"
             : "bg-card border-border hover:border-indigo-500/50 hover:bg-indigo-500/[0.03]"
             }`}
@@ -970,12 +1144,13 @@ export const ApprovalCenter: React.FC = () => {
           <div className="mt-2">
             <h3 className="text-2xl font-black text-foreground">
               {getPendingItemsForTab("vendors").length +
+                getPendingItemsForTab("food_partners").length +
                 getPendingItemsForTab("wholesalers").length +
                 getPendingItemsForTab("franchises").length +
                 getPendingItemsForTab("delivery_partners").length}
             </h3>
             <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
-              Stores, franchises & rider registrations
+              Stores, food kitchens, franchises & riders
             </p>
           </div>
           <div className="mt-3 pt-2.5 border-t border-border/60 flex items-center justify-between text-[10px] font-bold">
@@ -1056,6 +1231,7 @@ export const ApprovalCenter: React.FC = () => {
         {[
           "all",
           "vendors",
+          "food_partners",
           "wholesalers",
           "entrepreneurs",
           "franchises",
@@ -1192,7 +1368,7 @@ export const ApprovalCenter: React.FC = () => {
                             {item.mobile && <span>📞 {item.mobile}</span>}
                           </div>
 
-                          {(activeSubTab === "vendors" || item.isVendor || item.roleId === "vendor" || item.applicationType === "vendor") && (
+                          {isCategoryEnabledItem(item) && (
                             <div className="flex flex-wrap items-center gap-1.5 mt-1 font-sans text-xs">
                               <span className="font-bold text-foreground">Categories:</span>
                               {item.categories && item.categories.length > 0 ? (
@@ -1207,8 +1383,12 @@ export const ApprovalCenter: React.FC = () => {
                                     {cat.trim()}
                                   </span>
                                 ))
-                              ) : null}
-                              {item.approvedSubcategories && item.approvedSubcategories.length > 0 && (
+                              ) : (
+                                <span className="bg-primary/10 text-primary font-extrabold px-2 py-0.5 rounded-md text-[10px] border border-primary/20">
+                                  Food & Dining
+                                </span>
+                              )}
+                              {item.approvedSubcategories && item.approvedSubcategories.length > 0 ? (
                                 <>
                                   <span className="font-bold text-foreground ml-1">Subcategories ({item.approvedSubcategories.length}):</span>
                                   {item.approvedSubcategories.slice(0, 3).map((sub: string, idx: number) => (
@@ -1220,7 +1400,14 @@ export const ApprovalCenter: React.FC = () => {
                                     <span className="text-[9px] text-muted-foreground font-semibold">+{item.approvedSubcategories.length - 3} more</span>
                                   )}
                                 </>
-                              )}
+                              ) : item.foodBusinessType ? (
+                                <>
+                                  <span className="font-bold text-foreground ml-1">Subcategory:</span>
+                                  <span className="bg-emerald-500/10 text-emerald-600 font-bold px-2 py-0.5 rounded-md text-[10px] border border-emerald-500/20">
+                                    {item.foodBusinessType}
+                                  </span>
+                                </>
+                              ) : null}
                             </div>
                           )}
                         </div>
@@ -1546,6 +1733,75 @@ export const ApprovalCenter: React.FC = () => {
                       />
                     </div>
                   )}
+
+                  {/* Food Partner Specific Fields */}
+                  {Boolean(
+                    String(selectedDetailItem.type || selectedDetailItem.roleId || selectedDetailItem.applicationType || '').toLowerCase().includes('food') ||
+                    String(selectedDetailItem.type || selectedDetailItem.roleId || selectedDetailItem.applicationType || '').toLowerCase().includes('restaurant') ||
+                    selectedDetailItem.restaurantName ||
+                    selectedDetailItem.foodBusinessType
+                  ) && (
+                      <>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase">Restaurant / Outlet Name *</label>
+                          <input
+                            type="text"
+                            value={editFormData.restaurantName || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, restaurantName: e.target.value, businessName: e.target.value })}
+                            className="w-full p-2 bg-secondary/40 border border-border rounded-xl text-xs font-bold outline-none focus:border-primary text-foreground"
+                            placeholder="e.g. Biryani House / Cafe Delight"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase">Food Format / Business Type</label>
+                          <select
+                            value={editFormData.foodBusinessType || 'Restaurants'}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setEditFormData({ ...editFormData, foodBusinessType: val });
+                              if (val && !editingSubcategories.includes(val)) {
+                                setEditingSubcategories(prev => [val, ...prev.filter(s => s !== val)]);
+                              }
+                            }}
+                            className="w-full p-2 bg-secondary/40 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground font-semibold"
+                          >
+                            <option value="Restaurants">Restaurants (Dine-in / Takeaway)</option>
+                            <option value="Street Food">Street Food & Chaat</option>
+                            <option value="Fast Food & Snacks">Fast Food & Snacks</option>
+                            <option value="Tiffins & Meals">Tiffins & Meals</option>
+                            <option value="Cafés, Bakery & Beverages">Cafés, Bakery & Beverages</option>
+                            <option value="Sweets & Desserts">Sweets & Desserts</option>
+                            <option value="Biryani & Cloud Kitchen">Biryani & Cloud Kitchen</option>
+                            <option value="Fresh Meat & Seafood">Fresh Meat & Seafood</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase">Food Preference</label>
+                          <select
+                            value={editFormData.foodPreference || 'Both'}
+                            onChange={(e) => setEditFormData({ ...editFormData, foodPreference: e.target.value })}
+                            className="w-full p-2 bg-secondary/40 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground font-semibold"
+                          >
+                            <option value="Veg">Pure Vegetarian</option>
+                            <option value="Non-Veg">Non-Vegetarian</option>
+                            <option value="Both">Both (Veg & Non-Veg)</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase">Cuisines / Specialties</label>
+                          <input
+                            type="text"
+                            value={editFormData.cuisines || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, cuisines: e.target.value })}
+                            className="w-full p-2 bg-secondary/40 border border-border rounded-xl text-xs outline-none focus:border-primary text-foreground"
+                            placeholder="e.g. South Indian, North Indian, Biryani, Chinese"
+                          />
+                        </div>
+                      </>
+                    )}
                 </div>
               </div>
 
@@ -1682,7 +1938,7 @@ export const ApprovalCenter: React.FC = () => {
                   <p>Registration: {selectedDetailItem.businessDetails.dairy.registrationNumber || 'Not provided'}</p>
                 </section>
               )}
-              {(activeSubTab === "vendors" || selectedDetailItem.isVendor || selectedDetailItem.roleId === "vendor" || selectedDetailItem.applicationType === "vendor" || selectedDetailItem.isDbVendor) && (
+              {isCategoryEnabledItem(selectedDetailItem) && (
                 <div className="bg-primary/5 p-5 rounded-2xl border border-primary/20 space-y-4">
                   <div className="flex items-center justify-between border-b border-primary/15 pb-2">
                     <h4 className="font-extrabold text-primary text-sm uppercase tracking-wide flex items-center gap-2">
@@ -1736,7 +1992,7 @@ export const ApprovalCenter: React.FC = () => {
                       {/* Selected Categories Badges Preview */}
                       {selectedCategoryNames.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-primary/10">
-                          <span className="text-[10px] font-bold text-muted-foreground">Approved for Vendor:</span>
+                          <span className="text-[10px] font-bold text-muted-foreground">Approved for Partner / Vendor:</span>
                           {selectedCategoryNames.map((cName, cIdx) => (
                             <span key={cIdx} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-primary/15 text-primary border border-primary/25 text-xs font-black shadow-xs">
                               <span>📁 {cName}</span>
@@ -1763,9 +2019,9 @@ export const ApprovalCenter: React.FC = () => {
                         <span className="text-[10px] text-muted-foreground">Click any chip to toggle ON / OFF</span>
                       </div>
 
-                      {currentSubCategories.length > 0 ? (
+                      {availableSubCategories.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
-                          {currentSubCategories.map((subCat: any) => {
+                          {availableSubCategories.map((subCat: any) => {
                             const isSubSelected = editingSubcategories.includes(subCat.name);
                             return (
                               <button

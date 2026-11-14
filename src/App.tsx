@@ -58,6 +58,7 @@ const App: React.FC = () => {
   const { sellers, products, orders, withdrawals, isAuthenticated } = useAdminState();
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
     const saved = localStorage.getItem('admin_active_tab');
+    if (saved === 'hyperlocal') return 'dashboard';
     return (saved as ActiveTab) || 'dashboard';
   });
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
@@ -150,7 +151,7 @@ const App: React.FC = () => {
       case 'bi':
         return <BusinessIntelligence />;
       case 'hyperlocal':
-        return <HyperlocalOperations />;
+        return <Dashboard setActiveTab={handleTabChange} />;
       case 'financial_center':
         return <MasterTreasury />;
       case 'risk_center':

@@ -56,7 +56,7 @@ interface AdminStateContextProps {
   assignDelivery: (orderId: string, agentId: string, type: Order['deliveryType']) => void;
   updateOrderStatus: (orderId: string, status: Order['orderStatus'], courierPartner?: string, trackingId?: string) => Promise<boolean>;
   processWithdrawal: (id: string, status: WithdrawalRequest['status'], referenceId?: string, payoutMethod?: string, remarks?: string) => void;
-  releaseCommissions: (orderId: string) => Promise<boolean>;
+  releaseCommissions: (orderId?: string) => Promise<boolean>;
   addCoupon: (coupon: Coupon) => void;
   toggleCouponStatus: (id: string) => void;
   deleteCoupon: (id: string) => void;
@@ -879,28 +879,34 @@ export const AdminStateProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   };
 
-  const releaseCommissions = async (orderId: string): Promise<boolean> => {
-    const matched = orders.find(o => o.id === orderId || (o as any)._id === orderId);
-    const dbId = matched ? ((matched as any)._id || matched.id) : orderId;
+  const releaseCommissions = async (orderId?: string): Promise<boolean> => {
+    let dbId: any = undefined;
+    let orderNumber: any = undefined;
+    if (orderId && orderId !== 'ALL') {
+      const matched = orders.find(o => o.id === orderId || (o as any)._id === orderId);
+      dbId = matched ? ((matched as any)._id || matched.id) : orderId;
+      orderNumber = matched?.id;
+    }
     const token = localStorage.getItem('adminToken') || localStorage.getItem('token') || localStorage.getItem('admin_token');
     if (!token) {
       alert('Authentication error: Admin token not found. Please log in again.');
       return false;
     }
     try {
+      const bodyPayload = dbId ? { orderId: dbId, orderNumber } : {};
       const res = await fetch('https://server.apexbee.in/api/admin/settlements/release', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ orderId: dbId, orderNumber: matched?.id })
+        body: JSON.stringify(bodyPayload)
       });
       if (res.ok) {
         const data = await res.json();
         addActivityLog(
           'Commissions Released',
-          data.message || 'Commissions released successfully.',
+          data.message || (dbId ? `Commissions for order ${dbId} released successfully.` : 'All platform commissions released successfully.'),
           'info'
         );
         await fetchOrders();

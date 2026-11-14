@@ -29,7 +29,6 @@ import {
   Landmark,
   MessageSquare,
   LineChart,
-  Zap,
   ShieldAlert,
   QrCode,
   Building2,
@@ -176,7 +175,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'bi', label: 'Business Intelligence', icon: LineChart },
         { id: 'ecosystem_map', label: 'Ecosystem Map', icon: Workflow },
-        { id: 'hyperlocal', label: 'Hyperlocal Ops', icon: Zap },
         { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 }
       ]
     },
